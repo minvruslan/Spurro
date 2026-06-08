@@ -1,0 +1,6 @@
+.mcp.json
+pnpm-lock.yaml
+.nuxt
+.output
+node_modules
+dist

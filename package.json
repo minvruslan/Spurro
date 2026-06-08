@@ -1,0 +1,25 @@
+{
+  "name": "spurro",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter @spurro/frontend --filter @spurro/backend dev",
+    "dev:frontend": "pnpm --filter @spurro/frontend dev",
+    "dev:backend": "pnpm --filter @spurro/backend dev",
+    "build": "pnpm --filter @spurro/frontend build && pnpm --filter @spurro/backend build",
+    "build:frontend": "pnpm --filter @spurro/frontend build",
+    "build:backend": "pnpm --filter @spurro/backend build",
+    "typecheck": "pnpm --filter @spurro/frontend typecheck && pnpm --filter @spurro/backend typecheck",
+    "lint:check": "pnpm --filter @spurro/frontend lint:check && pnpm --filter @spurro/backend lint:check",
+    "lint:fix": "pnpm --filter @spurro/frontend lint:fix && pnpm --filter @spurro/backend lint:fix",
+    "format:check": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "full-check": "pnpm format:check && pnpm lint:check && pnpm typecheck",
+    "full-fix": "pnpm format:fix && pnpm lint:fix && pnpm typecheck"
+  },
+  "devDependencies": {
+    "eslint": "^10.1.0",
+    "typescript-eslint": "^8.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1"
+  }
+}

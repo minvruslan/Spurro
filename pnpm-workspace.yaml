@@ -1,0 +1,7 @@
+packages:
+  - frontend
+  - backend
+  - shared
+allowBuilds:
+  unrs-resolver: true
+  vue-demi: true

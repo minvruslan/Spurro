@@ -1,0 +1,11 @@
+{
+  "name": "@spurro/shared",
+  "type": "module",
+  "version": "0.0.1",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}
