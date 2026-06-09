@@ -5,12 +5,12 @@ import { accessGrant, endpoint, protocol } from "@/core/database/schema.js"
 export async function countConfigsByProtocolType(userId: string) {
   return db
     .select({
-      protocolTypeId: protocol.typeId,
+      protocolTypeId: protocol.protocolTypeId,
       used: count(accessGrant.id),
     })
     .from(accessGrant)
     .innerJoin(endpoint, eq(accessGrant.endpointId, endpoint.id))
     .innerJoin(protocol, eq(endpoint.protocolId, protocol.id))
     .where(and(eq(accessGrant.userId, userId), eq(accessGrant.status, "active")))
-    .groupBy(protocol.typeId)
+    .groupBy(protocol.protocolTypeId)
 }

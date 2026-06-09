@@ -8,6 +8,27 @@
       "when": 1780687117978,
       "tag": "0000_big_hairball",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781032191707,
+      "tag": "0001_mighty_hawkeye",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781033203753,
+      "tag": "0002_ancient_spectrum",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1781035051700,
+      "tag": "0003_rich_jack_murdock",
+      "breakpoints": true
     }
   ]
 }

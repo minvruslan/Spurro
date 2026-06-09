@@ -32,6 +32,10 @@ export default defineNuxtConfig({
   },
   modules: ["shadcn-nuxt", "@nuxt/eslint", "@nuxtjs/i18n", "@nuxt/fonts"],
   fonts: {
+    defaults: {
+      weights: [400, 500, 600, 700],
+      subsets: ["latin", "cyrillic"],
+    },
     experimental: {
       processCSSVariables: true,
     },

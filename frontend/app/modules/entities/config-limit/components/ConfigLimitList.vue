@@ -3,6 +3,9 @@ import type { ConfigLimit } from "@spurro/shared"
 import { computed } from "vue"
 import ConfigLimitCard from "./ConfigLimitCard.vue"
 import ConfigLimitCardSkeleton from "./ConfigLimitCardSkeleton.vue"
+import { messages } from "../translations/ConfigLimitList"
+
+const { t } = useI18n({ useScope: "local", messages })
 
 const props = withDefaults(
   defineProps<{
@@ -18,7 +21,7 @@ const isEmpty = computed(() => !props.pending && props.configLimits.length === 0
 </script>
 
 <template>
-  <p v-if="isEmpty" class="text-sm text-muted-foreground">Нет конфигураций</p>
+  <p v-if="isEmpty" class="text-sm text-muted-foreground">{{ t("empty") }}</p>
 
   <div v-else class="flex flex-col gap-3 md:flex-row md:flex-wrap">
     <template v-if="pending">
