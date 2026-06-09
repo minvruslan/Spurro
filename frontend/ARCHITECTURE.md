@@ -22,7 +22,8 @@ app/
 │   └── app/
 │       └── index.vue
 ├── layouts/
-│   └── auth.vue
+│   ├── auth.vue
+│   └── admin.vue
 ├── middlewares/
 │   ├── admin.ts
 │   ├── guest.ts
@@ -32,7 +33,10 @@ app/
 ├── plugins/
 │   ├── provideAuthClient.ts
 │   └── provideSSRWidth.ts
+├── translations/
+│   └── AdminTopBar.ts
 ├── components/
+│   ├── AdminTopBar.vue
 │   └── ui/                          # shadcn components
 └── modules/
     ├── entities/
@@ -133,7 +137,8 @@ Rules:
 
 - Use types and schemas from `@spurro/shared`.
 - Validate all API responses against Zod schemas from `@spurro/shared` at the boundary.
-- Provide simple UI components.
+- Provide simple UI components. Presentational components receive data only via props.
+- A self-loading variant of a presentational component carries the `Self` suffix: it fetches its own data via the entity composable and renders the presentational component (e.g. `ConfigLimitList` is props-driven; `ConfigLimitListSelf` loads and renders it).
 - Must not depend on `features` or `widgets`.
 - Must not depend on other entities.
 

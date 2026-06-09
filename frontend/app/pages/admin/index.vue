@@ -1,9 +1,8 @@
 <script setup lang="ts">
-definePageMeta({ middleware: "admin" })
+definePageMeta({ middleware: "admin", layout: "admin" })
+await navigateTo("/admin/configs", { replace: true })
 </script>
 
 <template>
-  <main class="flex min-h-dvh items-center justify-center p-6">
-    <p class="text-sm">Admin interface.</p>
-  </main>
+  <section />
 </template>
