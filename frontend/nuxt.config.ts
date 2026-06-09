@@ -5,6 +5,7 @@ export default defineNuxtConfig({
     head: {
       title: "Spurro",
       meta: [{ name: "description", content: "Spurro" }],
+      link: [{ rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
     },
   },
   build: {
