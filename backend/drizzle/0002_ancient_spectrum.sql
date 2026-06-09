@@ -1,0 +1,2 @@
+ALTER TABLE "device_type" ADD CONSTRAINT "device_type_code_check" CHECK ("device_type"."code" in ('ios', 'macos', 'windows', 'linux', 'android'));--> statement-breakpoint
+ALTER TABLE "device_type" ADD CONSTRAINT "device_type_name_check" CHECK ("device_type"."name" in ('iOS', 'macOS', 'Windows', 'Linux', 'Android'));

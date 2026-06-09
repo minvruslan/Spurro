@@ -17,7 +17,7 @@ const fillPercent = computed(() =>
 </script>
 
 <template>
-  <div class="min-w-[200px] flex-1 rounded-lg border border-border bg-card p-4">
+  <div class="min-w-50 flex-1 rounded-lg border border-border bg-card p-4">
     <div class="flex flex-col gap-2.5">
       <div class="flex items-center justify-between">
         <Badge variant="outline">{{ protocolType.name }}</Badge>
@@ -26,7 +26,11 @@ const fillPercent = computed(() =>
         </span>
       </div>
 
-      <div v-if="withLimit" class="h-2 w-full overflow-hidden rounded-full bg-secondary">
+      <div
+        v-if="withLimit"
+        aria-hidden="true"
+        class="h-2 w-full overflow-hidden rounded-full bg-secondary"
+      >
         <div
           class="h-full rounded-full transition-[width] duration-300"
           :class="isFull ? 'bg-zinc-400' : 'bg-primary'"

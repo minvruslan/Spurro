@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm"
+import { relations, sql } from "drizzle-orm"
 import {
   pgTable,
   text,
@@ -10,6 +10,7 @@ import {
   index,
   unique,
   pgEnum,
+  check,
 } from "drizzle-orm/pg-core"
 import { user } from "./auth-schema"
 
@@ -37,10 +38,28 @@ export const protocol = pgTable(
   "protocol",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    typeId: uuid("type_id")
+    protocolTypeId: uuid("protocol_type_id")
       .notNull()
       .references(() => protocolType.id, { onDelete: "restrict" }),
     version: text("version").notNull(),
+    isEnabled: boolean("is_enabled").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    unique("protocol_type_version_uq").on(t.protocolTypeId, t.version),
+    index("protocol_type_idx").on(t.protocolTypeId),
+  ],
+)
+
+export const deviceType = pgTable(
+  "device_type",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: text("code").notNull().unique(),
     name: text("name").notNull(),
     isEnabled: boolean("is_enabled").default(true).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -50,22 +69,16 @@ export const protocol = pgTable(
       .notNull(),
   },
   (t) => [
-    unique("protocol_type_version_uq").on(t.typeId, t.version),
-    index("protocol_type_idx").on(t.typeId),
+    check(
+      "device_type_code_check",
+      sql`${t.code} in ('ios', 'macos', 'windows', 'linux', 'android')`,
+    ),
+    check(
+      "device_type_name_check",
+      sql`${t.name} in ('iOS', 'macOS', 'Windows', 'Linux', 'Android')`,
+    ),
   ],
 )
-
-export const deviceType = pgTable("device_type", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  code: text("code").notNull().unique(),
-  name: text("name").notNull(),
-  isEnabled: boolean("is_enabled").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-})
 
 // ─────────── limits ───────────
 
@@ -95,7 +108,7 @@ export const server = pgTable("server", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   hostname: text("hostname").notNull(),
-  publicIp: text("public_ip"),
+  ip: text("ip"),
   country: text("country").notNull(),
   agentUrl: text("agent_url"),
   status: serverStatus("status").default("active").notNull(),
@@ -116,7 +129,7 @@ export const endpoint = pgTable(
     protocolId: uuid("protocol_id")
       .notNull()
       .references(() => protocol.id, { onDelete: "restrict" }),
-    listenPort: integer("listen_port").notNull(),
+    port: integer("port").notNull(),
     config: jsonb("config").notNull(),
     status: endpointStatus("status").default("active").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -126,7 +139,7 @@ export const endpoint = pgTable(
       .notNull(),
   },
   (t) => [
-    unique("endpoint_server_port_uq").on(t.serverId, t.listenPort),
+    unique("endpoint_server_port_uq").on(t.serverId, t.port),
     index("endpoint_server_idx").on(t.serverId),
     index("endpoint_protocol_idx").on(t.protocolId),
   ],
@@ -147,7 +160,7 @@ export const accessGrant = pgTable(
     deviceTypeId: uuid("device_type_id")
       .notNull()
       .references(() => deviceType.id, { onDelete: "restrict" }),
-    label: text("label").notNull(),
+    name: text("name").notNull(),
     config: jsonb("config").notNull(),
     status: grantStatus("status").default("active").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -172,7 +185,7 @@ export const protocolTypeRelations = relations(protocolType, ({ many }) => ({
 
 export const protocolRelations = relations(protocol, ({ one, many }) => ({
   type: one(protocolType, {
-    fields: [protocol.typeId],
+    fields: [protocol.protocolTypeId],
     references: [protocolType.id],
   }),
   endpoints: many(endpoint),

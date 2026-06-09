@@ -7,7 +7,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="min-w-[200px] flex-1 rounded-lg border border-border bg-card p-4">
+  <div class="min-w-50 flex-1 rounded-lg border border-border bg-card p-4">
     <div class="flex flex-col gap-2.5">
       <div class="flex items-center justify-between">
         <Skeleton class="h-5 w-16 rounded-full" />

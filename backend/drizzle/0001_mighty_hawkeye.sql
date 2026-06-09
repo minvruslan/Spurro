@@ -1,0 +1,1 @@
+ALTER TABLE "access_grant" RENAME COLUMN "label" TO "name";
