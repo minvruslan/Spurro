@@ -68,8 +68,10 @@ const MOCK_CONFIGS: Config[] = [
 ]
 
 export async function getConfigs(): Promise<Config[]> {
+  // TODO: ВРЕМЕННО — задержка для отладки UI/анимации. Убрать вместе с моком.
+  await new Promise((resolve) => setTimeout(resolve, 300))
   // TODO: вернуть реальный запрос, убрать мок.
-  return Promise.resolve(MOCK_CONFIGS)
+  return MOCK_CONFIGS
   // const api = useApi()
   // const response = await api("/api/configs")
   // return ResponseSchema.parse(response).data

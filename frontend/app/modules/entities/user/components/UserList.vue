@@ -13,7 +13,7 @@ const props = withDefaults(
     pending?: boolean
     skeletonCount?: number
   }>(),
-  { skeletonCount: 3 },
+  { skeletonCount: 1 },
 )
 
 defineEmits<{ (e: "open", user: User): void }>()
@@ -22,15 +22,21 @@ const isEmpty = computed(() => !props.pending && props.users.length === 0)
 </script>
 
 <template>
-  <p v-if="isEmpty" class="text-sm text-muted-foreground">{{ t("empty") }}</p>
+  <Transition
+    mode="out-in"
+    enter-active-class="transition-opacity duration-500"
+    leave-active-class="transition-opacity duration-500"
+    enter-from-class="opacity-0"
+    leave-to-class="opacity-0"
+  >
+    <p v-if="isEmpty" key="empty" class="text-sm text-muted-foreground">{{ t("empty") }}</p>
 
-  <div v-else class="flex flex-col gap-3">
-    <template v-if="pending">
+    <div v-else-if="pending" key="skeleton" class="flex flex-col gap-3">
       <UserCardSkeleton v-for="i in skeletonCount" :key="i" />
-    </template>
+    </div>
 
-    <template v-else>
+    <div v-else key="cards" class="flex flex-col gap-3">
       <UserCard v-for="user in users" :key="user.id" :user="user" @open="$emit('open', user)" />
-    </template>
-  </div>
+    </div>
+  </Transition>
 </template>
