@@ -1,4 +1,4 @@
 export const messages = {
-  ru: { empty: "Нет пользователей" },
-  en: { empty: "No users" },
+  ru: { emptyTitle: "Пока нет пользователей" },
+  en: { emptyTitle: "No users yet" },
 }

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Config } from "@spurro/shared"
+import { Shield } from "lucide-vue-next"
 import { computed } from "vue"
+import ListEmptyState from "@/modules/shared/components/ListEmptyState.vue"
 import ConfigCard from "./ConfigCard.vue"
 import ConfigCardSkeleton from "./ConfigCardSkeleton.vue"
 import { messages } from "../translations/ConfigList"
@@ -29,7 +31,12 @@ const isEmpty = computed(() => !props.pending && props.configs.length === 0)
     enter-from-class="opacity-0"
     leave-to-class="opacity-0"
   >
-    <p v-if="isEmpty" key="empty" class="text-sm text-muted-foreground">{{ t("empty") }}</p>
+    <ListEmptyState
+      v-if="isEmpty"
+      key="empty"
+      :icon="Shield"
+      :title="t('emptyTitle')"
+    />
 
     <div v-else-if="pending" key="skeleton" class="flex flex-col gap-3">
       <ConfigCardSkeleton v-for="i in skeletonCount" :key="i" />

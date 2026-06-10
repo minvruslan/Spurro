@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { User } from "@spurro/shared"
+import { Users } from "lucide-vue-next"
 import { computed } from "vue"
+import ListEmptyState from "@/modules/shared/components/ListEmptyState.vue"
 import UserCard from "./UserCard.vue"
 import UserCardSkeleton from "./UserCardSkeleton.vue"
 import { messages } from "../translations/UserList"
@@ -29,7 +31,12 @@ const isEmpty = computed(() => !props.pending && props.users.length === 0)
     enter-from-class="opacity-0"
     leave-to-class="opacity-0"
   >
-    <p v-if="isEmpty" key="empty" class="text-sm text-muted-foreground">{{ t("empty") }}</p>
+    <ListEmptyState
+      v-if="isEmpty"
+      key="empty"
+      :icon="Users"
+      :title="t('emptyTitle')"
+    />
 
     <div v-else-if="pending" key="skeleton" class="flex flex-col gap-3">
       <UserCardSkeleton v-for="i in skeletonCount" :key="i" />
