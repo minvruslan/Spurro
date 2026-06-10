@@ -30,7 +30,7 @@ const protocolName = computed(() => props.config.endpoint.protocol.type.name)
 
 <template>
   <!-- Desktop -->
-  <Card class="hidden px-4 py-3.5 md:block">
+  <Card class="hidden px-4 py-3.5 sm:block">
     <div class="flex items-center justify-between gap-4">
       <div class="flex min-w-0 flex-1 items-center gap-3.5">
         <div class="w-48 truncate text-sm font-semibold">{{ config.name }}</div>
@@ -53,7 +53,7 @@ const protocolName = computed(() => props.config.endpoint.protocol.type.name)
 
   <!-- Mobile -->
   <Card
-    class="block cursor-pointer p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 md:hidden"
+    class="block cursor-pointer p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:hidden"
     role="button"
     tabindex="0"
     :aria-label="t('openConfigAriaLabel', { name: config.name })"

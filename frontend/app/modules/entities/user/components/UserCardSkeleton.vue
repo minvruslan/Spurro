@@ -9,8 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
     <div class="flex items-center justify-between gap-4">
       <div class="flex min-w-0 flex-1 items-center gap-3.5">
         <Skeleton class="h-4 w-32" />
-        <Skeleton class="h-4 w-32" />
-        <Skeleton class="h-5 w-16 rounded-full" />
+        <Skeleton class="h-4 w-48" />
       </div>
       <Skeleton class="h-8 w-24 rounded-md" />
     </div>
@@ -21,12 +20,9 @@ import { Skeleton } from "@/components/ui/skeleton"
     <div class="flex items-center justify-between gap-3">
       <div class="flex flex-col gap-1.5">
         <Skeleton class="h-4 w-28" />
-        <Skeleton class="h-3 w-20" />
+        <Skeleton class="h-3 w-40" />
       </div>
-      <div class="flex items-center gap-3">
-        <Skeleton class="h-5 w-16 rounded-full" />
-        <Skeleton class="size-5" />
-      </div>
+      <Skeleton class="size-5" />
     </div>
   </Card>
 </template>
