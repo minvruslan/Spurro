@@ -3,7 +3,7 @@ import { Mail } from "lucide-vue-next"
 import { BrandIconWithText } from "@/modules/entities/brand"
 import { messages } from "../translations/LoginForm"
 
-defineProps<{ pending?: boolean }>()
+const props = defineProps<{ pending?: boolean }>()
 
 const email = defineModel<string>("email", { default: "" })
 const emit = defineEmits<{ (e: "submit"): void }>()
@@ -13,6 +13,7 @@ const emailInput = ref<{ $el: HTMLInputElement } | null>(null)
 onMounted(() => emailInput.value?.$el?.focus())
 
 const onSubmit = () => {
+  if (props.pending) return
   emit("submit")
 }
 </script>
@@ -34,7 +35,7 @@ const onSubmit = () => {
         :placeholder="t('email.placeholder')"
       />
     </div>
-    <Button type="submit" class="w-full" :disabled="pending" :aria-busy="pending">
+    <Button type="submit" class="w-full" :loading="pending">
       <Mail class="size-4" aria-hidden="true" />
       {{ t("sendLoginLinkButton") }}
     </Button>

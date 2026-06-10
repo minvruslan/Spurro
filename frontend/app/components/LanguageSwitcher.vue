@@ -26,7 +26,8 @@ const onChange = (value: unknown) => {
 
 <template>
   <Select :model-value="locale" @update:model-value="onChange">
-    <SelectTrigger :class="props.class" :aria-label="t('languageLabel')">
+    <SelectTrigger :class="props.class">
+      <span class="sr-only">{{ t("languageLabel") }}</span>
       <span class="flex items-center gap-2">
         <Globe class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <SelectValue />

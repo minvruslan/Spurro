@@ -5,7 +5,7 @@ export const messages = {
     navLabel: "Разделы администратора",
   },
   en: {
-    configs: "Configs",
+    configs: "Configurations",
     users: "Users",
     navLabel: "Admin sections",
   },
