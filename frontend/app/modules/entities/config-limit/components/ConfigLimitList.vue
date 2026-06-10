@@ -23,7 +23,7 @@ const isEmpty = computed(() => !props.pending && props.configLimits.length === 0
 <template>
   <p v-if="isEmpty" class="text-sm text-muted-foreground">{{ t("empty") }}</p>
 
-  <div v-else class="flex flex-col gap-3 md:flex-row md:flex-wrap">
+  <div v-else class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
     <template v-if="pending">
       <ConfigLimitCardSkeleton v-for="i in skeletonCount" :key="i" :with-limit="withLimit" />
     </template>

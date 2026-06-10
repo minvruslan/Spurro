@@ -1,4 +1,4 @@
 export const messages = {
-  ru: { empty: "Нет конфигураций" },
-  en: { empty: "No configurations" },
+  ru: { emptyTitle: "Пока нет конфигураций" },
+  en: { emptyTitle: "No configurations yet" },
 }
