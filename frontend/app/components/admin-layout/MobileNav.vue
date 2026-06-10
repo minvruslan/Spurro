@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetClose } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { BrandIconWithText } from "@/modules/entities/brand"
+import LanguageSwitcher from "@/components/LanguageSwitcher.vue"
 import NavItems from "./NavItems.vue"
 import LogoutButton from "./LogoutButton.vue"
 import { messages } from "@/translations/admin-layout/MobileNav"
@@ -43,6 +44,7 @@ watch(isDesktop, (desktop) => {
         <NavItems @navigate="open = false" />
         <div class="mt-auto">
           <Separator class="my-3" />
+          <LanguageSwitcher class="mb-2 w-full" />
           <LogoutButton />
         </div>
       </SheetContent>
