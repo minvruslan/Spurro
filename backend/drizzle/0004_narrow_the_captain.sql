@@ -1,0 +1,1 @@
+ALTER TABLE "server" DROP COLUMN "agent_url";

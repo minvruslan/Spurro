@@ -3,6 +3,7 @@ import type { Config } from "@spurro/shared"
 import { Plus } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
 import { ConfigListSelf } from "@/modules/entities/config"
+import { ConfigLimitListSelf } from "@/modules/entities/config-limit"
 
 definePageMeta({ middleware: "admin", layout: "admin" })
 
@@ -30,6 +31,8 @@ const onOpen = (config: Config) => navigateTo(`/admin/configs/${config.id}`)
       <Plus class="size-4" aria-hidden="true" />
       {{ t("addConfig") }}
     </Button>
+
+    <ConfigLimitListSelf :with-limit="true" />
 
     <ConfigListSelf @open="onOpen" />
   </section>

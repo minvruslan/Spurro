@@ -29,6 +29,13 @@
       "when": 1781035051700,
       "tag": "0003_rich_jack_murdock",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781118081245,
+      "tag": "0004_narrow_the_captain",
+      "breakpoints": true
     }
   ]
 }

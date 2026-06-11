@@ -110,7 +110,6 @@ export const server = pgTable("server", {
   hostname: text("hostname").notNull(),
   ip: text("ip"),
   country: text("country").notNull(),
-  agentUrl: text("agent_url"),
   status: serverStatus("status").default("active").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
