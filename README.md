@@ -26,18 +26,15 @@ The diagram below shows the initial system design — it will likely evolve as i
 
 The system has two roles:
 
-**Admin**
-
-- Grants access to the service by adding a user's email.
-- Manages VPN nodes — deployment and configuration are fully automated.
-- Manages users and their configs.
-- Has access to the monitoring system.
-
-**User**
-
-- Generates VPN configs for themselves.
-- Gets setup instructions for their devices.
-- Gets email notifications about changes.
+- Admin
+  - Grants access to the service by adding a user's email.
+  - Manages VPN nodes — deployment and configuration are fully automated.
+  - Manages users and their configs.
+  - Has access to the monitoring system.
+- User
+  - Generates VPN configs for themselves.
+  - Gets setup instructions for their devices.
+  - Gets email notifications about changes.
 
 ## Web interface
 
