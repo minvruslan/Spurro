@@ -2,22 +2,27 @@
 import type { VariantProps } from "class-variance-authority"
 import type { ToggleGroupRootEmits, ToggleGroupRootProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
-import type { toggleVariants } from '@/components/ui/toggle'
+import type { toggleVariants } from "@/components/ui/toggle"
 import { reactiveOmit } from "@vueuse/core"
 import { ToggleGroupRoot, useForwardPropsEmits } from "reka-ui"
 import { provide } from "vue"
-import { cn } from '@/components/ui/utils/cn'
+import { cn } from "@/components/ui/utils/cn"
 
 type ToggleGroupVariants = VariantProps<typeof toggleVariants>
 
-const props = withDefaults(defineProps<ToggleGroupRootProps & {
-  class?: HTMLAttributes["class"]
-  variant?: ToggleGroupVariants["variant"]
-  size?: ToggleGroupVariants["size"]
-  spacing?: number
-}>(), {
-  spacing: 0,
-})
+const props = withDefaults(
+  defineProps<
+    ToggleGroupRootProps & {
+      class?: HTMLAttributes["class"]
+      variant?: ToggleGroupVariants["variant"]
+      size?: ToggleGroupVariants["size"]
+      spacing?: number
+    }
+  >(),
+  {
+    spacing: 0,
+  },
+)
 
 const emits = defineEmits<ToggleGroupRootEmits>()
 
@@ -42,7 +47,12 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       '--gap': spacing,
     }"
     v-bind="forwarded"
-    :class="cn('group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))] rounded-md data-[spacing=default]:data-[variant=outline]:shadow-xs', props.class)"
+    :class="
+      cn(
+        'group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))] rounded-md data-[spacing=default]:data-[variant=outline]:shadow-xs',
+        props.class,
+      )
+    "
   >
     <slot v-bind="slotProps" />
   </ToggleGroupRoot>

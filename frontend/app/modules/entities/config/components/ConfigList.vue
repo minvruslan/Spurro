@@ -31,12 +31,7 @@ const isEmpty = computed(() => !props.pending && props.configs.length === 0)
     enter-from-class="opacity-0"
     leave-to-class="opacity-0"
   >
-    <ListEmptyState
-      v-if="isEmpty"
-      key="empty"
-      :icon="Shield"
-      :title="t('emptyTitle')"
-    />
+    <ListEmptyState v-if="isEmpty" key="empty" :icon="Shield" :title="t('emptyTitle')" />
 
     <div v-else-if="pending" key="skeleton" class="flex flex-col gap-3">
       <ConfigCardSkeleton v-for="i in skeletonCount" :key="i" />
