@@ -4,18 +4,23 @@ import type { HTMLAttributes } from "vue"
 import type { ToggleVariants } from "."
 import { reactiveOmit } from "@vueuse/core"
 import { Toggle, useForwardPropsEmits } from "reka-ui"
-import { cn } from '@/components/ui/utils/cn'
+import { cn } from "@/components/ui/utils/cn"
 import { toggleVariants } from "."
 
-const props = withDefaults(defineProps<ToggleProps & {
-  class?: HTMLAttributes["class"]
-  variant?: ToggleVariants["variant"]
-  size?: ToggleVariants["size"]
-}>(), {
-  variant: "default",
-  size: "default",
-  disabled: false,
-})
+const props = withDefaults(
+  defineProps<
+    ToggleProps & {
+      class?: HTMLAttributes["class"]
+      variant?: ToggleVariants["variant"]
+      size?: ToggleVariants["size"]
+    }
+  >(),
+  {
+    variant: "default",
+    size: "default",
+    disabled: false,
+  },
+)
 
 const emits = defineEmits<ToggleEmits>()
 

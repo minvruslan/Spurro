@@ -31,12 +31,7 @@ const isEmpty = computed(() => !props.pending && props.users.length === 0)
     enter-from-class="opacity-0"
     leave-to-class="opacity-0"
   >
-    <ListEmptyState
-      v-if="isEmpty"
-      key="empty"
-      :icon="Users"
-      :title="t('emptyTitle')"
-    />
+    <ListEmptyState v-if="isEmpty" key="empty" :icon="Users" :title="t('emptyTitle')" />
 
     <div v-else-if="pending" key="skeleton" class="flex flex-col gap-3">
       <UserCardSkeleton v-for="i in skeletonCount" :key="i" />
