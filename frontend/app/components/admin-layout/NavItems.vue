@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Shield, Users } from "lucide-vue-next"
+import { Server, Shield, Users } from "lucide-vue-next"
 import { cn } from "@/components/ui/utils/cn"
 import { messages } from "@/translations/admin-layout/NavItems"
 
@@ -8,6 +8,7 @@ const { t } = useI18n({ useScope: "local", messages })
 defineEmits<{ (e: "navigate"): void }>()
 
 const navItems = [
+  { id: "servers", labelKey: "servers", to: "/admin/servers", icon: Server },
   { id: "configs", labelKey: "configs", to: "/admin/configs", icon: Shield },
   { id: "users", labelKey: "users", to: "/admin/users", icon: Users },
 ]

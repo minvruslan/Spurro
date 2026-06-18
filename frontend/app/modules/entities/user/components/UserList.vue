@@ -2,7 +2,7 @@
 import type { User } from "@spurro/shared"
 import { Users } from "lucide-vue-next"
 import { computed } from "vue"
-import ListEmptyState from "@/modules/shared/components/ListEmptyState.vue"
+import { ListEmptyState } from "@/modules/shared/components"
 import UserCard from "./UserCard.vue"
 import UserCardSkeleton from "./UserCardSkeleton.vue"
 import { messages } from "../translations/UserList"
@@ -24,21 +24,13 @@ const isEmpty = computed(() => !props.pending && props.users.length === 0)
 </script>
 
 <template>
-  <Transition
-    mode="out-in"
-    enter-active-class="transition-opacity duration-500"
-    leave-active-class="transition-opacity duration-500"
-    enter-from-class="opacity-0"
-    leave-to-class="opacity-0"
-  >
-    <ListEmptyState v-if="isEmpty" key="empty" :icon="Users" :title="t('emptyTitle')" />
+  <ListEmptyState v-if="isEmpty" :icon="Users" :title="t('emptyTitle')" />
 
-    <div v-else-if="pending" key="skeleton" class="flex flex-col gap-3">
-      <UserCardSkeleton v-for="i in skeletonCount" :key="i" />
-    </div>
+  <div v-else-if="pending" class="flex flex-col gap-3">
+    <UserCardSkeleton v-for="i in skeletonCount" :key="i" />
+  </div>
 
-    <div v-else key="cards" class="flex flex-col gap-3">
-      <UserCard v-for="user in users" :key="user.id" :user="user" @open="$emit('open', user)" />
-    </div>
-  </Transition>
+  <div v-else class="flex flex-col gap-3">
+    <UserCard v-for="user in users" :key="user.id" :user="user" @open="$emit('open', user)" />
+  </div>
 </template>

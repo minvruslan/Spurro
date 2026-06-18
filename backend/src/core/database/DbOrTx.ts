@@ -1,3 +1,6 @@
 import { db } from "./db.js"
 
-export type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+type Database = typeof db
+type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
+
+export type DbOrTx = Database | Transaction
