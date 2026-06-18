@@ -16,9 +16,7 @@ export async function bootstrapProtocols() {
     console.log(`[bootstrap] seeded protocol types: ${insertedTypes.map((r) => r.code).join(", ")}`)
   }
 
-  const types = await db
-    .select({ id: protocolType.id, code: protocolType.code })
-    .from(protocolType)
+  const types = await db.select({ id: protocolType.id, code: protocolType.code }).from(protocolType)
 
   const idByCode = new Map(types.map((t) => [t.code, t.id]))
 
@@ -26,7 +24,9 @@ export async function bootstrapProtocols() {
   for (const { typeCode, version } of PROTOCOL_VERSIONS) {
     const protocolTypeId = idByCode.get(typeCode)
     if (!protocolTypeId) {
-      console.warn(`[bootstrap] protocol type "${typeCode}" not found — skipping version ${version}`)
+      console.warn(
+        `[bootstrap] protocol type "${typeCode}" not found — skipping version ${version}`,
+      )
       continue
     }
     values.push({ protocolTypeId, version })

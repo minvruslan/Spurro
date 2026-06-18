@@ -1,0 +1,1 @@
+export { getServers } from "./getServers"

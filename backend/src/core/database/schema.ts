@@ -9,6 +9,7 @@ import {
   jsonb,
   index,
   unique,
+  uniqueIndex,
   pgEnum,
   check,
 } from "drizzle-orm/pg-core"
@@ -16,7 +17,7 @@ import { user } from "./auth-schema"
 
 // ─────────── enums ───────────
 
-export const serverStatus = pgEnum("server_status", ["active", "blocked", "disabled"])
+export const serverStatus = pgEnum("server_status", ["provisioning", "active"])
 export const endpointStatus = pgEnum("endpoint_status", ["active", "disabled"])
 export const grantStatus = pgEnum("grant_status", ["active", "revoked", "deleted"])
 
@@ -104,19 +105,28 @@ export const userLimit = pgTable(
 
 // ─────────── infrastructure ───────────
 
-export const server = pgTable("server", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  hostname: text("hostname").notNull(),
-  ip: text("ip"),
-  country: text("country").notNull(),
-  status: serverStatus("status").default("active").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-})
+export const server = pgTable(
+  "server",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    domainName: text("domain_name").notNull(),
+    ip: text("ip").notNull(),
+    country: text("country").notNull(),
+    status: serverStatus("status").default("active").notNull(),
+    isCurrent: boolean("is_current").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("server_is_current_uq")
+      .on(t.isCurrent)
+      .where(sql`${t.isCurrent}`),
+  ],
+)
 
 export const endpoint = pgTable(
   "endpoint",
@@ -138,7 +148,9 @@ export const endpoint = pgTable(
       .notNull(),
   },
   (t) => [
-    unique("endpoint_server_port_uq").on(t.serverId, t.port),
+    uniqueIndex("endpoint_server_port_uq")
+      .on(t.serverId, t.port)
+      .where(sql`${t.status} = 'active'`),
     index("endpoint_server_idx").on(t.serverId),
     index("endpoint_protocol_idx").on(t.protocolId),
   ],

@@ -6,6 +6,8 @@ import { authServer } from "@/core/auth-server/index.js"
 import { requireAuth, requireAdmin } from "@/core/middlewares/index.js"
 import { configsRouter } from "@/modules/configs/index.js"
 import { usersRouter } from "@/modules/users/index.js"
+import { serversRouter } from "@/modules/servers/index.js"
+import { endpointsRouter } from "@/modules/endpoints/index.js"
 
 const app = new Hono<{ Variables: AppVariables }>()
 
@@ -18,9 +20,6 @@ const api = new Hono<{ Variables: AppVariables }>()
 
 api.on(["POST", "GET"], "/auth/*", (c) => authServer.handler(c.req.raw))
 
-// Each feature router is wrapped in its own guarded sub-app mounted at an explicit
-// prefix, so the guard's "*" matches only that prefix — no overlap between guards,
-// independent of registration order or handler terminality.
 const configsApi = new Hono<{ Variables: AppVariables }>()
 configsApi.use("*", requireAuth)
 configsApi.route("/", configsRouter)
@@ -30,6 +29,16 @@ const usersApi = new Hono<{ Variables: AppVariables }>()
 usersApi.use("*", requireAdmin)
 usersApi.route("/", usersRouter)
 api.route("/users", usersApi)
+
+const serversApi = new Hono<{ Variables: AppVariables }>()
+serversApi.use("*", requireAdmin)
+serversApi.route("/", serversRouter)
+api.route("/servers", serversApi)
+
+const endpointsApi = new Hono<{ Variables: AppVariables }>()
+endpointsApi.use("*", requireAuth)
+endpointsApi.route("/", endpointsRouter)
+api.route("/endpoints", endpointsApi)
 
 app.route("/api", api)
 

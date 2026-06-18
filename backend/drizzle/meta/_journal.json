@@ -36,6 +36,13 @@
       "when": 1781118081245,
       "tag": "0004_narrow_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781815932130,
+      "tag": "0005_white_eternity",
+      "breakpoints": true
     }
   ]
 }

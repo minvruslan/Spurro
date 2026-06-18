@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Config } from "@spurro/shared"
+import { ListErrorState } from "@/modules/shared/components"
 import ConfigList from "./ConfigList.vue"
 import { useConfigs } from "../composables/useConfigs"
 import { messages } from "../translations/ConfigListSelf"
@@ -11,7 +12,7 @@ const { configs, status, error } = useConfigs()
 </script>
 
 <template>
-  <p v-if="error" role="alert" class="text-sm text-muted-foreground">{{ t("loadError") }}</p>
+  <ListErrorState v-if="error" :title="t('loadError')" />
 
   <ConfigList
     v-else
