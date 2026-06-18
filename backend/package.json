@@ -22,7 +22,6 @@
     "better-auth": "^1.6.14",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
-    "fractional-indexing": "^3.2.0",
     "hono": "^4.7.10",
     "nanoid": "^5.1.9",
     "postgres": "^3.4.5",
