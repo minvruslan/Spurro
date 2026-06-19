@@ -1,0 +1,24 @@
+export const messages = {
+  ru: {
+    name: { label: "Название", placeholder: "Amsterdam" },
+    country: { label: "Страна" },
+    ip: { label: "IP-адрес", placeholder: "203.0.113.10" },
+    domain: { label: "Доменное имя", placeholder: "ams1.spurro.net" },
+    login: { label: "Логин", placeholder: "root" },
+    password: { label: "Пароль" },
+    protocols: { label: "Протоколы" },
+    error: "Не удалось создать сервер.",
+    submit: "Создать сервер",
+  },
+  en: {
+    name: { label: "Name", placeholder: "Amsterdam" },
+    country: { label: "Country" },
+    ip: { label: "IP address", placeholder: "203.0.113.10" },
+    domain: { label: "Domain name", placeholder: "ams1.spurro.net" },
+    login: { label: "Login", placeholder: "root" },
+    password: { label: "Password" },
+    protocols: { label: "Protocols" },
+    error: "Could not create the server.",
+    submit: "Create server",
+  },
+}

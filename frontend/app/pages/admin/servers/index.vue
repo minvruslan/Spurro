@@ -20,15 +20,19 @@ const onOpen = (server: Server) => navigateTo(`/admin/servers/${server.id}`)
   <section class="flex flex-col gap-4.5">
     <div class="flex items-center justify-between gap-2">
       <h1 class="text-2xl font-semibold">{{ t("title") }}</h1>
-      <Button class="hidden sm:inline-flex">
-        <Plus class="size-4" aria-hidden="true" />
-        {{ t("addServer") }}
+      <Button as-child class="hidden sm:inline-flex">
+        <NuxtLink to="/admin/servers/create">
+          <Plus class="size-4" aria-hidden="true" />
+          {{ t("addServer") }}
+        </NuxtLink>
       </Button>
     </div>
 
-    <Button class="sm:hidden">
-      <Plus class="size-4" aria-hidden="true" />
-      {{ t("addServer") }}
+    <Button as-child class="sm:hidden">
+      <NuxtLink to="/admin/servers/create">
+        <Plus class="size-4" aria-hidden="true" />
+        {{ t("addServer") }}
+      </NuxtLink>
     </Button>
 
     <ServerListSelf @open="onOpen" />

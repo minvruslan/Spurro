@@ -10,7 +10,7 @@ export async function createServerService(input: UpsertServer): Promise<Server> 
   return db.transaction(async (tx) => {
     const [row] = await insertServer(tx, {
       name: input.name,
-      domainName: input.domainName,
+      domainName: input.domainName || input.ip,
       ip: input.ip,
       country: input.country,
       status: "provisioning",
