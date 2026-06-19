@@ -7,6 +7,7 @@ import { requireAuth, requireAdmin } from "@/core/middlewares/index.js"
 import { configsRouter } from "@/modules/configs/index.js"
 import { usersRouter } from "@/modules/users/index.js"
 import { serversRouter } from "@/modules/servers/index.js"
+import { protocolsRouter } from "@/modules/protocols/index.js"
 import { endpointsRouter } from "@/modules/endpoints/index.js"
 
 const app = new Hono<{ Variables: AppVariables }>()
@@ -34,6 +35,11 @@ const serversApi = new Hono<{ Variables: AppVariables }>()
 serversApi.use("*", requireAdmin)
 serversApi.route("/", serversRouter)
 api.route("/servers", serversApi)
+
+const protocolsApi = new Hono<{ Variables: AppVariables }>()
+protocolsApi.use("*", requireAdmin)
+protocolsApi.route("/", protocolsRouter)
+api.route("/protocols", protocolsApi)
 
 const endpointsApi = new Hono<{ Variables: AppVariables }>()
 endpointsApi.use("*", requireAuth)

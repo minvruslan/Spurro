@@ -6,7 +6,7 @@ import MobileNav from "@/components/admin-layout/MobileNav.vue"
 <template>
   <div class="flex min-h-dvh flex-col bg-muted/40">
     <!-- Mobile -->
-    <header class="border-b bg-background lg:hidden">
+    <header class="sticky top-0 z-30 border-b bg-background lg:hidden">
       <MobileNav />
     </header>
 
