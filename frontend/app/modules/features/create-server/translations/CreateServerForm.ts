@@ -1,5 +1,6 @@
 export const messages = {
   ru: {
+    title: "Создание сервера",
     name: { label: "Название", placeholder: "Amsterdam" },
     country: { label: "Страна" },
     ip: { label: "IP-адрес", placeholder: "203.0.113.10" },
@@ -8,9 +9,11 @@ export const messages = {
     password: { label: "Пароль" },
     protocols: { label: "Протоколы" },
     error: "Не удалось создать сервер.",
-    submit: "Создать сервер",
+    cancel: "Отмена",
+    submit: "Создать",
   },
   en: {
+    title: "Create server",
     name: { label: "Name", placeholder: "Amsterdam" },
     country: { label: "Country" },
     ip: { label: "IP address", placeholder: "203.0.113.10" },
@@ -19,6 +22,7 @@ export const messages = {
     password: { label: "Password" },
     protocols: { label: "Protocols" },
     error: "Could not create the server.",
-    submit: "Create server",
+    cancel: "Cancel",
+    submit: "Create",
   },
 }
