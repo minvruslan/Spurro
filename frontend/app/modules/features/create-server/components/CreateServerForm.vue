@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Server } from "@spurro/shared"
-import { nextTick, ref, watch } from "vue"
+import { onMounted, ref } from "vue"
 import { Plus } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -14,8 +14,14 @@ import { messages } from "../translations/CreateServerForm"
 const emit = defineEmits<{ (e: "created", server: Server): void; (e: "cancel"): void }>()
 
 const { t } = useI18n({ useScope: "local", messages })
-const { protocols } = useProtocols()
+const { protocols, ready } = useProtocols()
 const { pending, error, submit } = useCreateServer()
+
+const nameInput = ref<{ $el: HTMLInputElement } | null>(null)
+
+onMounted(() => nameInput.value?.$el?.focus())
+
+await ready
 
 const form = ref<CreateServerFormValues>({
   name: "",
@@ -24,22 +30,8 @@ const form = ref<CreateServerFormValues>({
   domainName: "",
   login: "",
   password: "",
-  protocolIds: [],
+  protocolIds: protocols.value.map((protocol) => protocol.id),
 })
-
-const nameInput = ref<{ $el: HTMLInputElement } | null>(null)
-
-let initialized = false
-watch(
-  protocols,
-  (list) => {
-    if (initialized || list.length === 0) return
-    form.value.protocolIds = list.map((protocol) => protocol.id)
-    initialized = true
-    nextTick(() => nameInput.value?.$el?.focus())
-  },
-  { immediate: true },
-)
 
 const isProtocolSelected = (id: string) => form.value.protocolIds.includes(id)
 const toggleProtocolSelection = (id: string, checked: boolean) => {
@@ -56,7 +48,7 @@ const onSubmit = async () => {
 </script>
 
 <template>
-  <FormLayout v-if="protocols.length" @submit="onSubmit">
+  <FormLayout v-if="protocols.length" :disabled="pending" @submit="onSubmit">
     <template #title>
       <h1 class="text-lg font-semibold tracking-tight">{{ t("title") }}</h1>
     </template>
@@ -82,7 +74,12 @@ const onSubmit = async () => {
       <div class="flex flex-col gap-3 sm:flex-row">
         <div class="flex flex-1 flex-col gap-2">
           <FieldLabel for="ip" required>{{ t("ip.label") }}</FieldLabel>
-          <Input id="ip" v-model="form.ip" aria-required="true" :placeholder="t('ip.placeholder')" />
+          <Input
+            id="ip"
+            v-model="form.ip"
+            aria-required="true"
+            :placeholder="t('ip.placeholder')"
+          />
         </div>
         <div class="flex flex-1 flex-col gap-2">
           <FieldLabel for="domain">{{ t("domain.label") }}</FieldLabel>
@@ -118,25 +115,31 @@ const onSubmit = async () => {
         <label
           v-for="protocol in protocols"
           :key="protocol.id"
-          class="flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2.5"
+          class="flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2.5 has-[:disabled]:cursor-not-allowed"
         >
           <Checkbox
             :model-value="isProtocolSelected(protocol.id)"
             @update:model-value="(checked) => toggleProtocolSelection(protocol.id, !!checked)"
           />
-          <span class="font-semibold tracking-tight">
-            {{ protocol.type.name }} {{ protocol.version }}
-          </span>
+          <span class="-mb-0.5 tracking-tight"
+            >{{ protocol.type.name }} {{ protocol.version }}</span
+          >
         </label>
       </div>
     </template>
 
     <template #action>
       <p v-if="error" role="alert" class="mr-auto text-sm text-destructive">{{ t("error") }}</p>
-      <Button type="button" variant="outline" :disabled="pending" @click="emit('cancel')">
+      <Button
+        type="button"
+        variant="outline"
+        class="w-[7rem]"
+        :disabled="pending"
+        @click="emit('cancel')"
+      >
         {{ t("cancel") }}
       </Button>
-      <Button type="submit" :loading="pending">
+      <Button type="submit" class="w-[8rem]" :loading="pending">
         <Plus class="size-4" aria-hidden="true" />
         {{ t("submit") }}
       </Button>

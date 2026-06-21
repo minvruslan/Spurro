@@ -2,7 +2,7 @@ import { computed } from "vue"
 import { getServers } from "../services/getServers"
 
 export function useServers() {
-  const { data, status, error, refresh } = useAsyncData("servers", () => getServers())
-  const servers = computed(() => data.value ?? [])
-  return { servers, status, error, refresh }
+  const ready = useAsyncData("servers", () => getServers())
+  const servers = computed(() => ready.data.value ?? [])
+  return { servers, status: ready.status, error: ready.error, refresh: ready.refresh, ready }
 }

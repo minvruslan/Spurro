@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { ConfigLimitSchema } from "../../config-limit"
 
 export const UserSchema = z.object({
   id: z.string(),
@@ -8,4 +9,5 @@ export const UserSchema = z.object({
   banned: z.boolean().nullish(),
   banReason: z.string().nullish(),
   createdAt: z.iso.datetime(),
+  limits: ConfigLimitSchema.array(),
 })

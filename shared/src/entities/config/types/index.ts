@@ -1,6 +1,4 @@
 export { GrantStatusSchema } from "./GrantStatusSchema"
 export { ConfigSchema } from "./ConfigSchema"
-export { ConfigLimitSchema } from "./ConfigLimitSchema"
 export type { GrantStatus } from "./GrantStatus"
 export type { Config } from "./Config"
-export type { ConfigLimit } from "./ConfigLimit"

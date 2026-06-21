@@ -1,0 +1,26 @@
+export const messages = {
+  ru: {
+    title: "Редактирование сервера",
+    name: { label: "Название", placeholder: "Amsterdam" },
+    country: { label: "Страна" },
+    ip: { label: "IP-адрес" },
+    domain: { label: "Доменное имя" },
+    protocols: { label: "Протоколы" },
+    notFound: "Сервер не найден.",
+    error: "Не удалось обновить сервер.",
+    cancel: "Отмена",
+    submit: "Сохранить",
+  },
+  en: {
+    title: "Edit server",
+    name: { label: "Name", placeholder: "Amsterdam" },
+    country: { label: "Country" },
+    ip: { label: "IP address" },
+    domain: { label: "Domain name" },
+    protocols: { label: "Protocols" },
+    notFound: "Server not found.",
+    error: "Could not update the server.",
+    cancel: "Cancel",
+    submit: "Save",
+  },
+}

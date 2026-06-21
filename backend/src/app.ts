@@ -8,6 +8,7 @@ import { configsRouter } from "@/modules/configs/index.js"
 import { usersRouter } from "@/modules/users/index.js"
 import { serversRouter } from "@/modules/servers/index.js"
 import { protocolsRouter } from "@/modules/protocols/index.js"
+import { protocolTypesRouter } from "@/modules/protocol-types/index.js"
 import { endpointsRouter } from "@/modules/endpoints/index.js"
 
 const app = new Hono<{ Variables: AppVariables }>()
@@ -40,6 +41,11 @@ const protocolsApi = new Hono<{ Variables: AppVariables }>()
 protocolsApi.use("*", requireAdmin)
 protocolsApi.route("/", protocolsRouter)
 api.route("/protocols", protocolsApi)
+
+const protocolTypesApi = new Hono<{ Variables: AppVariables }>()
+protocolTypesApi.use("*", requireAdmin)
+protocolTypesApi.route("/", protocolTypesRouter)
+api.route("/protocol-types", protocolTypesApi)
 
 const endpointsApi = new Hono<{ Variables: AppVariables }>()
 endpointsApi.use("*", requireAuth)

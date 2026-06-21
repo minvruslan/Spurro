@@ -1,6 +1,7 @@
-import { desc, isNull, ne, or } from "drizzle-orm"
+import { desc } from "drizzle-orm"
 import { db } from "@/core/database/index.js"
 import { user } from "@/core/database/auth-schema.js"
+import { notAdmin } from "./notAdmin.js"
 
 export async function findUsers() {
   return db
@@ -14,6 +15,6 @@ export async function findUsers() {
       createdAt: user.createdAt,
     })
     .from(user)
-    .where(or(isNull(user.role), ne(user.role, "admin")))
+    .where(notAdmin())
     .orderBy(desc(user.createdAt))
 }
