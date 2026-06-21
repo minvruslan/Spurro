@@ -3,5 +3,8 @@ export { default as ServerCardSkeleton } from "./components/ServerCardSkeleton.v
 export { default as ServerList } from "./components/ServerList.vue"
 export { default as ServerListSelf } from "./components/ServerListSelf.vue"
 export { useServers } from "./composables/useServers"
+export { useServer } from "./composables/useServer"
 export { getServers } from "./services/getServers"
+export { getServer } from "./services/getServer"
 export { createServer } from "./services/createServer"
+export { updateServer } from "./services/updateServer"

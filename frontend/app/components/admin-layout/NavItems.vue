@@ -9,8 +9,8 @@ defineEmits<{ (e: "navigate"): void }>()
 
 const navItems = [
   { id: "servers", labelKey: "servers", to: "/admin/servers", icon: Server },
-  { id: "configs", labelKey: "configs", to: "/admin/configs", icon: Shield },
   { id: "users", labelKey: "users", to: "/admin/users", icon: Users },
+  { id: "configs", labelKey: "configs", to: "/admin/configs", icon: Shield },
 ]
 
 const route = useRoute()

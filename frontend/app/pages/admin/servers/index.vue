@@ -7,8 +7,8 @@ import { ServerListSelf } from "@/modules/entities/server"
 definePageMeta({ middleware: "admin", layout: "admin" })
 
 const messages = {
-  ru: { title: "Серверы", addServer: "Добавить сервер" },
-  en: { title: "Servers", addServer: "Add server" },
+  ru: { title: "Серверы", createServer: "Создать сервер" },
+  en: { title: "Servers", createServer: "Create server" },
 }
 
 const { t } = useI18n({ useScope: "local", messages })
@@ -23,7 +23,7 @@ const onOpen = (server: Server) => navigateTo(`/admin/servers/${server.id}`)
       <Button as-child class="hidden sm:inline-flex">
         <NuxtLink to="/admin/servers/create">
           <Plus class="size-4" aria-hidden="true" />
-          {{ t("addServer") }}
+          {{ t("createServer") }}
         </NuxtLink>
       </Button>
     </div>
@@ -31,7 +31,7 @@ const onOpen = (server: Server) => navigateTo(`/admin/servers/${server.id}`)
     <Button as-child class="sm:hidden">
       <NuxtLink to="/admin/servers/create">
         <Plus class="size-4" aria-hidden="true" />
-        {{ t("addServer") }}
+        {{ t("createServer") }}
       </NuxtLink>
     </Button>
 

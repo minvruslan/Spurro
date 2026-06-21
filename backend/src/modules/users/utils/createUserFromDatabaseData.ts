@@ -3,7 +3,7 @@ import type { findUsers } from "../repository/findUsers.js"
 
 type UserRow = Awaited<ReturnType<typeof findUsers>>[number]
 
-export function createUserFromDatabaseData(row: UserRow): User {
+export function createUserFromDatabaseData(row: UserRow): Omit<User, "limits"> {
   return {
     id: row.id,
     name: row.name,
