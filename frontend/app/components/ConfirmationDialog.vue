@@ -21,7 +21,7 @@ const onOpenChange = (open: boolean) => {
 <template>
   <Dialog :open="state.open" @update:open="onOpenChange">
     <DialogContent class="sm:max-w-md">
-      <DialogHeader>
+      <DialogHeader class="gap-4">
         <DialogTitle>{{ state.title }}</DialogTitle>
         <DialogDescription v-if="state.description">{{ state.description }}</DialogDescription>
       </DialogHeader>
