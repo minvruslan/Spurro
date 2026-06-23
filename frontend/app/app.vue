@@ -10,4 +10,5 @@ useHead({ htmlAttrs: { lang } })
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>
+  <ConfirmationDialog />
 </template>

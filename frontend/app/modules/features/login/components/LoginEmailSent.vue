@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { CheckCircle2 } from "lucide-vue-next"
-import { BrandIcon } from "@/modules/entities/brand"
 import { messages } from "../translations/LoginEmailSent"
 
 defineProps<{ email: string }>()
@@ -13,9 +12,6 @@ onMounted(() => heading.value?.focus())
 </script>
 
 <template>
-  <div class="mb-6 flex justify-center">
-    <BrandIcon />
-  </div>
   <div class="flex flex-col items-center gap-4 text-center">
     <div class="flex items-center gap-2.5">
       <CheckCircle2 class="size-5 text-green-600" aria-hidden="true" />
@@ -27,7 +23,7 @@ onMounted(() => heading.value?.focus())
       {{ t("body", { email }) }}
     </p>
     <Button variant="ghost" size="sm" @click="emit('useDifferentEmail')">
-      {{ t("useDifferentEmailButton") }}
+      {{ t("useDifferentEmailAction") }}
     </Button>
   </div>
 </template>

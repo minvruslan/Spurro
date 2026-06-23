@@ -16,9 +16,8 @@
   },
   "dependencies": {
     "@internationalized/date": "^3.12.1",
-    "@lucide/vue": "^1.21.0",
-    "@nuxt/eslint": "1.15.2",
     "@nuxt/fonts": "^0.14.0",
+    "@nuxtjs/color-mode": "^4.0.1",
     "@nuxtjs/i18n": "^10.4.0",
     "@spurro/shared": "workspace:*",
     "@vueuse/core": "^14.2.1",
@@ -36,7 +35,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@nuxtjs/tailwindcss": "7.0.0-beta.1",
+    "@nuxt/eslint": "1.15.2",
     "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^25.6.0",
     "eslint": "^10.1.0",

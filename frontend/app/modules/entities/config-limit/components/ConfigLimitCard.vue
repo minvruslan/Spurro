@@ -33,7 +33,7 @@ const fillPercent = computed(() =>
       >
         <div
           class="h-full rounded-full transition-[width] duration-300"
-          :class="isFull ? 'bg-zinc-400' : 'bg-primary'"
+          :class="isFull ? 'bg-muted-foreground' : 'bg-primary'"
           :style="{ width: `${fillPercent}%` }"
         />
       </div>

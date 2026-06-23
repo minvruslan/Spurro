@@ -5,7 +5,11 @@ export default defineNuxtConfig({
     head: {
       title: "Spurro",
       meta: [{ name: "description", content: "Spurro" }],
-      link: [{ rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
+      link: [
+        { rel: "icon", href: "/favicon.ico?v=4", sizes: "any" },
+        { rel: "icon", type: "image/svg+xml", href: "/icon.svg?v=2" },
+        { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=2" },
+      ],
     },
   },
   build: {
@@ -31,7 +35,11 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()],
   },
-  modules: ["shadcn-nuxt", "@nuxt/eslint", "@nuxtjs/i18n", "@nuxt/fonts"],
+  modules: ["shadcn-nuxt", "@nuxt/eslint", "@nuxtjs/i18n", "@nuxt/fonts", "@nuxtjs/color-mode"],
+  colorMode: {
+    classSuffix: "",
+    fallback: "light",
+  },
   fonts: {
     defaults: {
       weights: [400, 500, 600, 700],

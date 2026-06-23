@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ListboxFilterProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
-import { Search } from "@lucide/vue"
+import { Search } from "lucide-vue-next"
 import { reactiveOmit } from "@vueuse/core"
 import { ListboxFilter, useForwardProps } from "reka-ui"
 import { cn } from "@/components/ui/utils/cn"
