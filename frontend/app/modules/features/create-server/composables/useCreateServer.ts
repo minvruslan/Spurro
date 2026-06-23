@@ -9,7 +9,7 @@ export function useCreateServer() {
   const pending = ref(false)
   const error = ref<string | null>(null)
 
-  async function submit(values: CreateServerFormValues): Promise<Server | null> {
+  async function create(values: CreateServerFormValues): Promise<Server | null> {
     if (pending.value) return null
 
     pending.value = true
@@ -37,5 +37,5 @@ export function useCreateServer() {
     }
   }
 
-  return { pending, error, submit }
+  return { pending, error, create }
 }

@@ -15,7 +15,8 @@ const emit = defineEmits<{ (e: "created", server: Server): void; (e: "cancel"): 
 
 const { t } = useI18n({ useScope: "local", messages })
 const { protocols, ready } = useProtocols()
-const { pending, error, submit } = useCreateServer()
+const { pending, create } = useCreateServer()
+const { showSuccess, showError } = useNotificationBanner()
 
 const nameInput = ref<{ $el: HTMLInputElement } | null>(null)
 
@@ -42,8 +43,13 @@ const toggleProtocolSelection = (id: string, checked: boolean) => {
 
 const onSubmit = async () => {
   if (pending.value) return
-  const server = await submit({ ...form.value })
-  if (server) emit("created", server)
+  const server = await create({ ...form.value })
+  if (server) {
+    showSuccess(t("notifications.created"))
+    emit("created", server)
+  } else {
+    showError(t("notifications.createError"))
+  }
 }
 </script>
 
@@ -56,50 +62,54 @@ const onSubmit = async () => {
     <template #body>
       <div class="flex flex-col gap-3 sm:flex-row">
         <div class="flex flex-1 flex-col gap-2">
-          <FieldLabel for="name" required>{{ t("name.label") }}</FieldLabel>
+          <FieldLabel for="name" required>{{ t("fields.name.label") }}</FieldLabel>
           <Input
             id="name"
             ref="nameInput"
             v-model="form.name"
             aria-required="true"
-            :placeholder="t('name.placeholder')"
+            :placeholder="t('fields.name.placeholder')"
           />
         </div>
         <div class="flex min-w-0 flex-1 flex-col gap-2">
-          <FieldLabel for="country" required>{{ t("country.label") }}</FieldLabel>
+          <FieldLabel for="country" required>{{ t("fields.country.label") }}</FieldLabel>
           <CountryCombobox id="country" v-model="form.country" required />
         </div>
       </div>
 
       <div class="flex flex-col gap-3 sm:flex-row">
         <div class="flex flex-1 flex-col gap-2">
-          <FieldLabel for="ip" required>{{ t("ip.label") }}</FieldLabel>
+          <FieldLabel for="ip" required>{{ t("fields.ip.label") }}</FieldLabel>
           <Input
             id="ip"
             v-model="form.ip"
             aria-required="true"
-            :placeholder="t('ip.placeholder')"
+            :placeholder="t('fields.ip.placeholder')"
           />
         </div>
         <div class="flex flex-1 flex-col gap-2">
-          <FieldLabel for="domain">{{ t("domain.label") }}</FieldLabel>
-          <Input id="domain" v-model="form.domainName" :placeholder="t('domain.placeholder')" />
+          <FieldLabel for="domain">{{ t("fields.domain.label") }}</FieldLabel>
+          <Input
+            id="domain"
+            v-model="form.domainName"
+            :placeholder="t('fields.domain.placeholder')"
+          />
         </div>
       </div>
 
       <div class="flex flex-col gap-3 sm:flex-row">
         <div class="flex flex-1 flex-col gap-2">
-          <FieldLabel for="login" required>{{ t("login.label") }}</FieldLabel>
+          <FieldLabel for="login" required>{{ t("fields.login.label") }}</FieldLabel>
           <Input
             id="login"
             v-model="form.login"
             aria-required="true"
             autocomplete="off"
-            :placeholder="t('login.placeholder')"
+            :placeholder="t('fields.login.placeholder')"
           />
         </div>
         <div class="flex flex-1 flex-col gap-2">
-          <FieldLabel for="password" required>{{ t("password.label") }}</FieldLabel>
+          <FieldLabel for="password" required>{{ t("fields.password.label") }}</FieldLabel>
           <Input
             id="password"
             v-model="form.password"
@@ -111,7 +121,9 @@ const onSubmit = async () => {
       </div>
 
       <div role="group" aria-labelledby="protocols-label" class="flex flex-col gap-2">
-        <span id="protocols-label" class="text-sm font-medium">{{ t("protocols.label") }}</span>
+        <span id="protocols-label" class="text-sm font-medium">{{
+          t("fields.protocols.label")
+        }}</span>
         <label
           v-for="protocol in protocols"
           :key="protocol.id"
@@ -128,20 +140,19 @@ const onSubmit = async () => {
       </div>
     </template>
 
-    <template #action>
-      <p v-if="error" role="alert" class="mr-auto text-sm text-destructive">{{ t("error") }}</p>
+    <template #actions>
       <Button
         type="button"
         variant="outline"
-        class="w-[7rem]"
+        class="w-full sm:w-28"
         :disabled="pending"
         @click="emit('cancel')"
       >
-        {{ t("cancel") }}
+        {{ t("actions.cancel") }}
       </Button>
-      <Button type="submit" class="w-[8rem]" :loading="pending">
+      <Button type="submit" class="w-full sm:w-32" :loading="pending">
         <Plus class="size-4" aria-hidden="true" />
-        {{ t("submit") }}
+        {{ t("actions.create") }}
       </Button>
     </template>
   </FormLayout>

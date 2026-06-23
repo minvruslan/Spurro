@@ -15,8 +15,11 @@ import MobileNav from "@/components/admin-layout/MobileNav.vue"
       <DesktopNav class="hidden lg:flex lg:flex-col" />
 
       <main class="min-h-0 min-w-0 flex-1 overflow-y-auto">
-        <div class="mx-auto h-full max-w-215">
-          <slot />
+        <div class="mx-auto flex h-full max-w-215 flex-col">
+          <NotificationBanner />
+          <div class="min-h-0 flex-1">
+            <slot />
+          </div>
         </div>
       </main>
     </div>

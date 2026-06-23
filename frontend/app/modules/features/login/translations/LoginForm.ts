@@ -1,18 +1,20 @@
 export const messages = {
   ru: {
-    inviteOnly: "Доступ только по приглашению",
+    title: "Вход в Spurro",
+    subTitle: "Доступ только по приглашению",
     email: {
       label: "Email",
       placeholder: "you{'@'}email.com",
     },
-    sendLoginLinkButton: "Отправить ссылку для входа",
+    sendLoginLinkAction: "Отправить ссылку для входа",
   },
   en: {
-    inviteOnly: "Invite-only access",
+    title: "Login to Spurro",
+    subTitle: "Invite-only access",
     email: {
       label: "Email",
       placeholder: "you{'@'}email.com",
     },
-    sendLoginLinkButton: "Send login link",
+    sendLoginLinkAction: "Send login link",
   },
 }

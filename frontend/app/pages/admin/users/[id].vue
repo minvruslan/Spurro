@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { EditUserForm } from "@/modules/features/edit-user"
+import { UpdateUserForm } from "@/modules/features/update-user"
 
-definePageMeta({ middleware: "admin", layout: "admin" })
+definePageMeta({
+  middleware: "admin",
+  layout: "admin",
+  key: (route) => route.params.id as string,
+})
 
 const route = useRoute()
 const id = route.params.id as string
@@ -10,7 +14,5 @@ const goBack = () => navigateTo("/admin/users")
 </script>
 
 <template>
-  <div class="h-full">
-    <EditUserForm :id="id" @updated="goBack" @deleted="goBack" @cancel="goBack" />
-  </div>
+  <UpdateUserForm :id="id" @updated="goBack" @deleted="goBack" @cancel="goBack" />
 </template>

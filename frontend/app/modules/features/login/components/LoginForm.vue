@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Mail } from "lucide-vue-next"
-import { BrandIconWithText } from "@/modules/entities/brand"
 import { messages } from "../translations/LoginForm"
 
 const props = defineProps<{ pending?: boolean }>()
@@ -20,10 +19,11 @@ const onSubmit = () => {
 
 <template>
   <div class="mb-4 flex flex-col items-center gap-1.5">
-    <BrandIconWithText />
-    <span class="text-xs text-muted-foreground">{{ t("inviteOnly") }}</span>
+    <h1 class="text-lg font-semibold tracking-tight">{{ t("title") }}</h1>
+    <span class="text-xs text-muted-foreground">{{ t("subTitle") }}</span>
   </div>
-  <form class="flex flex-col gap-4" @submit.prevent="onSubmit">
+
+  <form class="flex flex-col gap-4" novalidate @submit.prevent="onSubmit">
     <div class="flex flex-col gap-2">
       <Label for="email">{{ t("email.label") }}</Label>
       <Input
@@ -35,9 +35,10 @@ const onSubmit = () => {
         :placeholder="t('email.placeholder')"
       />
     </div>
+
     <Button type="submit" class="w-full" :loading="pending">
       <Mail class="size-4" aria-hidden="true" />
-      {{ t("sendLoginLinkButton") }}
+      {{ t("sendLoginLinkAction") }}
     </Button>
   </form>
 </template>

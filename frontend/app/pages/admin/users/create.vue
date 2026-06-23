@@ -7,7 +7,5 @@ const goBack = () => navigateTo("/admin/users")
 </script>
 
 <template>
-  <div class="h-full">
-    <CreateUserForm @created="goBack" @cancel="goBack" />
-  </div>
+  <CreateUserForm @created="goBack" @cancel="goBack" />
 </template>

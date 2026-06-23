@@ -7,7 +7,7 @@ export function useCreateUser() {
   const pending = ref(false)
   const error = ref<string | null>(null)
 
-  async function submit(values: CreateUserFormValues): Promise<User | null> {
+  async function create(values: CreateUserFormValues): Promise<User | null> {
     if (pending.value) return null
 
     pending.value = true
@@ -32,5 +32,5 @@ export function useCreateUser() {
     }
   }
 
-  return { pending, error, submit }
+  return { pending, error, create }
 }
