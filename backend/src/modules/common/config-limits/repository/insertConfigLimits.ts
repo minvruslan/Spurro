@@ -2,7 +2,7 @@ import type { UpsertConfigLimit } from "@spurro/shared"
 import type { DbOrTx } from "@/core/database/index.js"
 import { userLimit } from "@/core/database/schema.js"
 
-export async function insertUserLimits(
+export async function insertConfigLimits(
   executor: DbOrTx,
   userId: string,
   limits: UpsertConfigLimit[],

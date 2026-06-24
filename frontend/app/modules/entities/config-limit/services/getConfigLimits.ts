@@ -7,6 +7,6 @@ const ResponseSchema = z.object({ data: z.array(ConfigLimitSchema) })
 
 export async function getConfigLimits(): Promise<ConfigLimit[]> {
   const api = useApi()
-  const response = await api("/api/configs/limits")
+  const response = await api("/api/config-limits")
   return ResponseSchema.parse(response).data
 }
