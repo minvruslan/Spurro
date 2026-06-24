@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Config } from "@spurro/shared"
-import { ListErrorState } from "@/modules/shared/components"
+import { ListErrorState } from "@/modules/common/components"
 import ConfigList from "./ConfigList.vue"
 import { useConfigs } from "../composables/useConfigs"
 import { messages } from "../translations/ConfigListSelf"

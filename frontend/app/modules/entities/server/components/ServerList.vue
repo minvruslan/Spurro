@@ -2,7 +2,7 @@
 import type { Server } from "@spurro/shared"
 import { Server as ServerIcon } from "lucide-vue-next"
 import { computed } from "vue"
-import { ListEmptyState } from "@/modules/shared/components"
+import { ListEmptyState } from "@/modules/common/components"
 import ServerCard from "./ServerCard.vue"
 import ServerCardSkeleton from "./ServerCardSkeleton.vue"
 import { messages } from "../translations/ServerList"

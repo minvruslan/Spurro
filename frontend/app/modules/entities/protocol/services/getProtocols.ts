@@ -1,7 +1,7 @@
 import type { Protocol } from "@spurro/shared"
 import { ProtocolSchema } from "@spurro/shared"
 import { z } from "zod"
-import { useApi } from "@/modules/shared/services"
+import { useApi } from "@/modules/common/services"
 
 const ResponseSchema = z.object({ data: z.array(ProtocolSchema) })
 

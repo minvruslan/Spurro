@@ -2,7 +2,7 @@
 import type { Server } from "@spurro/shared"
 import { Plus } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
-import { ListLayout } from "@/modules/shared/components"
+import { ListLayout } from "@/modules/common/components"
 import { ServerListSelf } from "@/modules/entities/server"
 import { messages } from "../translations/ServerList"
 

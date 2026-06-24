@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { User } from "@spurro/shared"
-import { ListErrorState } from "@/modules/shared/components"
+import { ListErrorState } from "@/modules/common/components"
 import UserList from "./UserList.vue"
 import { useUsers } from "../composables/useUsers"
 import { messages } from "../translations/UserListSelf"

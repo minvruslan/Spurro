@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Server } from "@spurro/shared"
-import { ListErrorState } from "@/modules/shared/components"
+import { ListErrorState } from "@/modules/common/components"
 import ServerList from "./ServerList.vue"
 import { useServers } from "../composables/useServers"
 import { messages } from "../translations/ServerListSelf"

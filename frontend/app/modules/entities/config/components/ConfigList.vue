@@ -2,7 +2,7 @@
 import type { Config } from "@spurro/shared"
 import { Shield } from "lucide-vue-next"
 import { computed } from "vue"
-import { ListEmptyState } from "@/modules/shared/components"
+import { ListEmptyState } from "@/modules/common/components"
 import ConfigCard from "./ConfigCard.vue"
 import ConfigCardSkeleton from "./ConfigCardSkeleton.vue"
 import { messages } from "../translations/ConfigList"
