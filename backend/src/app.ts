@@ -4,6 +4,7 @@ import type { AppVariables } from "@/core/types/index.js"
 import { authServer } from "@/core/auth-server/index.js"
 import { requireAuth, requireAdmin } from "@/core/middlewares/index.js"
 import { configsRouter } from "@/modules/configs/index.js"
+import { configLimitsRouter } from "@/modules/config-limits/index.js"
 import { usersRouter } from "@/modules/users/index.js"
 import { serversRouter } from "@/modules/servers/index.js"
 import { protocolsRouter } from "@/modules/protocols/index.js"
@@ -24,6 +25,11 @@ const configsApi = new Hono<{ Variables: AppVariables }>()
 configsApi.use("*", requireAuth)
 configsApi.route("/", configsRouter)
 api.route("/configs", configsApi)
+
+const configLimitsApi = new Hono<{ Variables: AppVariables }>()
+configLimitsApi.use("*", requireAuth)
+configLimitsApi.route("/", configLimitsRouter)
+api.route("/config-limits", configLimitsApi)
 
 const usersApi = new Hono<{ Variables: AppVariables }>()
 usersApi.use("*", requireAdmin)

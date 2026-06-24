@@ -1,10 +1,10 @@
 import { Hono } from "hono"
 import type { AppVariables } from "@/core/types/index.js"
-import { getConfigLimitsService } from "../services/getConfigLimitsService.js"
+import { getConfigLimitsService } from "@/modules/common/config-limits/index.js"
 
 const getConfigLimitsRoute = new Hono<{ Variables: AppVariables }>()
 
-getConfigLimitsRoute.get("/limits", async (c) => {
+getConfigLimitsRoute.get("/", async (c) => {
   try {
     const data = await getConfigLimitsService(c.get("userId"))
     return c.json({ data })
