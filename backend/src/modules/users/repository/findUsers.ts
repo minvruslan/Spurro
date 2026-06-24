@@ -1,10 +1,10 @@
 import { desc } from "drizzle-orm"
-import { db } from "@/core/database/index.js"
+import type { DbOrTx } from "@/core/database/index.js"
 import { user } from "@/core/database/auth-schema.js"
 import { notAdmin } from "./notAdmin.js"
 
-export async function findUsers() {
-  return db
+export async function findUsers(executor: DbOrTx) {
+  return executor
     .select({
       id: user.id,
       name: user.name,

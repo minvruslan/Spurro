@@ -8,6 +8,6 @@ import { createServersFromDatabaseData } from "../utils/createServersFromDatabas
 export async function updateServerService(id: string, input: UpsertServer): Promise<Server | null> {
   const [row] = await updateServer(db, id, { name: input.name, country: input.country })
   if (!row) return null
-  const rows = await findServerById(row.id)
+  const rows = await findServerById(db, row.id)
   return ServerSchema.parse(createServersFromDatabaseData(rows)[0])
 }

@@ -7,13 +7,11 @@ import { updateUserLimits } from "../repository/updateUserLimits.js"
 import { createUserFromDatabaseData } from "../utils/createUserFromDatabaseData.js"
 
 export async function updateUserService(id: string, input: UpsertUser): Promise<User | null> {
-  const row = await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const [updated] = await updateUser(tx, id, { name: input.name })
     if (!updated) return null
     await updateUserLimits(tx, id, input.limits ?? [])
-    return updated
+    const limits = await getConfigLimitsService(id, tx)
+    return UserSchema.parse({ ...createUserFromDatabaseData(updated), limits })
   })
-  if (!row) return null
-  const limits = await getConfigLimitsService(id)
-  return UserSchema.parse({ ...createUserFromDatabaseData(row), limits })
 }

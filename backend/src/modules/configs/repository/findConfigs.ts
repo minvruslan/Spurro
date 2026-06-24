@@ -1,5 +1,5 @@
 import { eq, and, ne, desc } from "drizzle-orm"
-import { db } from "@/core/database/index.js"
+import type { DbOrTx } from "@/core/database/index.js"
 import {
   accessGrant,
   deviceType,
@@ -9,8 +9,8 @@ import {
   server,
 } from "@/core/database/schema.js"
 
-export async function findConfigs(userId: string) {
-  return db
+export async function findConfigs(executor: DbOrTx, userId: string) {
+  return executor
     .select({
       id: accessGrant.id,
       name: accessGrant.name,

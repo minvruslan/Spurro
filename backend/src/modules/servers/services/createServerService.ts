@@ -16,7 +16,7 @@ export async function createServerService(input: UpsertServer): Promise<Server> 
       status: "provisioning",
     })
     await insertEndpoints(tx, row.id, input.endpoints ?? [])
-    const rows = await findServerById(row.id, tx)
+    const rows = await findServerById(tx, row.id)
     return ServerSchema.parse(createServersFromDatabaseData(rows)[0])
   })
 }

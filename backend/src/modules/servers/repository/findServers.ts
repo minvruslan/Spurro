@@ -1,5 +1,4 @@
 import { asc, desc, eq } from "drizzle-orm"
-import { db } from "@/core/database/index.js"
 import type { DbOrTx } from "@/core/database/index.js"
 import { endpoint, protocol, protocolType, server } from "@/core/database/schema.js"
 
@@ -23,7 +22,7 @@ export const serverSelection = {
   protocolTypeName: protocolType.name,
 }
 
-export async function findServers(executor: DbOrTx = db) {
+export async function findServers(executor: DbOrTx) {
   return executor
     .select(serverSelection)
     .from(server)

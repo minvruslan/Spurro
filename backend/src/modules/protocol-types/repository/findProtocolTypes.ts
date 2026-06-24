@@ -1,5 +1,4 @@
 import { asc, eq } from "drizzle-orm"
-import { db } from "@/core/database/index.js"
 import type { DbOrTx } from "@/core/database/index.js"
 import { protocolType } from "@/core/database/schema.js"
 
@@ -9,7 +8,7 @@ export const protocolTypeSelection = {
   name: protocolType.name,
 }
 
-export async function findProtocolTypes(executor: DbOrTx = db) {
+export async function findProtocolTypes(executor: DbOrTx) {
   return executor
     .select(protocolTypeSelection)
     .from(protocolType)

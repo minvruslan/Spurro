@@ -1,9 +1,9 @@
 import { eq, and, count } from "drizzle-orm"
-import { db } from "@/core/database/index.js"
+import type { DbOrTx } from "@/core/database/index.js"
 import { accessGrant, endpoint, protocol } from "@/core/database/schema.js"
 
-export async function countConfigsByProtocolType(userId: string) {
-  return db
+export async function countConfigsByProtocolType(executor: DbOrTx, userId: string) {
+  return executor
     .select({
       protocolTypeId: protocol.protocolTypeId,
       used: count(accessGrant.id),
