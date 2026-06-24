@@ -16,6 +16,14 @@ export const authServer = betterAuth({
   emailAndPassword: {
     enabled: false,
   },
+  advanced: {
+    ipAddress: {
+      // Backend runs behind a reverse proxy (nginx/Caddy/Traefik); the real client IP
+      // arrives in X-Forwarded-For. The proxy MUST overwrite (not append) an incoming
+      // X-Forwarded-For, otherwise clients could spoof it and bypass rate limiting.
+      ipAddressHeaders: ["x-forwarded-for"],
+    },
+  },
   rateLimit: {
     enabled: true,
     window: 60,
