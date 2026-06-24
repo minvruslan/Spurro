@@ -1,13 +1,18 @@
 import type { ConfigLimit } from "@spurro/shared"
 import { ConfigLimitSchema } from "@spurro/shared"
+import { db } from "@/core/database/index.js"
+import type { DbOrTx } from "@/core/database/index.js"
 import { findConfigLimits } from "../repository/findConfigLimits.js"
 import { countConfigsByProtocolType } from "../repository/countConfigsByProtocolType.js"
 import { createConfigLimitFromDatabaseData } from "../utils/createConfigLimitFromDatabaseData.js"
 
-export async function getConfigLimitsService(userId: string): Promise<ConfigLimit[]> {
+export async function getConfigLimitsService(
+  userId: string,
+  executor: DbOrTx = db,
+): Promise<ConfigLimit[]> {
   const [limitRows, usageRows] = await Promise.all([
-    findConfigLimits(userId),
-    countConfigsByProtocolType(userId),
+    findConfigLimits(executor, userId),
+    countConfigsByProtocolType(executor, userId),
   ])
 
   const usedByType = new Map(usageRows.map((u) => [u.protocolTypeId, u.used]))

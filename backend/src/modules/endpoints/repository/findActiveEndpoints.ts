@@ -1,9 +1,9 @@
 import { and, asc, eq } from "drizzle-orm"
-import { db } from "@/core/database/index.js"
+import type { DbOrTx } from "@/core/database/index.js"
 import { endpoint, protocol, protocolType, server } from "@/core/database/schema.js"
 
-export async function findActiveEndpoints() {
-  return db
+export async function findActiveEndpoints(executor: DbOrTx) {
+  return executor
     .select({
       id: endpoint.id,
       port: endpoint.port,

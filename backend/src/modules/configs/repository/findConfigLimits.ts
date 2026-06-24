@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm"
-import { db } from "@/core/database/index.js"
+import type { DbOrTx } from "@/core/database/index.js"
 import { userLimit, protocolType } from "@/core/database/schema.js"
 
-export async function findConfigLimits(userId: string) {
-  return db
+export async function findConfigLimits(executor: DbOrTx, userId: string) {
+  return executor
     .select({
       id: userLimit.id,
       maxCount: userLimit.maxCount,
