@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { CountryCodeSchema } from "../../../common/types/CountryCodeSchema"
 import { UpsertServerEndpointSchema } from "./UpsertServerEndpointSchema"
 import { ServerCredentialsSchema } from "./ServerCredentialsSchema"
 
@@ -15,7 +16,7 @@ export const UpsertServerSchema = z.object({
     .refine((value) => isDomain(value) || isIp(value))
     .optional(),
   ip: z.string().refine(isIp),
-  country: z.string().min(1),
+  country: CountryCodeSchema,
   endpoints: UpsertServerEndpointSchema.array().optional(),
   credentials: ServerCredentialsSchema.optional(),
 })
