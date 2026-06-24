@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-vue-next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useCountries } from "@/modules/shared/composables"
 import { messages } from "../translations/ServerCard"
 
 const props = defineProps<{ server: Server }>()
@@ -12,6 +13,7 @@ const props = defineProps<{ server: Server }>()
 defineEmits<{ (e: "open"): void }>()
 
 const { t } = useI18n({ useScope: "local", messages })
+const { getCountryName } = useCountries()
 
 const protocols = computed(() => [
   ...new Set(props.server.endpoints.map((endpoint) => endpoint.protocol.type.name)),
@@ -29,7 +31,7 @@ const protocols = computed(() => [
             {{ server.domainName }}
           </p>
         </div>
-        <div class="w-32 shrink-0 truncate text-sm">{{ server.country }}</div>
+        <div class="w-32 shrink-0 truncate text-sm">{{ getCountryName(server.country) }}</div>
         <div class="flex min-w-0 flex-1 flex-wrap gap-1.5">
           <Badge v-for="protocol in protocols" :key="protocol" variant="secondary">
             {{ protocol }}
@@ -59,7 +61,7 @@ const protocols = computed(() => [
         <span class="truncate font-mono text-xs text-muted-foreground">{{
           server.domainName
         }}</span>
-        <span class="text-sm">{{ server.country }}</span>
+        <span class="text-sm">{{ getCountryName(server.country) }}</span>
         <div class="flex flex-wrap gap-1.5">
           <Badge v-for="protocol in protocols" :key="protocol" variant="secondary">
             {{ protocol }}

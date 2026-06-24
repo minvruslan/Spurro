@@ -3,7 +3,14 @@ import { ref, watch } from "vue"
 import { useMediaQuery } from "@vueuse/core"
 import { Menu, X } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetClose } from "@/components/ui/sheet"
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+  SheetDescription,
+  SheetClose,
+} from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { BrandIconWithText } from "@/modules/entities/brand"
 import NavItems from "./NavItems.vue"
@@ -32,6 +39,7 @@ watch(isDesktop, (desktop) => {
 
       <SheetContent side="left" hide-close class="flex w-66 flex-col gap-0 p-4">
         <SheetTitle class="sr-only">{{ t("menuTitle") }}</SheetTitle>
+        <SheetDescription class="sr-only">{{ t("menuDescription") }}</SheetDescription>
         <div class="flex items-center justify-between gap-2 pb-3 pl-1.5">
           <BrandIconWithText />
           <SheetClose as-child>
