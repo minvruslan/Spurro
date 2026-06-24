@@ -1,4 +1,4 @@
-import { useApi } from "@/modules/shared/services"
+import { useApi } from "@/modules/common/services"
 
 export async function deleteUser(id: string): Promise<void> {
   const api = useApi()

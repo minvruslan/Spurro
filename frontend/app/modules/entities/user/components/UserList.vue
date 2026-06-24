@@ -2,7 +2,7 @@
 import type { User } from "@spurro/shared"
 import { Users } from "lucide-vue-next"
 import { computed } from "vue"
-import { ListEmptyState } from "@/modules/shared/components"
+import { ListEmptyState } from "@/modules/common/components"
 import UserCard from "./UserCard.vue"
 import UserCardSkeleton from "./UserCardSkeleton.vue"
 import { messages } from "../translations/UserList"

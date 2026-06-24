@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-vue-next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { useCountries } from "@/modules/shared/composables"
+import { useCountries } from "@/modules/common/composables"
 import { messages } from "../translations/ServerCard"
 
 const props = defineProps<{ server: Server }>()

@@ -2,13 +2,7 @@
 import type { HTMLAttributes } from "vue"
 import { computed, onMounted, ref } from "vue"
 import { Moon, Sun } from "lucide-vue-next"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { messages } from "@/translations/ThemeSwitcher"
 
 const props = defineProps<{ class?: HTMLAttributes["class"] }>()
@@ -23,6 +17,7 @@ onMounted(() => (mounted.value = true))
 
 const current = computed(() => (mounted.value ? colorMode.value : undefined))
 const icon = computed(() => (current.value === "dark" ? Moon : Sun))
+const valueLabel = computed(() => (current.value ? t(`options.${current.value}`) : ""))
 
 const onChange = (value: unknown) => {
   if (typeof value === "string" && value) {
@@ -37,7 +32,7 @@ const onChange = (value: unknown) => {
       <span class="sr-only">{{ t("label") }}</span>
       <span class="flex items-center gap-2">
         <component :is="icon" class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <SelectValue />
+        <span>{{ valueLabel }}</span>
       </span>
     </SelectTrigger>
     <SelectContent>
