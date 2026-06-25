@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { and, eq, ne } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
 import { server } from "@/core/database/schema.js"
 
@@ -10,6 +10,6 @@ export async function updateServer(
   return executor
     .update(server)
     .set({ name: fields.name, country: fields.country })
-    .where(eq(server.id, id))
+    .where(and(eq(server.id, id), ne(server.status, "deleted")))
     .returning({ id: server.id })
 }

@@ -1,25 +1,32 @@
 <script setup lang="ts">
 import type { Server } from "@spurro/shared"
 import { computed, onMounted, ref } from "vue"
-import { Save } from "lucide-vue-next"
+import { Save, Trash2 } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { CountryCombobox, FieldLabel, FormLayout } from "@/modules/common/components"
 import { useServer } from "@/modules/entities/server"
 import { useUpdateServer } from "../composables/useUpdateServer"
+import { useDeleteServer } from "../composables/useDeleteServer"
 import type { UpdateServerFormValues } from "../types"
 import { messages } from "../translations/UpdateServerForm"
 
 const props = defineProps<{ id: string }>()
-const emit = defineEmits<{ (e: "updated", server: Server): void; (e: "cancel"): void }>()
+const emit = defineEmits<{
+  (e: "updated", server: Server): void
+  (e: "deleted" | "cancel"): void
+}>()
 
 const { t } = useI18n({ useScope: "local", messages })
 const { server, status, ready } = useServer(props.id)
 const { pending, update } = useUpdateServer(props.id)
+const { pending: deleting, deleteServer } = useDeleteServer(props.id)
+const { confirm } = useConfirmationDialog()
 const { showSuccess, showError } = useNotificationBanner()
 
 const endpoints = computed(() => server.value?.endpoints ?? [])
+const isCurrent = computed(() => server.value?.isCurrent ?? false)
 
 const nameInput = ref<{ $el: HTMLInputElement } | null>(null)
 
@@ -46,10 +53,28 @@ const onSubmit = async () => {
     showError(t("notifications.updateError"))
   }
 }
+
+const onDelete = async () => {
+  const confirmed = await confirm({
+    title: t("deleteConfirmationDialog.title"),
+    description: t("deleteConfirmationDialog.description", { name: form.value.name }),
+    confirmButtonText: t("actions.delete"),
+    destructive: true,
+  })
+
+  if (!confirmed) return
+
+  if (await deleteServer()) {
+    showSuccess(t("notifications.deleted"))
+    emit("deleted")
+  } else {
+    showError(t("notifications.deleteError"))
+  }
+}
 </script>
 
 <template>
-  <FormLayout v-if="server" :disabled="pending" @submit="onSubmit">
+  <FormLayout v-if="server" :disabled="pending || deleting" @submit="onSubmit">
     <template #title>
       <h1 class="text-lg font-semibold tracking-tight">{{ t("title") }}</h1>
     </template>
@@ -122,12 +147,24 @@ const onSubmit = async () => {
         type="button"
         variant="outline"
         class="w-full sm:w-28"
-        :disabled="pending"
+        :disabled="pending || deleting"
         @click="emit('cancel')"
       >
         {{ t("actions.cancel") }}
       </Button>
-      <Button type="submit" class="w-full sm:w-32" :loading="pending">
+      <Button
+        v-if="!isCurrent"
+        type="button"
+        variant="destructive"
+        class="w-full sm:order-first sm:mr-auto sm:w-32"
+        :loading="deleting"
+        :disabled="pending"
+        @click="onDelete"
+      >
+        <Trash2 class="size-4" aria-hidden="true" />
+        {{ t("actions.delete") }}
+      </Button>
+      <Button type="submit" class="w-full sm:w-32" :loading="pending" :disabled="deleting">
         <Save class="size-4" aria-hidden="true" />
         {{ t("actions.update") }}
       </Button>
