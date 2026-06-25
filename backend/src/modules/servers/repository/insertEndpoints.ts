@@ -13,7 +13,6 @@ export async function insertEndpoints(
       serverId,
       protocolId: item.protocolId,
       port: item.port,
-      status: item.status ?? "active",
       config: {},
     })),
   )

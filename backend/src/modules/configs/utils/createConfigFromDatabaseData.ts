@@ -1,12 +1,7 @@
-import type { Config, DeviceType, GrantStatus } from "@spurro/shared"
+import type { Config, DeviceType } from "@spurro/shared"
 import type { findConfigs } from "../repository/findConfigs.js"
 
 type ConfigRow = Awaited<ReturnType<typeof findConfigs>>[number]
-
-function assertGrantStatus(v: string): GrantStatus {
-  if (v === "active" || v === "revoked" || v === "deleted") return v
-  throw new Error(`Unexpected grant status: ${v}`)
-}
 
 export function createConfigFromDatabaseData(row: ConfigRow): Config {
   return {
@@ -36,7 +31,7 @@ export function createConfigFromDatabaseData(row: ConfigRow): Config {
       },
     },
     config: row.config,
-    status: assertGrantStatus(row.status),
+    status: row.status,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }

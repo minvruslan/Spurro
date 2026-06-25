@@ -14,5 +14,5 @@ const goBack = () => navigateTo("/admin/servers")
 </script>
 
 <template>
-  <UpdateServerForm :id="id" @updated="goBack" @cancel="goBack" />
+  <UpdateServerForm :id="id" @updated="goBack" @deleted="goBack" @cancel="goBack" />
 </template>

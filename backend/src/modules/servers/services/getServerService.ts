@@ -7,5 +7,7 @@ import { createServersFromDatabaseData } from "../utils/createServersFromDatabas
 export async function getServerService(id: string): Promise<Server | null> {
   const rows = await findServerById(db, id)
   if (rows.length === 0) return null
-  return ServerSchema.parse(createServersFromDatabaseData(rows)[0])
+  const server = createServersFromDatabaseData(rows)[0]
+  if (server.status === "deleted") return null
+  return ServerSchema.parse(server)
 }
