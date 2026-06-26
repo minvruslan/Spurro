@@ -1,2 +1,5 @@
 export { getConfigs } from "./getConfigs"
+export { getConfig } from "./getConfig"
 export { createConfig } from "./createConfig"
+export { updateConfig } from "./updateConfig"
+export { deleteConfig } from "./deleteConfig"
