@@ -1,0 +1,1 @@
+export { getDeviceTypes } from "./getDeviceTypes"

@@ -10,6 +10,7 @@ import { serversRouter } from "@/modules/servers/index.js"
 import { protocolsRouter } from "@/modules/protocols/index.js"
 import { protocolTypesRouter } from "@/modules/protocol-types/index.js"
 import { endpointsRouter } from "@/modules/endpoints/index.js"
+import { deviceTypesRouter } from "@/modules/device-types/index.js"
 
 const app = new Hono<{ Variables: AppVariables }>()
 
@@ -55,6 +56,11 @@ const endpointsApi = new Hono<{ Variables: AppVariables }>()
 endpointsApi.use("*", requireAuth)
 endpointsApi.route("/", endpointsRouter)
 api.route("/endpoints", endpointsApi)
+
+const deviceTypesApi = new Hono<{ Variables: AppVariables }>()
+deviceTypesApi.use("*", requireAuth)
+deviceTypesApi.route("/", deviceTypesRouter)
+api.route("/device-types", deviceTypesApi)
 
 app.route("/api", api)
 
