@@ -9,29 +9,31 @@ import {
   server,
 } from "@/core/database/schema.js"
 
+export const configSelection = {
+  id: accessGrant.id,
+  name: accessGrant.name,
+  config: accessGrant.config,
+  status: accessGrant.status,
+  createdAt: accessGrant.createdAt,
+  updatedAt: accessGrant.updatedAt,
+  deviceTypeId: deviceType.id,
+  deviceTypeCode: deviceType.code,
+  deviceTypeName: deviceType.name,
+  endpointId: endpoint.id,
+  endpointPort: endpoint.port,
+  protocolId: protocol.id,
+  protocolVersion: protocol.version,
+  protocolTypeId: protocolType.id,
+  protocolTypeCode: protocolType.code,
+  protocolTypeName: protocolType.name,
+  serverId: server.id,
+  serverName: server.name,
+  serverCountry: server.country,
+}
+
 export async function findConfigs(executor: DbOrTx, userId: string) {
   return executor
-    .select({
-      id: accessGrant.id,
-      name: accessGrant.name,
-      config: accessGrant.config,
-      status: accessGrant.status,
-      createdAt: accessGrant.createdAt,
-      updatedAt: accessGrant.updatedAt,
-      deviceTypeId: deviceType.id,
-      deviceTypeCode: deviceType.code,
-      deviceTypeName: deviceType.name,
-      endpointId: endpoint.id,
-      endpointPort: endpoint.port,
-      protocolId: protocol.id,
-      protocolVersion: protocol.version,
-      protocolTypeId: protocolType.id,
-      protocolTypeCode: protocolType.code,
-      protocolTypeName: protocolType.name,
-      serverId: server.id,
-      serverName: server.name,
-      serverCountry: server.country,
-    })
+    .select(configSelection)
     .from(accessGrant)
     .innerJoin(deviceType, eq(accessGrant.deviceTypeId, deviceType.id))
     .innerJoin(endpoint, eq(accessGrant.endpointId, endpoint.id))

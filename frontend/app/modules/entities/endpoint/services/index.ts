@@ -1,0 +1,1 @@
+export { getEndpoints } from "./getEndpoints"
