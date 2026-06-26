@@ -1,6 +1,8 @@
 export { GrantStatusSchema } from "./GrantStatusSchema"
 export { ConfigSchema } from "./ConfigSchema"
 export { UpsertConfigSchema } from "./UpsertConfigSchema"
+export { UpdateConfigSchema } from "./UpdateConfigSchema"
 export type { GrantStatus } from "./GrantStatus"
 export type { Config } from "./Config"
 export type { UpsertConfig } from "./UpsertConfig"
+export type { UpdateConfig } from "./UpdateConfig"
