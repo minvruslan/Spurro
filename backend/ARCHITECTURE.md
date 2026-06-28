@@ -36,20 +36,21 @@ src/
 │       ├── index.ts
 │       └── AppVariables.ts   # Hono context variable types
 └── modules/
-    └── configs/
-        ├── index.ts          # Hono sub-router
+    └── config/                   # entity folder — singular
+        ├── index.ts             # Hono sub-router (exports configRouter)
         ├── routes/
-        │   ├── getConfigsRoute.ts
-        │   └── getConfigLimitsRoute.ts
+        │   └── getConfigsRoute.ts
         ├── services/
-        │   ├── getConfigsService.ts
-        │   └── getConfigLimitsService.ts
-        ├── repository/
+        │   └── getConfigsService.ts
+        ├── queries/             # DB query layer (one query per file)
         │   ├── findConfigs.ts
         │   └── ...
         └── utils/
             └── createConfigFromDatabaseData.ts
 ```
+
+URL paths stay plural (`api.route("/configs", …)`) even though the module folder is
+singular — plural collections are the correct REST convention.
 
 ## 3. Authentication & Authorization
 
@@ -97,9 +98,9 @@ initial admin user from `ADMIN_EMAIL` / `ADMIN_NAME` env vars if it does not alr
 ## 4. Modules
 
 All business logic lives inside `src/modules/`. Each module groups all logic for a single domain entity.
-Within each module, logic is organized in layers: routes → services → repository.
+Within each module, logic is organized in layers: routes → services → queries.
 
-- One directory per domain entity — `modules/configs/`, etc.
+- One directory per domain entity — `modules/config/`, etc.
 - `index.ts` is the public API of each module.
 - Shared logic goes to `src/core/`.
 
@@ -108,7 +109,7 @@ Within each module, logic is organized in layers: routes → services → reposi
 Default data flow:
 
 ```
-route → service → repository → database
+route → service → query → database
 ```
 
 ### Routes
@@ -127,12 +128,13 @@ Business logic — knows about the domain and the repository layer, not about HT
 - Wrap multi-step operations in a transactions.
 - Return domain types from `@spurro/shared`.
 
-### Repository
+### Queries
 
-Data access — knows about the database, not about business logic.
+Data access — knows about the database, not about business logic. Each file is a
+single DB query (hence the plural folder `queries/`, not `repository/`).
 
 - Must not contain business logic.
-- Keep each function in its own file.
+- Keep each query function in its own file.
 - Accept `DbOrTx` to work both inside and outside transactions.
 - Use `InferSelectModel` / `InferInsertModel` for DB-level types.
 
@@ -157,11 +159,28 @@ type AccessGrantRow = InferSelectModel<typeof accessGrant>
 
 ## 8. Naming Conventions
 
+### Folders
+
+Mirrors the frontend convention (`frontend/ARCHITECTURE.md` §11):
+
+- Layer/collection folders are `kebab-case` **plural**: `routes/`, `services/`,
+  `queries/`, `utils/`, `jobs/`, `schemas/`, `types/`, `constants/`,
+  `middlewares/`, `bootstraps/`.
+- Entity/segment folders are **singular**: `modules/server/`, `modules/config/`,
+  and single-concept core infra (`database/`, `queue/`, `env/`, `auth-server/`).
+- Router exports and the per-router Hono wrappers in `app.ts` follow the singular
+  module name: `serverRouter`, `serverApi` (not `serversRouter`/`serversApi`).
+- REST URL paths stay plural — `api.route("/servers", …)`.
+- Query/service function names may stay plural when they return a collection
+  (`findServers`, `getUsersService`) — that's semantics, not folder naming.
+
+### Files
+
 - Route files: `camelCase` + `Route` suffix — `getConfigsRoute.ts`.
 - Service files: `camelCase` + `Service` suffix — `getConfigsService.ts`.
-- Repository files: `camelCase` verb phrase — `findConfigs.ts`, `countConfigsByProtocolType.ts`.
+- Query files: `camelCase` verb phrase — `findConfigs.ts`, `countConfigsByProtocolType.ts`.
 - Util files: `camelCase` describing what it returns — `createConfigFromDatabaseData.ts`.
-- One function per file in `routes/`, `services/`, `repository/`.
+- One function per file in `routes/`, `services/`, `queries/`.
 
 ## 9. Path Alias
 
