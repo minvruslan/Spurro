@@ -7,7 +7,7 @@ import {
   protocol,
   protocolType,
   server,
-} from "@/core/database/schema.js"
+} from "@/core/database/schemas/domainSchema.js"
 import { configSelection } from "./findConfigs.js"
 
 export async function findConfigById(executor: DbOrTx, id: string) {

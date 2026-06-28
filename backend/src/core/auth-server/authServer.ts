@@ -3,12 +3,13 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { admin, magicLink } from "better-auth/plugins"
 import { eq } from "drizzle-orm"
 import { db } from "@/core/database/index.js"
-import * as schema from "@/core/database/auth-schema.js"
-import { user } from "@/core/database/auth-schema.js"
+import * as schema from "@/core/database/schemas/authSchema.js"
+import { user } from "@/core/database/schemas/authSchema.js"
+import { env } from "@/core/env/index.js"
 
 export const authServer = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL,
-  secret: process.env.BETTER_AUTH_SECRET,
+  baseURL: env.BETTER_AUTH_URL,
+  secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,

@@ -1,5 +1,5 @@
 import { db } from "@/core/database/index.js"
-import { deviceType } from "@/core/database/schema.js"
+import { deviceType } from "@/core/database/schemas/domainSchema.js"
 
 const DEVICE_TYPES = [
   { code: "ios", name: "iOS" },

@@ -1,6 +1,6 @@
 import { eq, inArray } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
-import { accessGrant, endpoint, server } from "@/core/database/schema.js"
+import { accessGrant, endpoint, server } from "@/core/database/schemas/domainSchema.js"
 
 export async function softDeleteServer(executor: DbOrTx, id: string) {
   const endpointIds = executor

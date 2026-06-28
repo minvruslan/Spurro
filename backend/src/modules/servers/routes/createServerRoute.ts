@@ -10,7 +10,8 @@ createServerRoute.post("/", zValidator("json", UpsertServerSchema), async (c) =>
   try {
     const data = await createServerService(c.req.valid("json"))
     return c.json({ data }, 201)
-  } catch {
+  } catch (error) {
+    console.error("[createServer]", error)
     return c.json({ error: "Internal server error" }, 500)
   }
 })

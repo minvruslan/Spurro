@@ -1,6 +1,6 @@
 import type { UpsertServerEndpoint } from "@spurro/shared"
 import type { DbOrTx } from "@/core/database/index.js"
-import { endpoint } from "@/core/database/schema.js"
+import { endpoint } from "@/core/database/schemas/domainSchema.js"
 
 export async function insertEndpoints(
   executor: DbOrTx,

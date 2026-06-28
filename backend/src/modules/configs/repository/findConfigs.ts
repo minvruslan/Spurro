@@ -7,7 +7,7 @@ import {
   protocol,
   protocolType,
   server,
-} from "@/core/database/schema.js"
+} from "@/core/database/schemas/domainSchema.js"
 
 export const configSelection = {
   id: accessGrant.id,
