@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
-import { endpoint, server } from "@/core/database/schema.js"
+import { endpoint, server } from "@/core/database/schemas/domainSchema.js"
 
 export async function findActiveEndpointById(executor: DbOrTx, id: string) {
   const [row] = await executor

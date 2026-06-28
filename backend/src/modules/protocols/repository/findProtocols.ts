@@ -1,6 +1,6 @@
 import { and, asc, eq } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
-import { protocol, protocolType } from "@/core/database/schema.js"
+import { protocol, protocolType } from "@/core/database/schemas/domainSchema.js"
 
 export const protocolSelection = {
   id: protocol.id,

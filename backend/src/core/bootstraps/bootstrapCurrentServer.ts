@@ -1,12 +1,13 @@
 import { eq } from "drizzle-orm"
 import { CountryCodeSchema } from "@spurro/shared"
 import { db } from "@/core/database/index.js"
-import { server } from "@/core/database/schema.js"
+import { server } from "@/core/database/schemas/domainSchema.js"
+import { env } from "@/core/env/index.js"
 
 export async function bootstrapCurrentServer() {
-  const domainName = process.env.DOMAIN_NAME
-  const ip = process.env.IP
-  const country = CountryCodeSchema.safeParse(process.env.COUNTRY?.toUpperCase())
+  const domainName = env.DOMAIN_NAME
+  const ip = env.IP
+  const country = CountryCodeSchema.safeParse(env.COUNTRY?.toUpperCase())
 
   if (!domainName || !ip || !country.success) {
     console.warn(

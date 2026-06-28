@@ -1,6 +1,6 @@
 import { asc, desc, eq, ne } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
-import { endpoint, protocol, protocolType, server } from "@/core/database/schema.js"
+import { endpoint, protocol, protocolType, server } from "@/core/database/schemas/domainSchema.js"
 
 export const serverSelection = {
   id: server.id,

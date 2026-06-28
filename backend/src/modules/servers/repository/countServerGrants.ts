@@ -1,6 +1,6 @@
 import { count, eq } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
-import { accessGrant, endpoint } from "@/core/database/schema.js"
+import { accessGrant, endpoint } from "@/core/database/schemas/domainSchema.js"
 
 export async function countServerGrants(executor: DbOrTx, serverId: string) {
   const [row] = await executor

@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
-import { user } from "@/core/database/auth-schema.js"
+import { user } from "@/core/database/schemas/authSchema.js"
 import { notAdmin } from "./notAdmin.js"
 
 export async function findUserById(executor: DbOrTx, id: string) {

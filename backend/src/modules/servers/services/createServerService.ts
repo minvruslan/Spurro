@@ -1,13 +1,18 @@
 import type { UpsertServer, Server } from "@spurro/shared"
 import { ServerSchema } from "@spurro/shared"
 import { db } from "@/core/database/index.js"
+import {
+  PROVISION_SERVER_JOB_NAME,
+  provisionServerQueue,
+} from "@/core/queue/provision-server/index.js"
+import { deleteServer } from "../repository/deleteServer.js"
 import { findServerById } from "../repository/findServerById.js"
 import { insertEndpoints } from "../repository/insertEndpoints.js"
 import { insertServer } from "../repository/insertServer.js"
 import { createServersFromDatabaseData } from "../utils/createServersFromDatabaseData.js"
 
 export async function createServerService(input: UpsertServer): Promise<Server> {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [row] = await insertServer(tx, {
       name: input.name,
       domainName: input.domainName || input.ip,
@@ -19,4 +24,15 @@ export async function createServerService(input: UpsertServer): Promise<Server> 
     const rows = await findServerById(tx, row.id)
     return ServerSchema.parse(createServersFromDatabaseData(rows)[0])
   })
+
+  try {
+    await provisionServerQueue().add(PROVISION_SERVER_JOB_NAME, { serverId: result.id })
+  } catch (error) {
+    await deleteServer(db, result.id).catch((rollbackError) =>
+      console.error("[createServer] rollback failed", result.id, rollbackError),
+    )
+    throw error
+  }
+
+  return result
 }

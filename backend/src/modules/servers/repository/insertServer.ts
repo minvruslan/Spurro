@@ -1,6 +1,6 @@
 import type { ServerStatus } from "@spurro/shared"
 import type { DbOrTx } from "@/core/database/index.js"
-import { server } from "@/core/database/schema.js"
+import { server } from "@/core/database/schemas/domainSchema.js"
 
 export type ServerFields = {
   name: string

@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
-import { endpoint, protocol, protocolType, server } from "@/core/database/schema.js"
+import { endpoint, protocol, protocolType, server } from "@/core/database/schemas/domainSchema.js"
 import { serverSelection } from "./findServers.js"
 
 export async function findServerById(executor: DbOrTx, id: string) {

@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { db } from "@/core/database/index.js"
-import { user } from "@/core/database/auth-schema.js"
+import { user } from "@/core/database/schemas/authSchema.js"
+import { env } from "@/core/env/index.js"
 
 export async function bootstrapAdmin() {
-  const email = process.env.ADMIN_EMAIL
+  const email = env.ADMIN_EMAIL
   if (!email) {
     console.warn("[bootstrap] ADMIN_EMAIL not set — skipping admin bootstrap")
     return
@@ -15,7 +16,7 @@ export async function bootstrapAdmin() {
 
   await db.insert(user).values({
     id: nanoid(),
-    name: process.env.ADMIN_NAME ?? "Admin",
+    name: env.ADMIN_NAME,
     email,
     emailVerified: true,
     role: "admin",

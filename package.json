@@ -2,9 +2,10 @@
   "name": "spurro",
   "private": true,
   "scripts": {
-    "dev": "pnpm --parallel --filter @spurro/frontend --filter @spurro/backend dev",
+    "dev": "pnpm run \"/^dev:(frontend|backend|backend-worker)$/\"",
     "dev:frontend": "pnpm --filter @spurro/frontend dev",
     "dev:backend": "pnpm --filter @spurro/backend dev",
+    "dev:backend-worker": "pnpm --filter @spurro/backend dev:worker",
     "build": "pnpm --filter @spurro/frontend build && pnpm --filter @spurro/backend build",
     "build:frontend": "pnpm --filter @spurro/frontend build",
     "build:backend": "pnpm --filter @spurro/backend build",

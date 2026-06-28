@@ -1,5 +1,5 @@
 import { db } from "@/core/database/index.js"
-import { protocol, protocolType } from "@/core/database/schema.js"
+import { protocol, protocolType } from "@/core/database/schemas/domainSchema.js"
 
 const PROTOCOL_TYPES = [{ code: "amnezia", name: "Amnezia" }]
 

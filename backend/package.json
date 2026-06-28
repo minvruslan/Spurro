@@ -3,8 +3,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "dev": "tsx watch src/server.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "start": "node dist/server.js",
+    "worker:start": "node dist/worker.js",
     "build": "tsc && tsc-alias",
     "typecheck": "tsc --noEmit",
     "lint:check": "eslint .",
@@ -13,16 +15,19 @@
     "format:fix": "prettier --write .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "auth:generate": "pnpm dlx @better-auth/cli generate --output src/core/database/schemas/authSchema.ts --yes"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.4",
     "@hono/zod-validator": "^0.7.6",
     "@spurro/shared": "workspace:*",
     "better-auth": "^1.6.14",
+    "bullmq": "^5.79.2",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.7.10",
+    "ioredis": "^5.11.1",
     "nanoid": "^5.1.9",
     "postgres": "^3.4.5",
     "slugify": "^1.6.9",

@@ -1,5 +1,5 @@
 import type { DbOrTx } from "@/core/database/index.js"
-import { accessGrant } from "@/core/database/schema.js"
+import { accessGrant } from "@/core/database/schemas/domainSchema.js"
 
 export type ConfigFields = {
   userId: string

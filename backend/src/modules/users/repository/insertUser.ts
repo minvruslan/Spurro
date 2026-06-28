@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid"
 import type { DbOrTx } from "@/core/database/index.js"
-import { user } from "@/core/database/auth-schema.js"
+import { user } from "@/core/database/schemas/authSchema.js"
 
 export type UserFields = {
   name: string
