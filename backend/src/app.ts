@@ -3,14 +3,14 @@ import { logger } from "hono/logger"
 import type { AppVariables } from "@/core/types/index.js"
 import { authServer } from "@/core/auth-server/index.js"
 import { requireAuth, requireAdmin } from "@/core/middlewares/index.js"
-import { configsRouter } from "@/modules/configs/index.js"
-import { configLimitsRouter } from "@/modules/config-limits/index.js"
-import { usersRouter } from "@/modules/users/index.js"
-import { serversRouter } from "@/modules/servers/index.js"
-import { protocolsRouter } from "@/modules/protocols/index.js"
-import { protocolTypesRouter } from "@/modules/protocol-types/index.js"
-import { endpointsRouter } from "@/modules/endpoints/index.js"
-import { deviceTypesRouter } from "@/modules/device-types/index.js"
+import { configRouter } from "@/modules/config/index.js"
+import { configLimitRouter } from "@/modules/config-limit/index.js"
+import { userRouter } from "@/modules/user/index.js"
+import { serverRouter } from "@/modules/server/index.js"
+import { protocolRouter } from "@/modules/protocol/index.js"
+import { protocolTypeRouter } from "@/modules/protocol-type/index.js"
+import { endpointRouter } from "@/modules/endpoint/index.js"
+import { deviceTypeRouter } from "@/modules/device-type/index.js"
 
 const app = new Hono<{ Variables: AppVariables }>()
 
@@ -22,45 +22,45 @@ const api = new Hono<{ Variables: AppVariables }>()
 
 api.on(["POST", "GET"], "/auth/*", (c) => authServer.handler(c.req.raw))
 
-const configsApi = new Hono<{ Variables: AppVariables }>()
-configsApi.use("*", requireAuth)
-configsApi.route("/", configsRouter)
-api.route("/configs", configsApi)
+const configApi = new Hono<{ Variables: AppVariables }>()
+configApi.use("*", requireAuth)
+configApi.route("/", configRouter)
+api.route("/configs", configApi)
 
-const configLimitsApi = new Hono<{ Variables: AppVariables }>()
-configLimitsApi.use("*", requireAuth)
-configLimitsApi.route("/", configLimitsRouter)
-api.route("/config-limits", configLimitsApi)
+const configLimitApi = new Hono<{ Variables: AppVariables }>()
+configLimitApi.use("*", requireAuth)
+configLimitApi.route("/", configLimitRouter)
+api.route("/config-limits", configLimitApi)
 
-const usersApi = new Hono<{ Variables: AppVariables }>()
-usersApi.use("*", requireAdmin)
-usersApi.route("/", usersRouter)
-api.route("/users", usersApi)
+const userApi = new Hono<{ Variables: AppVariables }>()
+userApi.use("*", requireAdmin)
+userApi.route("/", userRouter)
+api.route("/users", userApi)
 
-const serversApi = new Hono<{ Variables: AppVariables }>()
-serversApi.use("*", requireAdmin)
-serversApi.route("/", serversRouter)
-api.route("/servers", serversApi)
+const serverApi = new Hono<{ Variables: AppVariables }>()
+serverApi.use("*", requireAdmin)
+serverApi.route("/", serverRouter)
+api.route("/servers", serverApi)
 
-const protocolsApi = new Hono<{ Variables: AppVariables }>()
-protocolsApi.use("*", requireAdmin)
-protocolsApi.route("/", protocolsRouter)
-api.route("/protocols", protocolsApi)
+const protocolApi = new Hono<{ Variables: AppVariables }>()
+protocolApi.use("*", requireAdmin)
+protocolApi.route("/", protocolRouter)
+api.route("/protocols", protocolApi)
 
-const protocolTypesApi = new Hono<{ Variables: AppVariables }>()
-protocolTypesApi.use("*", requireAdmin)
-protocolTypesApi.route("/", protocolTypesRouter)
-api.route("/protocol-types", protocolTypesApi)
+const protocolTypeApi = new Hono<{ Variables: AppVariables }>()
+protocolTypeApi.use("*", requireAdmin)
+protocolTypeApi.route("/", protocolTypeRouter)
+api.route("/protocol-types", protocolTypeApi)
 
-const endpointsApi = new Hono<{ Variables: AppVariables }>()
-endpointsApi.use("*", requireAuth)
-endpointsApi.route("/", endpointsRouter)
-api.route("/endpoints", endpointsApi)
+const endpointApi = new Hono<{ Variables: AppVariables }>()
+endpointApi.use("*", requireAuth)
+endpointApi.route("/", endpointRouter)
+api.route("/endpoints", endpointApi)
 
-const deviceTypesApi = new Hono<{ Variables: AppVariables }>()
-deviceTypesApi.use("*", requireAuth)
-deviceTypesApi.route("/", deviceTypesRouter)
-api.route("/device-types", deviceTypesApi)
+const deviceTypeApi = new Hono<{ Variables: AppVariables }>()
+deviceTypeApi.use("*", requireAuth)
+deviceTypeApi.route("/", deviceTypeRouter)
+api.route("/device-types", deviceTypeApi)
 
 app.route("/api", api)
 

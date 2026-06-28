@@ -5,7 +5,7 @@ import {
   PROVISION_SERVER_QUEUE_NAME,
   type ProvisionServerJob,
 } from "./core/queue/provision-server/index.js"
-import { runProvisionServerJob } from "./modules/servers/jobs/runProvisionServerJob.js"
+import { runProvisionServerJob } from "./modules/server/jobs/runProvisionServerJob.js"
 
 try {
   await checkDatabaseConnection()
