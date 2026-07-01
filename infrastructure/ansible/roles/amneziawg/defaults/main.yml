@@ -1,0 +1,9 @@
+# Fallbacks for manual playbook runs. In production the app overrides amneziawg_port and
+# amneziawg_address via --extra-vars.
+# Must be in sync with:
+# shared/src/common/constants/amneziawg/AMNEZIAWG_DEFAULT_PORT.ts
+# shared/src/common/constants/amneziawg/AMNEZIAWG_SERVER_ADDRESS.ts
+amneziawg_port: 51820
+amneziawg_dir: /opt/spurro/amneziawg
+amneziawg_user: spurro
+amneziawg_address: "10.8.1.1/24"

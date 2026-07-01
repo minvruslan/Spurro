@@ -3,10 +3,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "dev:worker": "tsx watch src/worker.ts",
-    "start": "node dist/server.js",
-    "worker:start": "node dist/worker.js",
+    "api": "tsx watch src/api/index.ts",
+    "dev:worker": "tsx watch src/worker/index.ts",
+    "start": "node dist/api/index.js",
+    "worker:start": "node dist/worker/index.js",
     "build": "tsc && tsc-alias",
     "typecheck": "tsc --noEmit",
     "lint:check": "eslint .",
@@ -21,6 +21,7 @@
   "dependencies": {
     "@hono/node-server": "^1.14.4",
     "@hono/zod-validator": "^0.7.6",
+    "@spurro/infrastructure": "workspace:*",
     "@spurro/shared": "workspace:*",
     "better-auth": "^1.6.14",
     "bullmq": "^5.79.2",

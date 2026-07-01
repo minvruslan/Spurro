@@ -1,9 +1,10 @@
+import { AMNEZIAWG_PROTOCOL_CODE } from "@spurro/shared"
 import { db } from "@/core/database/index.js"
 import { protocol, protocolType } from "@/core/database/schemas/domainSchema.js"
 
-const PROTOCOL_TYPES = [{ code: "amnezia", name: "Amnezia" }]
+const PROTOCOL_TYPES = [{ code: AMNEZIAWG_PROTOCOL_CODE, name: "AmneziaWG" }]
 
-const PROTOCOL_VERSIONS = [{ typeCode: "amnezia", version: "2.0" }]
+const PROTOCOL_VERSIONS = [{ typeCode: AMNEZIAWG_PROTOCOL_CODE, version: "2.0" }]
 
 export async function bootstrapProtocols() {
   const insertedTypes = await db

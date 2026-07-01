@@ -12,7 +12,7 @@ export function provisionServerQueue(): Queue<ProvisionServerJob> {
       attempts: 3,
       backoff: { type: "exponential", delay: 2000 },
       removeOnComplete: true,
-      removeOnFail: { age: 60 * 60 * 24 * 7, count: 10 },
+      removeOnFail: { age: 60 * 60, count: 5 },
     },
   }))
 }

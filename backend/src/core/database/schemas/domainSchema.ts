@@ -15,13 +15,13 @@ import {
 } from "drizzle-orm/pg-core"
 import { user } from "./authSchema"
 
-// ─────────── enums ───────────
+// Enums
 
-export const serverStatus = pgEnum("server_status", ["provisioning", "active", "deleted"])
+export const serverStatus = pgEnum("server_status", ["provisioning", "active", "failed", "deleted"])
 export const endpointStatus = pgEnum("endpoint_status", ["active", "deleted"])
-export const grantStatus = pgEnum("grant_status", ["active", "deleted"])
+export const configStatus = pgEnum("config_status", ["active", "deleted"])
 
-// ─────────── catalog ───────────
+// Catalog
 
 export const protocolType = pgTable("protocol_type", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -81,10 +81,10 @@ export const deviceType = pgTable(
   ],
 )
 
-// ─────────── limits ───────────
+// Limits
 
-export const userLimit = pgTable(
-  "user_limit",
+export const configLimit = pgTable(
+  "config_limit",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id")
@@ -100,10 +100,10 @@ export const userLimit = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (t) => [unique("user_limit_user_type_uq").on(t.userId, t.protocolTypeId)],
+  (t) => [unique("config_limit_user_type_uq").on(t.userId, t.protocolTypeId)],
 )
 
-// ─────────── infrastructure ───────────
+// Infrastructure
 
 export const server = pgTable(
   "server",
@@ -114,6 +114,8 @@ export const server = pgTable(
     ip: text("ip").notNull(),
     country: text("country").notNull(),
     status: serverStatus("status").default("active").notNull(),
+    // SSH secrets stored in plaintext for now; encrypt or switch to a key later.
+    data: jsonb("data").$type<{ ssh: { login: string; password: string } }>(),
     isCurrent: boolean("is_current").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -139,7 +141,7 @@ export const endpoint = pgTable(
       .notNull()
       .references(() => protocol.id, { onDelete: "restrict" }),
     port: integer("port").notNull(),
-    config: jsonb("config").notNull(),
+    data: jsonb("data").notNull(),
     status: endpointStatus("status").default("active").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -156,10 +158,10 @@ export const endpoint = pgTable(
   ],
 )
 
-// ─────────── issued access ───────────
+// Issued access
 
-export const accessGrant = pgTable(
-  "access_grant",
+export const config = pgTable(
+  "config",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id")
@@ -172,8 +174,8 @@ export const accessGrant = pgTable(
       .notNull()
       .references(() => deviceType.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
-    config: jsonb("config").notNull(),
-    status: grantStatus("status").default("active").notNull(),
+    data: jsonb("data").notNull(),
+    status: configStatus("status").default("active").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -181,17 +183,17 @@ export const accessGrant = pgTable(
       .notNull(),
   },
   (t) => [
-    index("access_grant_user_idx").on(t.userId),
-    index("access_grant_endpoint_idx").on(t.endpointId),
-    index("access_grant_device_type_idx").on(t.deviceTypeId),
+    index("config_user_idx").on(t.userId),
+    index("config_endpoint_idx").on(t.endpointId),
+    index("config_device_type_idx").on(t.deviceTypeId),
   ],
 )
 
-// ─────────── relations ───────────
+// Relations
 
 export const protocolTypeRelations = relations(protocolType, ({ many }) => ({
   protocols: many(protocol),
-  limits: many(userLimit),
+  configLimits: many(configLimit),
 }))
 
 export const protocolRelations = relations(protocol, ({ one, many }) => ({
@@ -203,13 +205,13 @@ export const protocolRelations = relations(protocol, ({ one, many }) => ({
 }))
 
 export const deviceTypeRelations = relations(deviceType, ({ many }) => ({
-  grants: many(accessGrant),
+  configs: many(config),
 }))
 
-export const userLimitRelations = relations(userLimit, ({ one }) => ({
-  user: one(user, { fields: [userLimit.userId], references: [user.id] }),
+export const configLimitRelations = relations(configLimit, ({ one }) => ({
+  user: one(user, { fields: [configLimit.userId], references: [user.id] }),
   protocolType: one(protocolType, {
-    fields: [userLimit.protocolTypeId],
+    fields: [configLimit.protocolTypeId],
     references: [protocolType.id],
   }),
 }))
@@ -221,14 +223,14 @@ export const serverRelations = relations(server, ({ many }) => ({
 export const endpointRelations = relations(endpoint, ({ one, many }) => ({
   server: one(server, { fields: [endpoint.serverId], references: [server.id] }),
   protocol: one(protocol, { fields: [endpoint.protocolId], references: [protocol.id] }),
-  grants: many(accessGrant),
+  configs: many(config),
 }))
 
-export const accessGrantRelations = relations(accessGrant, ({ one }) => ({
-  user: one(user, { fields: [accessGrant.userId], references: [user.id] }),
-  endpoint: one(endpoint, { fields: [accessGrant.endpointId], references: [endpoint.id] }),
+export const configRelations = relations(config, ({ one }) => ({
+  user: one(user, { fields: [config.userId], references: [user.id] }),
+  endpoint: one(endpoint, { fields: [config.endpointId], references: [endpoint.id] }),
   deviceType: one(deviceType, {
-    fields: [accessGrant.deviceTypeId],
+    fields: [config.deviceTypeId],
     references: [deviceType.id],
   }),
 }))

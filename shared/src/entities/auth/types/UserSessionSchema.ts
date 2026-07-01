@@ -1,7 +1,6 @@
 import { z } from "zod"
 
-// The authenticated user as exposed to the app. Mirrors the columns of the
-// `user` table (see backend auth-schema), narrowed to what the frontend needs.
+// Authenticated user exposed to the app: a subset of the auth `user` table columns.
 export const UserSessionSchema = z.object({
   id: z.string(),
   name: z.string(),

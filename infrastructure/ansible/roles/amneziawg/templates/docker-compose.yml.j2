@@ -1,0 +1,29 @@
+services:
+  amneziawg:
+    build: ./docker
+    image: spurro-amneziawg:latest
+    # Must be in sync with:
+    # infrastructure/src/common/constants/docker/DOCKER_CONTAINER_WITH_AMNEZIAWG.ts
+    container_name: amneziawg
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+    environment:
+      WG_ADDRESS: "{{ amneziawg_address }}"
+      WG_PORT: "{{ amneziawg_port }}"
+      # WG_DEVICE intentionally omitted: the container auto-detects its own egress interface.
+      # Passing the host's interface name here would break NAT (it doesn't exist in the container).
+    volumes:
+      # Must be in sync with:
+      # infrastructure/src/common/constants/docker/DOCKER_CONTAINER_WITH_AMNEZIAWG.ts
+      - amneziawg_state:/opt/amnezia/awg
+    ports:
+      - "{{ amneziawg_port }}:{{ amneziawg_port }}/udp"
+    restart: unless-stopped
+
+volumes:
+  amneziawg_state:

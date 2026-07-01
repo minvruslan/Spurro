@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises"
+import { resolve } from "node:path"
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { admin, magicLink } from "better-auth/plugins"
@@ -6,6 +8,8 @@ import { db } from "@/core/database/index.js"
 import * as schema from "@/core/database/schemas/authSchema.js"
 import { user } from "@/core/database/schemas/authSchema.js"
 import { env } from "@/core/env/index.js"
+
+const MAGIC_LINK_FILE = resolve(process.cwd(), "magic-link.log")
 
 export const authServer = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
@@ -19,9 +23,8 @@ export const authServer = betterAuth({
   },
   advanced: {
     ipAddress: {
-      // Backend runs behind a reverse proxy (nginx/Caddy/Traefik); the real client IP
-      // arrives in X-Forwarded-For. The proxy MUST overwrite (not append) an incoming
-      // X-Forwarded-For, otherwise clients could spoof it and bypass rate limiting.
+      // Real client IP comes from X-Forwarded-For. The proxy must overwrite it, not append,
+      // or clients could spoof it and bypass rate limiting.
       ipAddressHeaders: ["x-forwarded-for"],
     },
   },
@@ -45,7 +48,8 @@ export const authServer = betterAuth({
           .limit(1)
         if (!existing) return
         // TODO: wire up a real email provider.
-        console.log(`[magic-link] ${email} -> ${url}`)
+        await writeFile(MAGIC_LINK_FILE, `${url}\n`)
+        console.log(`\n[magic-link] ${email}\n${url}\nsaved to ${MAGIC_LINK_FILE}\n`)
       },
     }),
   ],

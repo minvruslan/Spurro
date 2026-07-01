@@ -1,0 +1,30 @@
+import {
+  config,
+  deviceType,
+  endpoint,
+  protocol,
+  protocolType,
+  server,
+} from "../schemas/domainSchema.js"
+
+export const configSelection = {
+  id: config.id,
+  name: config.name,
+  data: config.data,
+  status: config.status,
+  createdAt: config.createdAt,
+  updatedAt: config.updatedAt,
+  deviceTypeId: deviceType.id,
+  deviceTypeCode: deviceType.code,
+  deviceTypeName: deviceType.name,
+  endpointId: endpoint.id,
+  endpointPort: endpoint.port,
+  protocolId: protocol.id,
+  protocolVersion: protocol.version,
+  protocolTypeId: protocolType.id,
+  protocolTypeCode: protocolType.code,
+  protocolTypeName: protocolType.name,
+  serverId: server.id,
+  serverName: server.name,
+  serverCountry: server.country,
+}

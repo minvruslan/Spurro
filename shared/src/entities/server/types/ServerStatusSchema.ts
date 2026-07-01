@@ -1,3 +1,3 @@
 import { z } from "zod"
 
-export const ServerStatusSchema = z.enum(["provisioning", "active", "deleted"])
+export const ServerStatusSchema = z.enum(["provisioning", "active", "failed", "deleted"])
