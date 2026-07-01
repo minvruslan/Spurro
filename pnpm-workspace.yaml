@@ -2,6 +2,7 @@ packages:
   - frontend
   - backend
   - shared
+  - infrastructure
 allowBuilds:
   unrs-resolver: true
   vue-demi: true

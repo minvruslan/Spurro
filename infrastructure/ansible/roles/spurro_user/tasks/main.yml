@@ -1,0 +1,26 @@
+- name: Create system user spurro
+  ansible.builtin.user:
+    name: spurro
+    system: true
+    create_home: true
+    shell: /usr/sbin/nologin
+
+- name: Add spurro to docker group
+  ansible.builtin.user:
+    name: spurro
+    groups: docker
+    append: true
+
+- name: Grant scoped passwordless sudo (least privilege)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/spurro
+    mode: "0440"
+    validate: visudo -cf %s
+    content: |
+      # Only the commands needed to manage the Spurro deployment.
+      # Extend this allowlist as new roles are added (hardening, etc.).
+      spurro ALL=(root) NOPASSWD: /usr/bin/docker, \
+                                  /usr/bin/systemctl start spurro-*, \
+                                  /usr/bin/systemctl stop spurro-*, \
+                                  /usr/bin/systemctl restart spurro-*, \
+                                  /usr/bin/systemctl status spurro-*

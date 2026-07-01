@@ -1,0 +1,44 @@
+- name: Create AmneziaWG directory owned by spurro
+  ansible.builtin.file:
+    path: "{{ amneziawg_dir }}"
+    state: directory
+    owner: "{{ amneziawg_user }}"
+    group: "{{ amneziawg_user }}"
+    mode: "0750"
+
+- name: Copy AmneziaWG docker build context
+  ansible.builtin.copy:
+    src: docker/
+    dest: "{{ amneziawg_dir }}/docker/"
+    owner: "{{ amneziawg_user }}"
+    group: "{{ amneziawg_user }}"
+    mode: "0750"
+
+- name: Render docker-compose for AmneziaWG
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ amneziawg_dir }}/docker-compose.yml"
+    owner: "{{ amneziawg_user }}"
+    group: "{{ amneziawg_user }}"
+    mode: "0640"
+
+- name: Build and start AmneziaWG container (as spurro via docker group)
+  become: true
+  become_user: "{{ amneziawg_user }}"
+  ansible.builtin.command: docker compose up -d --build
+  args:
+    chdir: "{{ amneziawg_dir }}"
+  register: compose_up
+  changed_when: >-
+    'Started' in compose_up.stderr or 'Created' in compose_up.stderr
+    or 'Built' in compose_up.stderr
+
+- name: Verify AmneziaWG container is running
+  become: true
+  become_user: "{{ amneziawg_user }}"
+  ansible.builtin.command: docker compose ps --status running --quiet
+  args:
+    chdir: "{{ amneziawg_dir }}"
+  register: running
+  changed_when: false
+  failed_when: running.stdout | trim == ""

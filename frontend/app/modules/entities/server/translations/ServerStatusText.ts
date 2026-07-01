@@ -3,6 +3,7 @@ export const messages = {
     status: {
       active: "Активен",
       provisioning: "Настраивается",
+      failed: "Ошибка",
       deleted: "Удалён",
     },
   },
@@ -10,6 +11,7 @@ export const messages = {
     status: {
       active: "Active",
       provisioning: "Provisioning",
+      failed: "Failed",
       deleted: "Deleted",
     },
   },

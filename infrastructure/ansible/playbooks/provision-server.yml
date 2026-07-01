@@ -1,0 +1,7 @@
+- name: Provision Spurro VPS
+  hosts: all
+  become: true
+  roles:
+    - docker
+    - spurro_user
+    - amneziawg
