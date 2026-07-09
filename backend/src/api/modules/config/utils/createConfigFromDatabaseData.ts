@@ -17,12 +17,9 @@ export function createConfigFromDatabaseData(row: ConfigRow): Config {
       port: row.endpointPort,
       protocol: {
         id: row.protocolId,
-        version: row.protocolVersion,
-        type: {
-          id: row.protocolTypeId,
-          code: row.protocolTypeCode,
-          name: row.protocolTypeName,
-        },
+        code: row.protocolCode as Config["endpoint"]["protocol"]["code"],
+        family: row.protocolFamily,
+        name: row.protocolName,
       },
       server: {
         id: row.serverId,

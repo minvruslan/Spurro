@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { User } from "@spurro/shared"
+import type { SupportedProtocolFamily, User } from "@spurro/shared"
+import { SUPPORTED_PROTOCOL_FAMILIES } from "@spurro/shared"
 import { onMounted, ref } from "vue"
 import { Save, Trash2 } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FieldLabel, FormLayout } from "@/modules/common/components"
 import { useUser } from "@/modules/entities/user"
-import { useProtocolTypes } from "@/modules/entities/protocol-type"
 import { useUpdateUser } from "../composables/useUpdateUser"
 import { useDeleteUser } from "../composables/useDeleteUser"
 import type { UpdateUserFormValues } from "../types"
@@ -20,27 +20,35 @@ const emit = defineEmits<{
 
 const { t } = useI18n({ useScope: "local", messages })
 const { user, status, ready: userReady } = useUser(props.id)
-const { protocolTypes, ready: typesReady } = useProtocolTypes()
 const { pending, update } = useUpdateUser(props.id)
 const { pending: deleting, deleteUser } = useDeleteUser(props.id)
 const { confirm } = useConfirmationDialog()
 const { showSuccess, showError } = useNotificationBanner()
 
+const protocolFamilies = Object.entries(SUPPORTED_PROTOCOL_FAMILIES).map(
+  ([protocolFamily, { name }]) => ({
+    protocolFamily: protocolFamily as SupportedProtocolFamily,
+    name,
+  }),
+)
+
 const nameInput = ref<{ $el: HTMLInputElement } | null>(null)
 
 onMounted(() => nameInput.value?.$el?.focus())
 
-await Promise.all([userReady, typesReady])
+await userReady
 
 const loadedUser = user.value
 const saved = new Map(
-  loadedUser?.limits.map((limit) => [limit.protocolType.id, limit.maxCount]) ?? [],
+  loadedUser?.limits.map((limit) => [limit.protocolFamily, limit.maxCount]) ?? [],
 )
 
 const form = ref<UpdateUserFormValues>({
   name: loadedUser?.name ?? "",
   email: loadedUser?.email ?? "",
-  limits: Object.fromEntries(protocolTypes.value.map((type) => [type.id, saved.get(type.id) ?? 0])),
+  limits: Object.fromEntries(
+    protocolFamilies.map(({ protocolFamily }) => [protocolFamily, saved.get(protocolFamily) ?? 0]),
+  ) as Record<SupportedProtocolFamily, number>,
 })
 
 const onSubmit = async () => {
@@ -103,24 +111,24 @@ const onDelete = async () => {
       </div>
 
       <div
-        v-if="protocolTypes.length"
+        v-if="protocolFamilies.length"
         role="group"
         aria-labelledby="limits-label"
         class="flex flex-col gap-2"
       >
         <span id="limits-label" class="text-sm font-medium">{{ t("fields.limits.label") }}</span>
         <label
-          v-for="type in protocolTypes"
-          :key="type.id"
+          v-for="{ protocolFamily, name } in protocolFamilies"
+          :key="protocolFamily"
           class="flex items-center justify-between gap-3 rounded-md border px-3 py-2.5"
         >
-          <span class="tracking-tight">{{ type.name }}</span>
+          <span class="tracking-tight">{{ name }}</span>
           <Input
-            v-model.number="form.limits[type.id]"
+            v-model.number="form.limits[protocolFamily]"
             type="number"
             min="0"
             class="w-24"
-            :aria-label="type.name"
+            :aria-label="name"
           />
         </label>
       </div>

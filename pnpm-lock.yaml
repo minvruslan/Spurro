@@ -178,13 +178,22 @@ importers:
 
   infrastructure:
     dependencies:
+      '@spurro/shared':
+        specifier: workspace:*
+        version: link:../shared
       execa:
         specifier: ^9.6.1
         version: 9.6.1
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@types/node':
         specifier: ^25.6.0
         version: 25.6.0
+      tsx:
+        specifier: ^4.20.3
+        version: 4.21.0
       typescript:
         specifier: ^5.8.3
         version: 5.9.3

@@ -1,3 +1,4 @@
+import type { Amneziawg2ConfigData } from "@spurro/shared"
 import type { DbOrTx } from "@/core/database/index.js"
 import { config } from "@/core/database/schemas/domainSchema.js"
 
@@ -6,7 +7,7 @@ type ConfigFields = {
   endpointId: string
   deviceTypeId: string
   name: string
-  data: unknown
+  data: Amneziawg2ConfigData
 }
 
 export async function insertUserConfig(executor: DbOrTx, fields: ConfigFields) {

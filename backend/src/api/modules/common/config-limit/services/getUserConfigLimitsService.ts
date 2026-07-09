@@ -3,7 +3,7 @@ import { ConfigLimitSchema } from "@spurro/shared"
 import { db } from "@/core/database/index.js"
 import type { DbOrTx } from "@/core/database/index.js"
 import { findUserConfigLimits } from "../queries/findUserConfigLimits.js"
-import { countUserConfigsByProtocolType } from "../queries/countUserConfigsByProtocolType.js"
+import { countUserConfigsByProtocolFamily } from "../queries/countUserConfigsByProtocolFamily.js"
 import { createConfigLimitFromDatabaseData } from "../utils/createConfigLimitFromDatabaseData.js"
 
 export async function getUserConfigLimitsService(
@@ -12,14 +12,14 @@ export async function getUserConfigLimitsService(
 ): Promise<ConfigLimit[]> {
   const [limitRows, usageRows] = await Promise.all([
     findUserConfigLimits(executor, userId),
-    countUserConfigsByProtocolType(executor, userId),
+    countUserConfigsByProtocolFamily(executor, userId),
   ])
 
-  const usedByType = new Map(usageRows.map((u) => [u.protocolTypeId, u.used]))
+  const usedByProtocolFamily = new Map(usageRows.map((u) => [u.protocolFamily, u.used]))
 
   return ConfigLimitSchema.array().parse(
     limitRows.map((row) =>
-      createConfigLimitFromDatabaseData(row, usedByType.get(row.protocolTypeId) ?? 0),
+      createConfigLimitFromDatabaseData(row, usedByProtocolFamily.get(row.protocolFamily) ?? 0),
     ),
   )
 }

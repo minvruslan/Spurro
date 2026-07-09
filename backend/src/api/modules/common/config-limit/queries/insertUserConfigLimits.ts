@@ -11,7 +11,7 @@ export async function insertUserConfigLimits(
   await executor.insert(configLimit).values(
     limits.map((item) => ({
       userId,
-      protocolTypeId: item.protocolTypeId,
+      protocolFamily: item.protocolFamily,
       maxCount: item.maxCount,
     })),
   )

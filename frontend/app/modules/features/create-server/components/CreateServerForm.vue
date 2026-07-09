@@ -133,9 +133,7 @@ const onSubmit = async () => {
             :model-value="isProtocolSelected(protocol.id)"
             @update:model-value="(checked) => toggleProtocolSelection(protocol.id, !!checked)"
           />
-          <span class="-mb-0.5 tracking-tight"
-            >{{ protocol.type.name }} {{ protocol.version }}</span
-          >
+          <span class="-mb-0.5 tracking-tight">{{ protocol.name }}</span>
         </label>
       </div>
     </template>

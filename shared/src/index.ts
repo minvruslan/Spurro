@@ -1,2 +1,2 @@
-export * from "./common"
-export * from "./entities"
+export * from "./core"
+export * from "./api"

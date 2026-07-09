@@ -37,8 +37,7 @@ const form = ref<UpsertConfig>({
   deviceTypeId: "",
 })
 
-const endpointLabel = (endpoint: Endpoint) =>
-  `${endpoint.server.name} · ${endpoint.protocol.type.name} ${endpoint.protocol.version}`
+const endpointLabel = (endpoint: Endpoint) => `${endpoint.server.name} · ${endpoint.protocol.name}`
 
 const onSubmit = async () => {
   if (pending.value) return

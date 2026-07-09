@@ -8,7 +8,6 @@ import { configLimitRouter } from "@/api/modules/config-limit/index.js"
 import { userRouter } from "@/api/modules/user/index.js"
 import { serverRouter } from "@/api/modules/server/index.js"
 import { protocolRouter } from "@/api/modules/protocol/index.js"
-import { protocolTypeRouter } from "@/api/modules/protocol-type/index.js"
 import { endpointRouter } from "@/api/modules/endpoint/index.js"
 import { deviceTypeRouter } from "@/api/modules/device-type/index.js"
 
@@ -46,11 +45,6 @@ const protocolApi = new Hono<{ Variables: AppVariables }>()
 protocolApi.use("*", requireAdmin)
 protocolApi.route("/", protocolRouter)
 api.route("/protocols", protocolApi)
-
-const protocolTypeApi = new Hono<{ Variables: AppVariables }>()
-protocolTypeApi.use("*", requireAdmin)
-protocolTypeApi.route("/", protocolTypeRouter)
-api.route("/protocol-types", protocolTypeApi)
 
 const endpointApi = new Hono<{ Variables: AppVariables }>()
 endpointApi.use("*", requireAuth)

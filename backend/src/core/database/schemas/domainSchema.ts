@@ -13,19 +13,22 @@ import {
   pgEnum,
   check,
 } from "drizzle-orm/pg-core"
+import type { Amneziawg2ConfigData, SupportedProtocolFamily } from "@spurro/shared"
+import type { EndpointContract, ServerContract } from "@spurro/shared/infrastructure"
 import { user } from "./authSchema"
 
 // Enums
 
 export const serverStatus = pgEnum("server_status", ["provisioning", "active", "failed", "deleted"])
 export const endpointStatus = pgEnum("endpoint_status", ["active", "deleted"])
-export const configStatus = pgEnum("config_status", ["active", "deleted"])
+export const configStatus = pgEnum("config_status", ["active", "pending", "deleting", "deleted"])
 
 // Catalog
 
-export const protocolType = pgTable("protocol_type", {
+export const protocol = pgTable("protocol", {
   id: uuid("id").primaryKey().defaultRandom(),
   code: text("code").notNull().unique(),
+  family: text("family").$type<SupportedProtocolFamily>().notNull(),
   name: text("name").notNull(),
   isEnabled: boolean("is_enabled").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -34,27 +37,6 @@ export const protocolType = pgTable("protocol_type", {
     .$onUpdate(() => new Date())
     .notNull(),
 })
-
-export const protocol = pgTable(
-  "protocol",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    protocolTypeId: uuid("protocol_type_id")
-      .notNull()
-      .references(() => protocolType.id, { onDelete: "restrict" }),
-    version: text("version").notNull(),
-    isEnabled: boolean("is_enabled").default(true).notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
-      .defaultNow()
-      .$onUpdate(() => new Date())
-      .notNull(),
-  },
-  (t) => [
-    unique("protocol_type_version_uq").on(t.protocolTypeId, t.version),
-    index("protocol_type_idx").on(t.protocolTypeId),
-  ],
-)
 
 export const deviceType = pgTable(
   "device_type",
@@ -90,9 +72,7 @@ export const configLimit = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    protocolTypeId: uuid("protocol_type_id")
-      .notNull()
-      .references(() => protocolType.id, { onDelete: "restrict" }),
+    protocolFamily: text("protocol_family").$type<SupportedProtocolFamily>().notNull(),
     maxCount: integer("max_count").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -100,7 +80,7 @@ export const configLimit = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (t) => [unique("config_limit_user_type_uq").on(t.userId, t.protocolTypeId)],
+  (t) => [unique("config_limit_user_protocol_family_uq").on(t.userId, t.protocolFamily)],
 )
 
 // Infrastructure
@@ -110,12 +90,14 @@ export const server = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
-    domainName: text("domain_name").notNull(),
+    domainName: text("domain_name"),
     ip: text("ip").notNull(),
     country: text("country").notNull(),
     status: serverStatus("status").default("active").notNull(),
-    // SSH secrets stored in plaintext for now; encrypt or switch to a key later.
-    data: jsonb("data").$type<{ ssh: { login: string; password: string } }>(),
+    data: jsonb("data").$type<{
+      ssh: { login: string; password: string }
+      contract?: ServerContract
+    }>(),
     isCurrent: boolean("is_current").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -141,7 +123,11 @@ export const endpoint = pgTable(
       .notNull()
       .references(() => protocol.id, { onDelete: "restrict" }),
     port: integer("port").notNull(),
-    data: jsonb("data").notNull(),
+    data: jsonb("data")
+      .$type<{
+        contract?: EndpointContract
+      }>()
+      .notNull(),
     status: endpointStatus("status").default("active").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -174,8 +160,8 @@ export const config = pgTable(
       .notNull()
       .references(() => deviceType.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
-    data: jsonb("data").notNull(),
-    status: configStatus("status").default("active").notNull(),
+    data: jsonb("data").$type<Amneziawg2ConfigData>().notNull(),
+    status: configStatus("status").default("pending").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -191,16 +177,7 @@ export const config = pgTable(
 
 // Relations
 
-export const protocolTypeRelations = relations(protocolType, ({ many }) => ({
-  protocols: many(protocol),
-  configLimits: many(configLimit),
-}))
-
-export const protocolRelations = relations(protocol, ({ one, many }) => ({
-  type: one(protocolType, {
-    fields: [protocol.protocolTypeId],
-    references: [protocolType.id],
-  }),
+export const protocolRelations = relations(protocol, ({ many }) => ({
   endpoints: many(endpoint),
 }))
 
@@ -210,10 +187,6 @@ export const deviceTypeRelations = relations(deviceType, ({ many }) => ({
 
 export const configLimitRelations = relations(configLimit, ({ one }) => ({
   user: one(user, { fields: [configLimit.userId], references: [user.id] }),
-  protocolType: one(protocolType, {
-    fields: [configLimit.protocolTypeId],
-    references: [protocolType.id],
-  }),
 }))
 
 export const serverRelations = relations(server, ({ many }) => ({

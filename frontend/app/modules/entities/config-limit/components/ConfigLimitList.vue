@@ -32,7 +32,7 @@ const isEmpty = computed(() => !props.pending && props.configLimits.length === 0
       <ConfigLimitCard
         v-for="configLimit in configLimits"
         :key="configLimit.id"
-        :protocol-type="configLimit.protocolType"
+        :protocol-family="configLimit.protocolFamily"
         :used="configLimit.used"
         :max="configLimit.maxCount"
         :with-limit="withLimit"

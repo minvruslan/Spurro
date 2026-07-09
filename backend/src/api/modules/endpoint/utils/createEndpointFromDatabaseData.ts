@@ -9,12 +9,9 @@ export function createEndpointFromDatabaseData(row: EndpointRow): Endpoint {
     port: row.port,
     protocol: {
       id: row.protocolId,
-      version: row.protocolVersion,
-      type: {
-        id: row.protocolTypeId,
-        code: row.protocolTypeCode,
-        name: row.protocolTypeName,
-      },
+      code: row.protocolCode as Endpoint["protocol"]["code"],
+      family: row.protocolFamily,
+      name: row.protocolName,
     },
     server: {
       id: row.serverId,
