@@ -1,6 +1,5 @@
 import { ref } from "vue"
 import type { Server, UpsertServer } from "@spurro/shared"
-import { AMNEZIAWG_DEFAULT_PORT } from "@spurro/shared"
 import { createServer } from "@/modules/entities/server"
 import type { CreateServerFormValues } from "../types"
 
@@ -20,10 +19,7 @@ export function useCreateServer() {
         country: values.country,
         ip: values.ip,
         domainName: values.domainName || undefined,
-        endpoints: values.protocolIds.map((protocolId) => ({
-          protocolId,
-          port: AMNEZIAWG_DEFAULT_PORT,
-        })),
+        endpoints: values.protocolIds.map((protocolId) => ({ protocolId })),
         credentials: { login: values.login, password: values.password },
       }
 

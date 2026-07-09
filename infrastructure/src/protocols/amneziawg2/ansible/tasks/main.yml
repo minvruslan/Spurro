@@ -1,0 +1,62 @@
+- name: Assert required AmneziaWG variables are provided
+  ansible.builtin.assert:
+    that:
+      - service_username is defined
+      - amneziawg2_version is defined
+      - amneziawg2_deploy_directory is defined
+      - amneziawg2_port is defined
+      - amneziawg2_address is defined
+      - amneziawg2_container_name is defined
+      - amneziawg2_state_directory is defined
+      - amneziawg2_state_volume_name is defined
+      - amneziawg2_interface_name is defined
+      - amneziawg2_server_private_key is defined
+      - amneziawg2_server_public_key is defined
+    fail_msg: >-
+      Missing required variables. In production they are injected automatically by
+      the AmneziaWG protocol client (@spurro/infrastructure); for manual runs pass
+      them via --extra-vars.
+
+- name: Create AmneziaWG directory owned by {{ service_username }}
+  ansible.builtin.file:
+    path: "{{ amneziawg2_deploy_directory }}"
+    state: directory
+    owner: "{{ service_username }}"
+    group: "{{ service_username }}"
+    mode: "0750"
+
+- name: Copy AmneziaWG docker build context
+  ansible.builtin.copy:
+    src: docker/
+    dest: "{{ amneziawg2_deploy_directory }}/docker/"
+    owner: "{{ service_username }}"
+    group: "{{ service_username }}"
+    mode: "0750"
+
+- name: Render docker-compose for AmneziaWG
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ amneziawg2_deploy_directory }}/docker-compose.yml"
+    owner: "{{ service_username }}"
+    group: "{{ service_username }}"
+    mode: "0640"
+
+- name: Write AmneziaWG server private key (bind-mounted into the container, never an env var)
+  no_log: true
+  ansible.builtin.copy:
+    content: "{{ amneziawg2_server_private_key }}"
+    dest: "{{ amneziawg2_deploy_directory }}/server_private.key"
+    owner: "{{ service_username }}"
+    group: "{{ service_username }}"
+    mode: "0600"
+
+- name: Build and start AmneziaWG container (as {{ service_username }} via docker group)
+  become: true
+  become_user: "{{ service_username }}"
+  ansible.builtin.command: docker compose up -d --build --wait --wait-timeout 60
+  args:
+    chdir: "{{ amneziawg2_deploy_directory }}"
+  register: compose_up
+  changed_when: >-
+    'Started' in compose_up.stderr or 'Created' in compose_up.stderr
+    or 'Built' in compose_up.stderr

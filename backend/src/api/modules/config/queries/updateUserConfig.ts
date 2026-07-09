@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
 import { config } from "@/core/database/schemas/domainSchema.js"
 
@@ -11,6 +11,6 @@ export async function updateUserConfig(
   return executor
     .update(config)
     .set({ name: fields.name, deviceTypeId: fields.deviceTypeId })
-    .where(and(eq(config.id, configId), eq(config.userId, userId), ne(config.status, "deleted")))
+    .where(and(eq(config.id, configId), eq(config.userId, userId), eq(config.status, "active")))
     .returning({ id: config.id })
 }

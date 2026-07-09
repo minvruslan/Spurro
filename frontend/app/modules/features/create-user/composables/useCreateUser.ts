@@ -1,5 +1,5 @@
 import { ref } from "vue"
-import type { User, UpsertUser } from "@spurro/shared"
+import type { SupportedProtocolFamily, User, UpsertUser } from "@spurro/shared"
 import { createUser } from "@/modules/entities/user"
 import type { CreateUserFormValues } from "../types"
 
@@ -17,8 +17,8 @@ export function useCreateUser() {
       const payload: UpsertUser = {
         name: values.name,
         email: values.email,
-        limits: Object.entries(values.limits).map(([protocolTypeId, maxCount]) => ({
-          protocolTypeId,
+        limits: Object.entries(values.limits).map(([protocolFamily, maxCount]) => ({
+          protocolFamily: protocolFamily as SupportedProtocolFamily,
           maxCount,
         })),
       }

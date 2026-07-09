@@ -1,31 +1,20 @@
-import { AMNEZIAWG_SERVER_ADDRESS } from "@spurro/shared"
-import { runAnsiblePlaybook } from "@spurro/infrastructure"
 import type { ProvisionServerJob } from "@/core/queue/provision-server/index.js"
-import { findServer } from "./queries/findServer.js"
 import { updateServerStatus } from "./queries/updateServerStatus.js"
+import { findProvisionableServer } from "./steps/findProvisionableServer.js"
+import { ensureServerContract } from "./steps/ensureServerContract.js"
+import { ensureEndpointContracts } from "./steps/ensureEndpointContracts.js"
+import { deployEndpoints } from "./steps/deployEndpoints.js"
 
 export async function provisionServerJob(job: ProvisionServerJob) {
   const { serverId } = job
 
-  const data = await findServer(serverId)
-  if (!data) {
-    throw new Error(`[provision] server ${serverId} not found or has no active AmneziaWG endpoint`)
-  }
+  const server = await findProvisionableServer(serverId)
+  const serverContract = await ensureServerContract(serverId, server)
+  const deployments = await ensureEndpointContracts(serverId)
 
-  const ssh = data.data?.ssh
-  if (!ssh) {
-    throw new Error(`[provision] server ${serverId} has no SSH credentials`)
-  }
+  const serverAccess = { ip: server.ip, login: server.ssh.login, password: server.ssh.password }
 
-  await runAnsiblePlaybook({
-    ip: data.ip,
-    login: ssh.login,
-    extraVars: {
-      ansible_password: ssh.password,
-      amneziawg_port: data.amneziawgPort,
-      amneziawg_address: AMNEZIAWG_SERVER_ADDRESS,
-    },
-  })
+  await deployEndpoints(serverAccess, serverContract, deployments)
 
   await updateServerStatus(serverId, "active")
 }

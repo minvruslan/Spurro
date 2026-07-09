@@ -5,15 +5,5 @@ import { findProtocols } from "../queries/findProtocols.js"
 
 export async function getProtocolsService(): Promise<Protocol[]> {
   const rows = await findProtocols(db)
-  return ProtocolSchema.array().parse(
-    rows.map((row) => ({
-      id: row.id,
-      version: row.version,
-      type: {
-        id: row.typeId,
-        code: row.typeCode,
-        name: row.typeName,
-      },
-    })),
-  )
+  return ProtocolSchema.array().parse(rows)
 }

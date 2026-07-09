@@ -136,7 +136,7 @@ const onDelete = async () => {
         >
           <Checkbox :model-value="true" disabled />
           <span class="-mb-0.5 tracking-tight">
-            {{ endpoint.protocol.type.name }} {{ endpoint.protocol.version }}
+            {{ endpoint.protocol.name }}
           </span>
         </label>
       </div>

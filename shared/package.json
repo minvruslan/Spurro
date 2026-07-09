@@ -3,7 +3,8 @@
   "type": "module",
   "version": "0.0.1",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./infrastructure": "./src/infrastructure/index.ts"
   },
   "dependencies": {
     "zod": "^4.3.6"

@@ -1,0 +1,32 @@
+- name: Check for Docker with compose v2
+  ansible.builtin.command: docker compose version
+  register: docker_compose_check
+  changed_when: false
+  failed_when: false
+
+- name: Install or upgrade Docker via official convenience script
+  ansible.builtin.shell: >-
+    curl -fsSL https://get.docker.com | sh -s -- --version {{ docker_version }} --channel stable
+  when: docker_compose_check.rc != 0
+
+- name: Verify Docker with compose v2 is usable
+  ansible.builtin.command: docker compose version
+  register: docker_compose_verify
+  changed_when: false
+  failed_when: false
+
+- name: Fail with a clear message when Docker is unusable
+  ansible.builtin.fail:
+    msg: >-
+      Docker with compose v2 is still not available after running the get.docker.com
+      install script. The node's OS is likely unsupported or the docker installation is
+      broken — SSH to the node and inspect `docker compose version`.
+      stdout: {{ docker_compose_verify.stdout | default("") }}
+      stderr: {{ docker_compose_verify.stderr | default("") }}
+  when: docker_compose_verify.rc != 0
+
+- name: Ensure docker service is running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true

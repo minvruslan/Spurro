@@ -71,6 +71,13 @@
       "when": 1782763140708,
       "tag": "0009_lowly_lockjaw",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783548654365,
+      "tag": "0010_illegal_reptil",
+      "breakpoints": true
     }
   ]
 }

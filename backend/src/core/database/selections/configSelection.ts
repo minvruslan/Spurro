@@ -1,11 +1,4 @@
-import {
-  config,
-  deviceType,
-  endpoint,
-  protocol,
-  protocolType,
-  server,
-} from "../schemas/domainSchema.js"
+import { config, deviceType, endpoint, protocol, server } from "../schemas/domainSchema.js"
 
 export const configSelection = {
   id: config.id,
@@ -20,10 +13,9 @@ export const configSelection = {
   endpointId: endpoint.id,
   endpointPort: endpoint.port,
   protocolId: protocol.id,
-  protocolVersion: protocol.version,
-  protocolTypeId: protocolType.id,
-  protocolTypeCode: protocolType.code,
-  protocolTypeName: protocolType.name,
+  protocolCode: protocol.code,
+  protocolFamily: protocol.family,
+  protocolName: protocol.name,
   serverId: server.id,
   serverName: server.name,
   serverCountry: server.country,

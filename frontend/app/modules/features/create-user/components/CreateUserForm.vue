@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { User } from "@spurro/shared"
+import type { SupportedProtocolFamily, User } from "@spurro/shared"
+import { SUPPORTED_PROTOCOL_FAMILIES } from "@spurro/shared"
 import { onMounted, ref } from "vue"
 import { Plus } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FieldLabel, FormLayout } from "@/modules/common/components"
-import { useProtocolTypes } from "@/modules/entities/protocol-type"
 import { useCreateUser } from "../composables/useCreateUser"
 import type { CreateUserFormValues } from "../types"
 import { messages } from "../translations/CreateUserForm"
@@ -15,20 +15,26 @@ const DEFAULT_USER_LIMIT = 3
 const emit = defineEmits<{ (e: "created", user: User): void; (e: "cancel"): void }>()
 
 const { t } = useI18n({ useScope: "local", messages })
-const { protocolTypes, ready } = useProtocolTypes()
 const { pending, create } = useCreateUser()
 const { showSuccess, showError } = useNotificationBanner()
+
+const protocolFamilies = Object.entries(SUPPORTED_PROTOCOL_FAMILIES).map(
+  ([protocolFamily, { name }]) => ({
+    protocolFamily: protocolFamily as SupportedProtocolFamily,
+    name,
+  }),
+)
 
 const nameInput = ref<{ $el: HTMLInputElement } | null>(null)
 
 onMounted(() => nameInput.value?.$el?.focus())
 
-await ready
-
 const form = ref<CreateUserFormValues>({
   name: "",
   email: "",
-  limits: Object.fromEntries(protocolTypes.value.map((type) => [type.id, DEFAULT_USER_LIMIT])),
+  limits: Object.fromEntries(
+    protocolFamilies.map(({ protocolFamily }) => [protocolFamily, DEFAULT_USER_LIMIT]),
+  ) as Record<SupportedProtocolFamily, number>,
 })
 
 const onSubmit = async () => {
@@ -73,24 +79,24 @@ const onSubmit = async () => {
       </div>
 
       <div
-        v-if="protocolTypes.length"
+        v-if="protocolFamilies.length"
         role="group"
         aria-labelledby="limits-label"
         class="flex flex-col gap-2"
       >
         <span id="limits-label" class="text-sm font-medium">{{ t("fields.limits.label") }}</span>
         <label
-          v-for="type in protocolTypes"
-          :key="type.id"
+          v-for="{ protocolFamily, name } in protocolFamilies"
+          :key="protocolFamily"
           class="flex items-center justify-between gap-3 rounded-md border px-3 py-2.5"
         >
-          <span class="tracking-tight">{{ type.name }}</span>
+          <span class="tracking-tight">{{ name }}</span>
           <Input
-            v-model.number="form.limits[type.id]"
+            v-model.number="form.limits[protocolFamily]"
             type="number"
             min="0"
             class="w-24"
-            :aria-label="type.name"
+            :aria-label="name"
           />
         </label>
       </div>

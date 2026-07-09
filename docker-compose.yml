@@ -20,13 +20,6 @@ services:
     volumes:
       - redis_data:/data
 
-  ansible:
-    build: ./infrastructure/ansible
-    # Must be in sync with:
-    # infrastructure/src/common/constants/docker/DOCKER_IMAGE_WITH_ANSIBLE.ts
-    image: spurro/ansible:local
-    profiles: ["build"]
-
 volumes:
   postgres_data:
   redis_data:

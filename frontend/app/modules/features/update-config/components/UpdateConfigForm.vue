@@ -43,7 +43,7 @@ const loadedConfig = config.value
 const endpointLabel = computed(() => {
   const endpoint = loadedConfig?.endpoint
   if (!endpoint) return ""
-  return `${endpoint.server.name} · ${endpoint.protocol.type.name} ${endpoint.protocol.version}`
+  return `${endpoint.server.name} · ${endpoint.protocol.name}`
 })
 
 const form = ref<UpdateConfig>({

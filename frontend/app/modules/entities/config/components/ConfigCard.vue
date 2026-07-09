@@ -14,8 +14,6 @@ defineEmits<{ (e: "open"): void }>()
 
 const { t } = useI18n({ useScope: "local", messages })
 
-// Exhaustively keyed on DeviceType["code"]: adding a code to the @spurro/shared enum
-// is a compile error here until it's classified.
 const DEVICE_ICON: Record<DeviceType["code"], Component> = {
   ios: Smartphone,
   android: Smartphone,
@@ -25,7 +23,7 @@ const DEVICE_ICON: Record<DeviceType["code"], Component> = {
 }
 
 const DeviceIcon = computed(() => DEVICE_ICON[props.config.deviceType.code])
-const protocolName = computed(() => props.config.endpoint.protocol.type.name)
+const protocolName = computed(() => props.config.endpoint.protocol.name)
 </script>
 
 <template>

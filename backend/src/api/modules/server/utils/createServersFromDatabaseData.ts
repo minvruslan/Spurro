@@ -33,12 +33,9 @@ export function createServersFromDatabaseData(rows: ServerRow[]): Server[] {
         status: row.endpointStatus!,
         protocol: {
           id: row.protocolId!,
-          version: row.protocolVersion!,
-          type: {
-            id: row.protocolTypeId!,
-            code: row.protocolTypeCode!,
-            name: row.protocolTypeName!,
-          },
+          code: row.protocolCode! as Server["endpoints"][number]["protocol"]["code"],
+          family: row.protocolFamily!,
+          name: row.protocolName!,
         },
       })
     }

@@ -1,0 +1,25 @@
+- name: Create system user {{ service_username }}
+  ansible.builtin.user:
+    name: "{{ service_username }}"
+    system: true
+    create_home: true
+    shell: /usr/sbin/nologin
+
+- name: Add {{ service_username }} to docker group
+  ansible.builtin.user:
+    name: "{{ service_username }}"
+    groups: docker
+    append: true
+
+- name: Create base directory {{ service_base_directory }} owned by {{ service_username }}
+  ansible.builtin.file:
+    path: "{{ service_base_directory }}"
+    state: directory
+    owner: "{{ service_username }}"
+    group: "{{ service_username }}"
+    mode: "0750"
+
+- name: Remove the sudo grant
+  ansible.builtin.file:
+    path: /etc/sudoers.d/{{ service_username }}
+    state: absent

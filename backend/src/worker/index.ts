@@ -1,4 +1,4 @@
-import { Worker } from "bullmq"
+import { UnrecoverableError, Worker } from "bullmq"
 import { checkDatabaseConnection } from "@/core/database/checkDatabaseConnection.js"
 import { checkQueueConnection, queueConnection } from "@/core/queue/index.js"
 import {
@@ -30,7 +30,7 @@ worker.on("failed", async (job, err) => {
   if (!job) return
 
   const attemptsLeft = (job.opts.attempts ?? 1) - job.attemptsMade
-  if (attemptsLeft <= 0) {
+  if (attemptsLeft <= 0 || err instanceof UnrecoverableError) {
     await updateServerStatus(job.data.serverId, "failed").catch((statusError) =>
       console.error(`[worker] failed to mark server ${job.data.serverId} as failed`, statusError),
     )

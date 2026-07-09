@@ -1,0 +1,15 @@
+- name: Bootstrap server
+  hosts: all
+  become: true
+  pre_tasks:
+    - name: Assert required variables are provided
+      ansible.builtin.assert:
+        that:
+          - service_username is defined
+          - service_base_directory is defined
+        fail_msg: >-
+          Missing required variables. In production they are injected automatically by
+          RemoteCommandRunner.bootstrapServer (@spurro/infrastructure); for manual runs pass them via --extra-vars.
+  roles:
+    - docker
+    - user

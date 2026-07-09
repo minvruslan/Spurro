@@ -17,7 +17,7 @@ const { t } = useI18n({ useScope: "local", messages })
 const { getCountryName } = useCountries()
 
 const protocols = computed(() => [
-  ...new Set(props.server.endpoints.map((endpoint) => endpoint.protocol.type.name)),
+  ...new Set(props.server.endpoints.map((endpoint) => endpoint.protocol.name)),
 ])
 const countryName = computed(() => getCountryName(props.server.country))
 const railClass = computed(() => getServerStatusStyle(props.server.status).rail)
@@ -36,7 +36,7 @@ const railClass = computed(() => getServerStatusStyle(props.server.status).rail)
         <div class="min-w-0">
           <p class="truncate text-sm font-semibold tracking-tight">{{ server.name }}</p>
           <p class="mt-1 truncate font-mono text-xs text-muted-foreground">
-            {{ server.domainName }}
+            {{ server.domainName ?? server.ip }}
           </p>
         </div>
         <div class="w-32">
@@ -68,7 +68,7 @@ const railClass = computed(() => getServerStatusStyle(props.server.status).rail)
           <div class="min-w-0">
             <p class="truncate text-sm font-semibold tracking-tight">{{ server.name }}</p>
             <p class="mt-1 truncate font-mono text-xs text-muted-foreground">
-              {{ server.domainName }}
+              {{ server.domainName ?? server.ip }}
             </p>
           </div>
           <ChevronRight class="size-4.5 flex-none text-muted-foreground" aria-hidden="true" />

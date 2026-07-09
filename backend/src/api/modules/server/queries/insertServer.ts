@@ -4,7 +4,7 @@ import { server } from "@/core/database/schemas/domainSchema.js"
 
 type ServerFields = {
   name: string
-  domainName: string
+  domainName: string | null
   ip: string
   country: string
   status?: ServerStatus
