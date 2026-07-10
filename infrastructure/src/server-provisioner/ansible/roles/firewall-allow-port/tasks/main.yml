@@ -1,0 +1,16 @@
+- name: Assert required variables are provided
+  ansible.builtin.assert:
+    that:
+      - firewall_port is defined
+      - firewall_transport_protocol is defined
+      - firewall_transport_protocol in ['udp', 'tcp']
+    fail_msg: >-
+      Missing required variables. They are injected automatically by
+      ServerProvisioner.allowFirewallPort (@spurro/infrastructure);
+      for manual runs pass them via --extra-vars.
+
+- name: Allow {{ firewall_transport_protocol }} on port {{ firewall_port }}
+  community.general.ufw:
+    rule: allow
+    port: "{{ firewall_port }}"
+    proto: "{{ firewall_transport_protocol }}"

@@ -7,6 +7,12 @@ import { CountryCodeSchema, DomainNameSchema, IPSchema } from "@spurro/shared"
 
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value)
 
+const unescapeNewlines = (value: unknown) =>
+  typeof value === "string" ? value.replaceAll("\\n", "\n") : value
+
+const OPENSSH_PRIVATE_KEY_HEADER = "-----BEGIN OPENSSH PRIVATE KEY-----"
+const AUTHORIZED_KEYS_LINE_PATTERN = /^\S+ \S+( [^\n]*)?$/
+
 const urlString = z
   .string()
   .min(1)
@@ -31,6 +37,24 @@ const EnvSchema = z.object({
   HOST: z.string().min(1).default("localhost"),
   ADMIN_EMAIL: z.email(),
   ADMIN_NAME: z.string().min(1).default("Admin"),
+  APP_SSH_PRIVATE_KEY: z.preprocess(
+    unescapeNewlines,
+    z
+      .string()
+      .refine((value) => value.startsWith(OPENSSH_PRIVATE_KEY_HEADER), {
+        message: `must be an OpenSSH private key starting with "${OPENSSH_PRIVATE_KEY_HEADER}"`,
+      })
+      .transform((value) => (value.endsWith("\n") ? value : `${value}\n`)),
+  ),
+  OPERATOR_SSH_PUBLIC_KEY: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .regex(AUTHORIZED_KEYS_LINE_PATTERN, {
+        message: "must be a single authorized_keys line: <type> <base64> [comment]",
+      })
+      .optional(),
+  ),
   DOMAIN_NAME: z.preprocess(emptyToUndefined, DomainNameSchema.optional()),
   IP: IPSchema,
   COUNTRY: z

@@ -3,7 +3,7 @@ export interface CreateServerFormValues {
   country: string
   ip: string
   domainName: string
-  login: string
+  username: string
   password: string
   protocolIds: string[]
 }

@@ -16,7 +16,7 @@ export async function createServerService(input: UpsertServer): Promise<Server> 
   const credentials = input.credentials
 
   if (!credentials) {
-    throw new Error("Server credentials (login/password) are required for provisioning")
+    throw new Error("Server credentials (username/password) are required for provisioning")
   }
 
   const endpoints = input.endpoints ?? []
@@ -59,7 +59,7 @@ export async function createServerService(input: UpsertServer): Promise<Server> 
       ip: input.ip,
       country: input.country,
       status: "provisioning",
-      data: { ssh: { login: credentials.login, password: credentials.password } },
+      data: { ssh: { username: credentials.username, password: credentials.password } },
     })
 
     await insertEndpoints(tx, row.id, endpointsToInsert)
@@ -70,9 +70,9 @@ export async function createServerService(input: UpsertServer): Promise<Server> 
   })
 
   try {
-    await provisionServerQueue().add(PROVISION_SERVER_JOB_NAME, {
-      serverId: result.id,
-    })
+    const queue = provisionServerQueue()
+    await queue.remove(result.id)
+    await queue.add(PROVISION_SERVER_JOB_NAME, { serverId: result.id }, { jobId: result.id })
   } catch (error) {
     await deleteServer(db, result.id).catch((rollbackError) =>
       console.error("[createServer] rollback failed", result.id, rollbackError),

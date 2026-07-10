@@ -8,7 +8,9 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build:remote-command-runner-image": "tsx src/remote-command-runner/image/buildRemoteCommandRunnerImage.ts"
+    "lint:check": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "build:command-runner-image": "tsx src/command-runner/image/buildCommandRunnerImage.ts"
   },
   "dependencies": {
     "@spurro/shared": "workspace:*",

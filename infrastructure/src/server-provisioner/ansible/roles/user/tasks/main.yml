@@ -3,7 +3,8 @@
     name: "{{ service_username }}"
     system: true
     create_home: true
-    shell: /usr/sbin/nologin
+    shell: /bin/bash
+    password: "*"
 
 - name: Add {{ service_username }} to docker group
   ansible.builtin.user:
@@ -19,7 +20,11 @@
     group: "{{ service_username }}"
     mode: "0750"
 
-- name: Remove the sudo grant
-  ansible.builtin.file:
-    path: /etc/sudoers.d/{{ service_username }}
-    state: absent
+- name: Grant passwordless sudo to {{ service_username }}
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/{{ service_username }}
+    content: "{{ service_username }} ALL=(ALL) NOPASSWD:ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: visudo -cf %s

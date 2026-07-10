@@ -95,7 +95,8 @@ export const server = pgTable(
     country: text("country").notNull(),
     status: serverStatus("status").default("active").notNull(),
     data: jsonb("data").$type<{
-      ssh: { login: string; password: string }
+      ssh: { username: string; password: string } | { hardenedAt: string }
+      sshHostKeys?: string[]
       contract?: ServerContract
     }>(),
     isCurrent: boolean("is_current").default(false).notNull(),

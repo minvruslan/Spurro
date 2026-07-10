@@ -20,7 +20,7 @@ export function useCreateServer() {
         ip: values.ip,
         domainName: values.domainName || undefined,
         endpoints: values.protocolIds.map((protocolId) => ({ protocolId })),
-        credentials: { login: values.login, password: values.password },
+        credentials: { username: values.username, password: values.password },
       }
 
       return await createServer(payload)

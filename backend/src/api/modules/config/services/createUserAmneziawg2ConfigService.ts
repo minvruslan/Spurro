@@ -33,7 +33,7 @@ export async function createUserAmneziawg2ConfigService(
     return { ok: false, reason: "failed" }
   }
 
-  const contract = Amneziawg2ProtocolClient.assertEndpointContract(access.endpointContract)
+  const contract = Amneziawg2ProtocolClient.parseEndpointContract(access.endpointContract)
 
   const reserved = await db.transaction(async (tx) => {
     const clientIP = await allocateClientIPService(tx, endpoint.serverId, contract.subnetPrefix)

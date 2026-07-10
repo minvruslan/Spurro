@@ -1,3 +1,5 @@
 export { IPSchema } from "./IPSchema"
 export { DomainNameSchema } from "./DomainNameSchema"
 export { PortSchema } from "./PortSchema"
+export { TransportProtocolSchema } from "./TransportProtocolSchema"
+export type { TransportProtocol } from "./TransportProtocol"
