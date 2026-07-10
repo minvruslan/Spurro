@@ -1,4 +1,4 @@
-import type { RemoteCommandRunner } from "../../../remote-command-runner/RemoteCommandRunner.js"
+import type { RemoteCommandRunner } from "../../../remote-command-runner/index.js"
 
 export async function findClientPublicKeyByClientIP(
   remoteCommandRunner: RemoteCommandRunner,

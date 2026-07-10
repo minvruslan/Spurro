@@ -29,7 +29,7 @@ const form = ref<CreateServerFormValues>({
   country: "",
   ip: "",
   domainName: "",
-  login: "",
+  username: "",
   password: "",
   protocolIds: protocols.value.map((protocol) => protocol.id),
 })
@@ -99,13 +99,13 @@ const onSubmit = async () => {
 
       <div class="flex flex-col gap-3 sm:flex-row">
         <div class="flex flex-1 flex-col gap-2">
-          <FieldLabel for="login" required>{{ t("fields.login.label") }}</FieldLabel>
+          <FieldLabel for="username" required>{{ t("fields.username.label") }}</FieldLabel>
           <Input
-            id="login"
-            v-model="form.login"
+            id="username"
+            v-model="form.username"
             aria-required="true"
             autocomplete="off"
-            :placeholder="t('fields.login.placeholder')"
+            :placeholder="t('fields.username.placeholder')"
           />
         </div>
         <div class="flex flex-1 flex-col gap-2">

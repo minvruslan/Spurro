@@ -4,6 +4,6 @@ export async function assertAnsibleAssetExists(path: string): Promise<void> {
   try {
     await access(path)
   } catch {
-    throw new Error(`Ansible asset not found: ${path}`)
+    throw new Error(`[remote-command-runner] ansible asset not found: ${path}`)
   }
 }

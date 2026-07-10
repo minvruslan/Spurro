@@ -9,8 +9,8 @@ export async function findProvisionableServer(serverId: string) {
 
   const data = server.data
   if (!data?.ssh) {
-    throw new UnrecoverableError(`[provision] server ${serverId} has no SSH credentials`)
+    throw new UnrecoverableError(`[provision] server ${serverId} has no SSH access data`)
   }
 
-  return { ip: server.ip, domainName: server.domainName, data, ssh: data.ssh }
+  return { ip: server.ip, domainName: server.domainName, data }
 }

@@ -8,7 +8,7 @@ type ServerFields = {
   ip: string
   country: string
   status?: ServerStatus
-  data?: { ssh: { login: string; password: string } }
+  data?: { ssh: { username: string; password: string } }
 }
 
 export async function insertServer(executor: DbOrTx, fields: ServerFields) {

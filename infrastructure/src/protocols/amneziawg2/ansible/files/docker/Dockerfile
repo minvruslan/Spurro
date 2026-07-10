@@ -15,9 +15,9 @@ ENV STATE_DIRECTORY=${STATE_DIRECTORY} \
 VOLUME ${STATE_DIRECTORY}
 WORKDIR ${STATE_DIRECTORY}
 
-COPY entrypoint.sh create-access.sh delete-access.sh list-allowed-ips.sh /usr/local/bin/
+COPY entrypoint.sh create-access.sh delete-accesses.sh list-allowed-ips.sh /usr/local/bin/
 COPY quic-mimicry.preset /usr/local/share/quic-mimicry.preset
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/create-access.sh \
-    /usr/local/bin/delete-access.sh /usr/local/bin/list-allowed-ips.sh
+    /usr/local/bin/delete-accesses.sh /usr/local/bin/list-allowed-ips.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

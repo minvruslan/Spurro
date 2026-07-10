@@ -1,0 +1,16 @@
+- name: Assert required variables are provided
+  ansible.builtin.assert:
+    that:
+      - service_username is defined
+      - service_authorized_keys is defined
+      - service_authorized_keys | length > 0
+    fail_msg: >-
+      Missing required variables. They are injected automatically by
+      ServerProvisioner.installServiceUserAuthorizedKeys (@spurro/infrastructure);
+      for manual runs pass them via --extra-vars.
+
+- name: Install authorized keys for {{ service_username }}
+  ansible.posix.authorized_key:
+    user: "{{ service_username }}"
+    key: "{{ service_authorized_keys | join('\n') }}"
+    exclusive: true

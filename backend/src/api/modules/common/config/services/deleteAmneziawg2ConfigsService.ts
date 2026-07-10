@@ -30,7 +30,7 @@ export async function deleteAmneziawg2ConfigsService(
   try {
     await client.deleteAccesses(
       access.serverAccess,
-      Amneziawg2ProtocolClient.assertEndpointContract(access.endpointContract),
+      Amneziawg2ProtocolClient.parseEndpointContract(access.endpointContract),
       clientPublicKeys,
     )
     return true

@@ -1,5 +1,6 @@
+import { SUPPORTED_PROTOCOLS } from "@spurro/shared"
 import type { ServerAccess, ServerContract } from "@spurro/shared/infrastructure"
-import { Amneziawg2ProtocolClient, RemoteCommandRunner } from "@spurro/infrastructure"
+import { Amneziawg2ProtocolClient, ServerProvisioner } from "@spurro/infrastructure"
 import { updateEndpointData } from "../queries/updateEndpointData.js"
 import type { ensureEndpointContracts } from "./ensureEndpointContracts.js"
 
@@ -10,17 +11,17 @@ export async function deployEndpoints(
   serverContract: ServerContract,
   deployments: EndpointDeployment[],
 ): Promise<void> {
-  await new RemoteCommandRunner(serverAccess).bootstrapServer(
-    serverContract.service.username,
-    serverContract.service.baseDirectory,
-  )
+  const serverProvisioner = new ServerProvisioner(serverAccess)
 
   for (const { client, contract, endpointId, endpointData } of deployments) {
-    await client.deploy(
-      serverAccess,
-      serverContract,
-      Amneziawg2ProtocolClient.assertEndpointContract(contract),
+    const endpointContract = Amneziawg2ProtocolClient.parseEndpointContract(contract)
+
+    await serverProvisioner.allowFirewallPort(
+      endpointContract.port,
+      SUPPORTED_PROTOCOLS[client.protocolCode].transportProtocol,
     )
+    await client.deploy(serverAccess, serverContract, endpointContract)
+
     await updateEndpointData(endpointId, {
       ...endpointData,
       contract: {
