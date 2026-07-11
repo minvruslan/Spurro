@@ -37,6 +37,12 @@ const EnvSchema = z.object({
   HOST: z.string().min(1).default("localhost"),
   ADMIN_EMAIL: z.email(),
   ADMIN_NAME: z.string().min(1).default("Admin"),
+  APP_ENCRYPTION_KEY: z
+    .string()
+    .min(1)
+    .refine((value) => Buffer.from(value, "base64").length === 32, {
+      message: "must be 32 bytes encoded as base64 (generate: openssl rand -base64 32)",
+    }),
   APP_SSH_PRIVATE_KEY: z.preprocess(
     unescapeNewlines,
     z
