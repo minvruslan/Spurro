@@ -6,15 +6,15 @@ import {
   integer,
   timestamp,
   boolean,
-  jsonb,
   index,
   unique,
   uniqueIndex,
   pgEnum,
   check,
 } from "drizzle-orm/pg-core"
-import type { Amneziawg2ConfigData, SupportedProtocolFamily } from "@spurro/shared"
+import type { ConfigData, SupportedProtocolFamily } from "@spurro/shared"
 import type { EndpointContract, ServerContract } from "@spurro/shared/infrastructure"
+import { encryptedJsonb, encryptedText } from "../columns/index.js"
 import { user } from "./authSchema"
 
 // Enums
@@ -91,14 +91,14 @@ export const server = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     domainName: text("domain_name"),
-    ip: text("ip").notNull(),
+    ip: encryptedText("ip").notNull(),
     country: text("country").notNull(),
     status: serverStatus("status").default("active").notNull(),
-    data: jsonb("data").$type<{
+    data: encryptedJsonb<{
       ssh: { username: string; password: string } | { hardenedAt: string }
       sshHostKeys?: string[]
       contract?: ServerContract
-    }>(),
+    }>("data"),
     isCurrent: boolean("is_current").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -124,11 +124,9 @@ export const endpoint = pgTable(
       .notNull()
       .references(() => protocol.id, { onDelete: "restrict" }),
     port: integer("port").notNull(),
-    data: jsonb("data")
-      .$type<{
-        contract?: EndpointContract
-      }>()
-      .notNull(),
+    data: encryptedJsonb<{
+      contract?: EndpointContract
+    }>("data").notNull(),
     status: endpointStatus("status").default("active").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -161,7 +159,8 @@ export const config = pgTable(
       .notNull()
       .references(() => deviceType.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
-    data: jsonb("data").$type<Amneziawg2ConfigData>().notNull(),
+    data: encryptedJsonb<ConfigData>("data").notNull(),
+    clientIdentifier: text("client_identifier"),
     status: configStatus("status").default("pending").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -170,6 +169,9 @@ export const config = pgTable(
       .notNull(),
   },
   (t) => [
+    uniqueIndex("config_endpoint_client_identifier_uq")
+      .on(t.endpointId, t.clientIdentifier)
+      .where(sql`${t.status} != 'deleted'`),
     index("config_user_idx").on(t.userId),
     index("config_endpoint_idx").on(t.endpointId),
     index("config_device_type_idx").on(t.deviceTypeId),

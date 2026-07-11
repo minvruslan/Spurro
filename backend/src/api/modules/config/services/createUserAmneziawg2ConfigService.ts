@@ -12,7 +12,7 @@ import { insertUserConfig } from "../queries/insertUserConfig.js"
 import { updateConfigData } from "../queries/updateConfigData.js"
 import type { CreateConfigResult } from "../types/CreateConfigResult.js"
 import { createConfigFromDatabaseData } from "../utils/createConfigFromDatabaseData.js"
-import { allocateClientIPService } from "./allocateClientIPService.js"
+import { allocateAmneziawg2ClientIPService } from "./allocateAmneziawg2ClientIPService.js"
 
 export async function createUserAmneziawg2ConfigService(
   userId: string,
@@ -36,7 +36,11 @@ export async function createUserAmneziawg2ConfigService(
   const contract = Amneziawg2ProtocolClient.parseEndpointContract(access.endpointContract)
 
   const reserved = await db.transaction(async (tx) => {
-    const clientIP = await allocateClientIPService(tx, endpoint.serverId, contract.subnetPrefix)
+    const clientIP = await allocateAmneziawg2ClientIPService(
+      tx,
+      endpoint.serverId,
+      contract.subnetPrefix,
+    )
     if (!clientIP) return null
 
     const [row] = await insertUserConfig(tx, {
@@ -45,6 +49,7 @@ export async function createUserAmneziawg2ConfigService(
       deviceTypeId: input.deviceTypeId,
       name: input.name,
       data: { protocolCode: client.protocolCode, ip: clientIP },
+      clientIdentifier: clientIP,
     })
 
     return { configId: row.id, clientIP }
