@@ -4,7 +4,7 @@ import { Amneziawg2ClientIdentifierSchema } from "@spurro/shared"
 const FIRST_CLIENT_OCTET = 2
 const LAST_CLIENT_OCTET = 254
 
-export function pickFreeAmneziawg2ClientIP(
+export function pickFreeClientIP(
   usedIPs: (string | null)[],
   subnetPrefix: string,
 ): Amneziawg2ClientIdentifier | null {

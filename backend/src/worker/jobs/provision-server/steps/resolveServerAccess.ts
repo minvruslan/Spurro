@@ -1,6 +1,6 @@
 import { UnrecoverableError } from "bullmq"
 import type { ServerAccess, ServerContract } from "@spurro/shared/infrastructure"
-import { ServerProvisioner } from "@spurro/infrastructure"
+import { RemoteServer } from "@spurro/infrastructure"
 import { buildServerAccess, buildServiceUserAccess } from "@/core/server-access/index.js"
 import type { findProvisionableServer } from "./findProvisionableServer.js"
 
@@ -22,7 +22,7 @@ export async function resolveServerAccess(
     serverContract.sshPort,
   )
   try {
-    await new ServerProvisioner(serviceUserAccess).assertConnectivity()
+    await new RemoteServer(serviceUserAccess).assertConnectivity()
     return serviceUserAccess
   } catch {
     if (!access) {

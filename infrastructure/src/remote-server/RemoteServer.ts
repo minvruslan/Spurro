@@ -9,19 +9,21 @@ import {
   TransportProtocolSchema,
   UnixPathSchema,
   UnixUsernameSchema,
+  type SupportedProtocolCode,
   type TransportProtocol,
 } from "@spurro/shared"
-import type { ServerAccess } from "@spurro/shared/infrastructure"
+import type { EndpointContract, ServerAccess, ServerContract } from "@spurro/shared/infrastructure"
 import { PROJECT_NAME } from "../common/constants/index.js"
 import { CommandRunner } from "../command-runner/index.js"
 import { RemoteCommandRunner } from "../remote-command-runner/index.js"
+import { createProtocolClient } from "./protocols/index.js"
 
 const ANSIBLE_DIRECTORY = resolve(dirname(fileURLToPath(import.meta.url)), "ansible")
 const BOOTSTRAP_SERVER_ANSIBLE_PLAYBOOK_FILENAME = "bootstrap-server.yml"
 const SSH_KEYSCAN_TIMEOUT_SECONDS = 15
 const SSH_PRIVATE_KEY_MOUNT_PATH = "/ssh-private-key"
 
-export class ServerProvisioner {
+export class RemoteServer {
   private readonly remoteCommandRunner: RemoteCommandRunner
 
   constructor(serverAccess: ServerAccess) {
@@ -52,7 +54,7 @@ export class ServerProvisioner {
       .sort()
 
     if (sshHostKeys.length === 0) {
-      throw new Error(`[server-provisioner] ssh-keyscan returned no host keys for ${parsedIp}`)
+      throw new Error(`[remote-server] ssh-keyscan returned no host keys for ${parsedIp}`)
     }
 
     return sshHostKeys
@@ -72,13 +74,21 @@ export class ServerProvisioner {
 
       const publicKey = stdout.trim()
       if (!publicKey) {
-        throw new Error("[server-provisioner] ssh-keygen produced no public key")
+        throw new Error("[remote-server] ssh-keygen produced no public key")
       }
 
       return publicKey
     } finally {
       await rm(localTmpDirectory, { recursive: true, force: true })
     }
+  }
+
+  assertConnectivity(): Promise<void> {
+    return this.remoteCommandRunner.assertConnectivity()
+  }
+
+  async assertPrivilegeEscalation(): Promise<void> {
+    await this.remoteCommandRunner.execute("sudo -n true")
   }
 
   bootstrap(serviceUsername: string, serviceBaseDirectory: string): Promise<void> {
@@ -105,14 +115,6 @@ export class ServerProvisioner {
     )
   }
 
-  assertConnectivity(): Promise<void> {
-    return this.remoteCommandRunner.assertConnectivity()
-  }
-
-  async assertPrivilegeEscalation(): Promise<void> {
-    await this.remoteCommandRunner.execute("sudo -n true")
-  }
-
   harden(sshPort: number): Promise<void> {
     return this.remoteCommandRunner.runAnsibleRole(join(ANSIBLE_DIRECTORY, "roles", "hardening"), {
       hardening_ssh_port: PortSchema.parse(sshPort),
@@ -127,5 +129,17 @@ export class ServerProvisioner {
         firewall_transport_protocol: TransportProtocolSchema.parse(transportProtocol),
       },
     )
+  }
+
+  async install(
+    protocolCode: SupportedProtocolCode,
+    serverContract: ServerContract,
+    endpointContract: EndpointContract,
+  ): Promise<void> {
+    await this.getProtocolClient(protocolCode).install(serverContract, endpointContract)
+  }
+
+  getProtocolClient(protocolCode: SupportedProtocolCode) {
+    return createProtocolClient(protocolCode, this.remoteCommandRunner)
   }
 }

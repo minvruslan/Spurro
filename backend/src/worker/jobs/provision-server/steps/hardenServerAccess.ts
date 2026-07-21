@@ -1,5 +1,5 @@
 import type { ServerAccess, ServerContract } from "@spurro/shared/infrastructure"
-import { ServerProvisioner } from "@spurro/infrastructure"
+import { RemoteServer } from "@spurro/infrastructure"
 import { env } from "@/core/env/index.js"
 import { BOOTSTRAP_SSH_PORT, buildServiceUserAccess } from "@/core/server-access/index.js"
 import { updateServerData } from "../queries/updateServerData.js"
@@ -14,10 +14,10 @@ export async function hardenServerAccess(
   sshHostKeys: string[],
   serverAccess: ServerAccess,
 ): Promise<ServerAccess> {
-  const authorizedKeys = [await ServerProvisioner.deriveSSHPublicKey(env.APP_SSH_PRIVATE_KEY)]
+  const authorizedKeys = [await RemoteServer.deriveSSHPublicKey(env.APP_SSH_PRIVATE_KEY)]
   if (env.OPERATOR_SSH_PUBLIC_KEY) authorizedKeys.push(env.OPERATOR_SSH_PUBLIC_KEY)
 
-  await new ServerProvisioner(serverAccess).installServiceUserAuthorizedKeys(
+  await new RemoteServer(serverAccess).installServiceUserAuthorizedKeys(
     serverContract.service.username,
     authorizedKeys,
   )
@@ -30,7 +30,7 @@ export async function hardenServerAccess(
   )
 
   if ("privateKey" in serverAccess) {
-    await new ServerProvisioner(serverAccess).harden(serverContract.sshPort)
+    await new RemoteServer(serverAccess).harden(serverContract.sshPort)
   } else {
     const preHardenAccess = buildServiceUserAccess(
       server.ip,
@@ -38,13 +38,13 @@ export async function hardenServerAccess(
       sshHostKeys,
       BOOTSTRAP_SSH_PORT,
     )
-    const preHardenProvisioner = new ServerProvisioner(preHardenAccess)
-    await preHardenProvisioner.assertConnectivity()
-    await preHardenProvisioner.assertPrivilegeEscalation()
-    await preHardenProvisioner.harden(serverContract.sshPort)
+    const preHardenServer = new RemoteServer(preHardenAccess)
+    await preHardenServer.assertConnectivity()
+    await preHardenServer.assertPrivilegeEscalation()
+    await preHardenServer.harden(serverContract.sshPort)
   }
 
-  await new ServerProvisioner(hardenedAccess).assertConnectivity()
+  await new RemoteServer(hardenedAccess).assertConnectivity()
 
   if (!("hardenedAt" in server.data.ssh)) {
     const data = { ...server.data, ssh: { hardenedAt: new Date().toISOString() } }

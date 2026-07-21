@@ -1,18 +1,17 @@
 import { UnrecoverableError } from "bullmq"
 import { SupportedProtocolCodeSchema } from "@spurro/shared"
 import type { EndpointContract } from "@spurro/shared/infrastructure"
-import { getProtocolClient } from "@spurro/infrastructure"
-import type { Amneziawg2ProtocolClient } from "@spurro/infrastructure"
+import type { RemoteServer } from "@spurro/infrastructure"
 import { findActiveEndpoints } from "../queries/findActiveEndpoints.js"
 import { updateEndpointData } from "../queries/updateEndpointData.js"
 
-export async function ensureEndpointContracts(serverId: string) {
+export async function ensureEndpointContracts(serverId: string, remoteServer: RemoteServer) {
   const endpoints = await findActiveEndpoints(serverId)
 
   const seenProtocolCodes = new Set<string>()
 
   const deployments: {
-    client: Amneziawg2ProtocolClient
+    client: ReturnType<RemoteServer["getProtocolClient"]>
     contract: EndpointContract
     endpointId: string
     endpointData: (typeof endpoints)[number]["data"]
@@ -37,7 +36,7 @@ export async function ensureEndpointContracts(serverId: string) {
 
     seenProtocolCodes.add(protocolCode)
 
-    const client = getProtocolClient(protocolCode)
+    const client = remoteServer.getProtocolClient(protocolCode)
 
     let contract = row.data?.contract
     if (!contract?.protocolCode) {

@@ -1,4 +1,4 @@
-import { ServerProvisioner } from "@spurro/infrastructure"
+import { RemoteServer } from "@spurro/infrastructure"
 import type { ProvisionServerJob } from "@/core/queue/provision-server/index.js"
 import { updateServerStatus } from "./queries/updateServerStatus.js"
 import { findProvisionableServer } from "./steps/findProvisionableServer.js"
@@ -17,7 +17,7 @@ export async function provisionServerJob(job: ProvisionServerJob) {
   const sshHostKeys = await ensureSSHHostKeys(serverId, server)
   const serverAccess = await resolveServerAccess(serverId, server, serverContract, sshHostKeys)
 
-  await new ServerProvisioner(serverAccess).bootstrap(
+  await new RemoteServer(serverAccess).bootstrap(
     serverContract.service.username,
     serverContract.service.baseDirectory,
   )
@@ -30,8 +30,9 @@ export async function provisionServerJob(job: ProvisionServerJob) {
     serverAccess,
   )
 
-  const deployments = await ensureEndpointContracts(serverId)
-  await deployEndpoints(serviceUserAccess, serverContract, deployments)
+  const remoteServer = new RemoteServer(serviceUserAccess)
+  const deployments = await ensureEndpointContracts(serverId, remoteServer)
+  await deployEndpoints(remoteServer, serverContract, deployments)
 
   await updateServerStatus(serverId, "active")
 }
