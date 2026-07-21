@@ -1,3 +1,4 @@
+import { configLogger } from "@/core/logger/index.js"
 import { SupportedProtocolCodeSchema } from "@spurro/shared"
 import type { DeletableUserConfig } from "../queries/findDeletableUserConfigs.js"
 import { getEndpointProtocolClientService } from "./getEndpointProtocolClientService.js"
@@ -7,8 +8,8 @@ export async function deleteConfigsService(configs: DeletableUserConfig[]): Prom
 
   const parsedCode = SupportedProtocolCodeSchema.safeParse(protocolCode)
   if (!parsedCode.success) {
-    console.error(
-      `[config] endpoint ${endpointId} has unknown protocol "${protocolCode}"; configs not deleted`,
+    configLogger.error(
+      `Endpoint ${endpointId} has unknown protocol "${protocolCode}"; configs not deleted.`,
     )
     return false
   }
@@ -23,7 +24,7 @@ export async function deleteConfigsService(configs: DeletableUserConfig[]): Prom
     )
     return true
   } catch (error) {
-    console.error("[config] access delete failed; accesses may be left on server", error)
+    configLogger.error({ error }, "Access delete failed; accesses may be left on server.")
     return false
   }
 }

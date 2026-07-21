@@ -2,6 +2,7 @@ import { Hono } from "hono"
 import { zValidator } from "@hono/zod-validator"
 import { UpsertServerSchema } from "@spurro/shared"
 import type { AppVariables } from "@/core/types/index.js"
+import { serverLogger } from "@/core/logger/index.js"
 import { createServerService } from "../services/createServerService.js"
 
 const createServerRoute = new Hono<{ Variables: AppVariables }>()
@@ -11,7 +12,7 @@ createServerRoute.post("/", zValidator("json", UpsertServerSchema), async (c) =>
     const data = await createServerService(c.req.valid("json"))
     return c.json({ data }, 201)
   } catch (error) {
-    console.error("[createServer]", error)
+    serverLogger.error({ error }, "Create server failed.")
     return c.json({ error: "Internal server error" }, 500)
   }
 })

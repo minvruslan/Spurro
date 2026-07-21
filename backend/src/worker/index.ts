@@ -1,5 +1,6 @@
 import { UnrecoverableError, Worker } from "bullmq"
 import { checkDatabaseConnection } from "@/core/database/checkDatabaseConnection.js"
+import { workerLogger } from "@/core/logger/index.js"
 import { checkQueueConnection, queueConnection } from "@/core/queue/index.js"
 import {
   PROVISION_SERVER_QUEUE_NAME,
@@ -12,9 +13,9 @@ try {
   await checkDatabaseConnection()
   await checkQueueConnection()
 } catch (error) {
-  console.error(
-    "[worker] dependency check failed — is Postgres/Redis running? (docker compose up -d)",
-    error,
+  workerLogger.error(
+    { error },
+    "Dependency check failed — is Postgres/Redis running? (docker compose up -d).",
   )
   process.exit(1)
 }
@@ -26,22 +27,25 @@ const worker = new Worker<ProvisionServerJob>(
 )
 
 worker.on("failed", async (job, err) => {
-  console.error(`[worker] job ${job?.id} failed`, err)
+  workerLogger.error({ error: err, jobId: job?.id }, "Job failed.")
   if (!job) return
 
   const attemptsLeft = (job.opts.attempts ?? 1) - job.attemptsMade
   if (attemptsLeft <= 0 || err instanceof UnrecoverableError) {
     await updateServerStatus(job.data.serverId, "failed").catch((statusError) =>
-      console.error(`[worker] failed to mark server ${job.data.serverId} as failed`, statusError),
+      workerLogger.error(
+        { error: statusError, serverId: job.data.serverId },
+        "Failed to mark server as failed.",
+      ),
     )
   }
 })
 
 worker.on("error", (err) => {
-  console.error("[worker] error", err)
+  workerLogger.error({ error: err }, "Worker error.")
 })
 
-console.log("[worker] provisioning worker started")
+workerLogger.info("Provisioning worker started.")
 
 const shutdown = async () => {
   await worker.close()

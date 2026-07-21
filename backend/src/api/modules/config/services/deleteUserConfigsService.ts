@@ -1,12 +1,11 @@
 import { db } from "@/core/database/index.js"
+import type { ServiceResult } from "@/core/types/index.js"
 import type { DeletableUserConfig } from "../queries/findDeletableUserConfigs.js"
 import { findDeletableUserConfigs } from "../queries/findDeletableUserConfigs.js"
 import { setUserConfigsStatus } from "../queries/setUserConfigsStatus.js"
 import { deleteConfigsService } from "./deleteConfigsService.js"
 
-type DeleteConfigsResult =
-  | { ok: true; deletedConfigIds: string[] }
-  | { ok: false; reason: "delete_failed" }
+type DeleteConfigsResult = ServiceResult<{ deletedConfigIds: string[] }, "delete_failed">
 
 export async function deleteUserConfigsService(
   userId: string,

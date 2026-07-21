@@ -1,6 +1,7 @@
 import type { UpsertServer, Server } from "@spurro/shared"
 import { SUPPORTED_PROTOCOLS, SupportedProtocolCodeSchema, ServerSchema } from "@spurro/shared"
 import { db } from "@/core/database/index.js"
+import { serverLogger } from "@/core/logger/index.js"
 import {
   PROVISION_SERVER_JOB_NAME,
   provisionServerQueue,
@@ -75,7 +76,7 @@ export async function createServerService(input: UpsertServer): Promise<Server> 
     await queue.add(PROVISION_SERVER_JOB_NAME, { serverId: result.id }, { jobId: result.id })
   } catch (error) {
     await deleteServer(db, result.id).catch((rollbackError) =>
-      console.error("[createServer] rollback failed", result.id, rollbackError),
+      serverLogger.error({ error: rollbackError, serverId: result.id }, "Create rollback failed."),
     )
     throw error
   }

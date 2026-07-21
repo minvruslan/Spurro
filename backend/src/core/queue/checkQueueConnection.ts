@@ -1,3 +1,4 @@
+import { startupLogger } from "@/core/logger/index.js"
 import { Redis } from "ioredis"
 import { queueConnection } from "./queueConnection.js"
 
@@ -15,7 +16,7 @@ export async function checkQueueConnection() {
   try {
     await client.connect()
     await client.ping()
-    console.log("[startup] queue connection ok")
+    startupLogger.info("Queue connection ok.")
   } finally {
     client.disconnect()
   }

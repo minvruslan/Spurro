@@ -3,6 +3,7 @@ import type { UpsertConfig } from "@spurro/shared"
 import { ConfigSchema, SUPPORTED_PROTOCOLS, SupportedProtocolCodeSchema } from "@spurro/shared"
 import { isUserConfigLimitReachedService } from "@/api/modules/config-limit/index.js"
 import { db } from "@/core/database/index.js"
+import { configLogger } from "@/core/logger/index.js"
 import { findActiveEndpointById } from "../queries/findActiveEndpointById.js"
 import { setUserConfigsStatus } from "../queries/setUserConfigsStatus.js"
 import { getEndpointProtocolClientService } from "./getEndpointProtocolClientService.js"
@@ -91,14 +92,17 @@ export async function createUserConfigService(
       }),
     }
   } catch (error) {
-    console.error("[config] config creation failed", error)
+    configLogger.error({ error }, "Config creation failed.")
 
     let deleted = false
     try {
       await client.deleteAccessByClientIdentifier(endpointContract, clientIdentifier)
       deleted = true
     } catch (deleteError) {
-      console.error("[config] rollback delete failed; peer may be left on server", deleteError)
+      configLogger.error(
+        { error: deleteError },
+        "Rollback delete failed; peer may be left on server.",
+      )
     }
 
     if (deleted) {

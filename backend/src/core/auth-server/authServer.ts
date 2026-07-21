@@ -8,6 +8,7 @@ import { db } from "@/core/database/index.js"
 import * as schema from "@/core/database/schemas/authSchema.js"
 import { user } from "@/core/database/schemas/authSchema.js"
 import { env } from "@/core/env/index.js"
+import { authLogger } from "@/core/logger/index.js"
 
 const MAGIC_LINK_FILE = resolve(process.cwd(), "magic-link.log")
 
@@ -49,7 +50,7 @@ export const authServer = betterAuth({
         if (!existing) return
         // TODO: wire up a real email provider.
         await writeFile(MAGIC_LINK_FILE, `${url}\n`)
-        console.log(`\n[magic-link] ${email}\n${url}\nsaved to ${MAGIC_LINK_FILE}\n`)
+        authLogger.info({ url }, `Magic link for ${email} saved to ${MAGIC_LINK_FILE}.`)
       },
     }),
   ],
