@@ -3,7 +3,7 @@ import type { ConfigData } from "@spurro/shared"
 import type { DbOrTx } from "@/core/database/index.js"
 import { config } from "@/core/database/schemas/domainSchema.js"
 
-export async function updateConfigData(executor: DbOrTx, configId: string, data: ConfigData) {
+export async function activateConfig(executor: DbOrTx, configId: string, data: ConfigData) {
   return executor
     .update(config)
     .set({ data, status: "active" })

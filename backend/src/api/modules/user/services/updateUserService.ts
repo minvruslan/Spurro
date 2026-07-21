@@ -4,7 +4,7 @@ import { db } from "@/core/database/index.js"
 import {
   getUserConfigLimitsService,
   setUserConfigLimitsService,
-} from "@/api/modules/common/config-limit/index.js"
+} from "@/api/modules/config-limit/index.js"
 import { updateUser } from "../queries/updateUser.js"
 import { createUserFromDatabaseData } from "../utils/createUserFromDatabaseData.js"
 

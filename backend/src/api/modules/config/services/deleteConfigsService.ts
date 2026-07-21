@@ -1,7 +1,6 @@
 import { SupportedProtocolCodeSchema } from "@spurro/shared"
-import { RemoteServer } from "@spurro/infrastructure"
 import type { DeletableUserConfig } from "../queries/findDeletableUserConfigs.js"
-import { findEndpointAccessService } from "./findEndpointAccessService.js"
+import { getEndpointProtocolClientService } from "./getEndpointProtocolClientService.js"
 
 export async function deleteConfigsService(configs: DeletableUserConfig[]): Promise<boolean> {
   const [{ serverId, endpointId, protocolCode }] = configs
@@ -14,22 +13,12 @@ export async function deleteConfigsService(configs: DeletableUserConfig[]): Prom
     return false
   }
 
-  const access = await findEndpointAccessService(serverId, endpointId)
-  if (!access) return false
-
-  const client = new RemoteServer(access.serverAccess).getProtocolClient(parsedCode.data)
-
-  const { revision } = access.endpointContract
-  if (client.assessRevisionCompatibility(revision) !== "supported") {
-    console.error(
-      `[config] endpoint ${endpointId} server revision ${revision ?? "unknown"} is outside the supported range [${client.clientSupportedRevision}, ${client.clientRevision}]; accesses left on server`,
-    )
-    return false
-  }
+  const resolved = await getEndpointProtocolClientService(serverId, endpointId, parsedCode.data)
+  if (!resolved.ok) return false
 
   try {
-    await client.deleteAccesses(
-      access.endpointContract,
+    await resolved.client.deleteAccesses(
+      resolved.endpointContract,
       configs.map((config) => config.data),
     )
     return true

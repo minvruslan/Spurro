@@ -1,6 +1,6 @@
 import { Hono } from "hono"
 import type { AppVariables } from "@/core/types/index.js"
-import { getUserConfigLimitsService } from "@/api/modules/common/config-limit/index.js"
+import { getUserConfigLimitsService } from "../services/getUserConfigLimitsService.js"
 
 const getUserConfigLimitsRoute = new Hono<{ Variables: AppVariables }>()
 

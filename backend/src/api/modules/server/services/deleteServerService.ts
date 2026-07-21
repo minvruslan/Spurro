@@ -1,6 +1,8 @@
+import { sql } from "drizzle-orm"
 import { db } from "@/core/database/index.js"
-import { countServerConfigs } from "../queries/countServerConfigs.js"
+import { countReservedServerConfigs } from "../queries/countReservedServerConfigs.js"
 import { deleteServer } from "../queries/deleteServer.js"
+import { deleteServerConfigs } from "../queries/deleteServerConfigs.js"
 import { findServerById } from "../queries/findServerById.js"
 import { softDeleteServer } from "../queries/softDeleteServer.js"
 import { createServersFromDatabaseData } from "../utils/createServersFromDatabaseData.js"
@@ -15,14 +17,17 @@ export async function deleteServerService(id: string): Promise<DeleteServerResul
   if (server.status === "deleted") return { ok: false, reason: "not_found" }
   if (server.isCurrent) return { ok: false, reason: "current" }
 
-  const grants = await countServerConfigs(db, id)
-  if (grants === 0) {
-    await deleteServer(db, id)
-  } else {
-    await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${id}))`)
+
+    const reserved = await countReservedServerConfigs(tx, id)
+    if (reserved === 0) {
+      await deleteServerConfigs(tx, id)
+      await deleteServer(tx, id)
+    } else {
       await softDeleteServer(tx, id)
-    })
-  }
+    }
+  })
 
   return { ok: true }
 }

@@ -1,7 +1,7 @@
 import type { User } from "@spurro/shared"
 import { UserSchema } from "@spurro/shared"
 import { db } from "@/core/database/index.js"
-import { getUserConfigLimitsService } from "@/api/modules/common/config-limit/index.js"
+import { getUserConfigLimitsService } from "@/api/modules/config-limit/index.js"
 import { findUserById } from "../queries/findUserById.js"
 import { createUserFromDatabaseData } from "../utils/createUserFromDatabaseData.js"
 

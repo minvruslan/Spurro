@@ -9,5 +9,6 @@ export type CreateConfigResult =
         | "device_type_invalid"
         | "unsupported_protocol"
         | "no_available_ip"
+        | "limit_reached"
         | "failed"
     }

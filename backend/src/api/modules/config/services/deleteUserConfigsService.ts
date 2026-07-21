@@ -4,11 +4,13 @@ import { findDeletableUserConfigs } from "../queries/findDeletableUserConfigs.js
 import { setUserConfigsStatus } from "../queries/setUserConfigsStatus.js"
 import { deleteConfigsService } from "./deleteConfigsService.js"
 
-type DeleteConfigsResult = { ok: true } | { ok: false; reason: "delete_failed" }
+type DeleteConfigsResult =
+  | { ok: true; deletedConfigIds: string[] }
+  | { ok: false; reason: "delete_failed" }
 
 export async function deleteUserConfigsService(
   userId: string,
-  configIds: string[],
+  configIds?: string[],
 ): Promise<DeleteConfigsResult> {
   const configs = await findDeletableUserConfigs(db, userId, configIds)
 
@@ -20,6 +22,7 @@ export async function deleteUserConfigsService(
   }
 
   let failed = false
+  const deletedConfigIds: string[] = []
 
   for (const group of configsByEndpointId.values()) {
     const groupConfigIds = group.map((config) => config.id)
@@ -33,7 +36,8 @@ export async function deleteUserConfigsService(
     }
 
     await setUserConfigsStatus(db, userId, groupConfigIds, "deleted", "deleting")
+    deletedConfigIds.push(...groupConfigIds)
   }
 
-  return failed ? { ok: false, reason: "delete_failed" } : { ok: true }
+  return failed ? { ok: false, reason: "delete_failed" } : { ok: true, deletedConfigIds }
 }

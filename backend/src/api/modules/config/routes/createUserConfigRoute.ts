@@ -19,6 +19,9 @@ createUserConfigRoute.post("/", zValidator("json", UpsertConfigSchema), async (c
       if (result.reason === "no_available_ip") {
         return c.json({ error: "Server is at capacity (no available IP)" }, 503)
       }
+      if (result.reason === "limit_reached") {
+        return c.json({ error: "Config limit reached for this protocol family" }, 409)
+      }
       return c.json({ error: "Invalid endpoint or device type" }, 400)
     }
     return c.json({ data: result.data }, 201)

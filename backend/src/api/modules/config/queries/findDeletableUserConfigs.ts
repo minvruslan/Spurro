@@ -12,7 +12,7 @@ import { configSelection } from "@/core/database/selections/index.js"
 export async function findDeletableUserConfigs(
   executor: DbOrTx,
   userId: string,
-  configIds: string[],
+  configIds?: string[],
 ) {
   return executor
     .select(configSelection)
@@ -22,7 +22,11 @@ export async function findDeletableUserConfigs(
     .innerJoin(protocol, eq(endpoint.protocolId, protocol.id))
     .innerJoin(server, eq(endpoint.serverId, server.id))
     .where(
-      and(inArray(config.id, configIds), eq(config.userId, userId), ne(config.status, "deleted")),
+      and(
+        eq(config.userId, userId),
+        ne(config.status, "deleted"),
+        configIds ? inArray(config.id, configIds) : undefined,
+      ),
     )
 }
 

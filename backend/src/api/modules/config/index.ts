@@ -15,3 +15,4 @@ configRouter.route("/", updateUserConfigRoute)
 configRouter.route("/", deleteUserConfigRoute)
 
 export { configRouter }
+export { deleteUserConfigsService } from "./services/deleteUserConfigsService.js"
