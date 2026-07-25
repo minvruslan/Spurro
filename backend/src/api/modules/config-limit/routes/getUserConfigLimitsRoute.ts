@@ -5,12 +5,8 @@ import { getUserConfigLimitsService } from "../services/getUserConfigLimitsServi
 const getUserConfigLimitsRoute = new Hono<{ Variables: AppVariables }>()
 
 getUserConfigLimitsRoute.get("/", async (c) => {
-  try {
-    const data = await getUserConfigLimitsService(c.get("userId"))
-    return c.json({ data })
-  } catch {
-    return c.json({ error: "Internal server error" }, 500)
-  }
+  const result = await getUserConfigLimitsService(c.get("userId"))
+  return c.json({ data: result.data.configLimits })
 })
 
 export { getUserConfigLimitsRoute }

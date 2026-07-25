@@ -44,18 +44,6 @@ export async function ensureEndpointContracts(serverId: string, remoteServer: Re
       await updateEndpointData(row.endpointId, { ...row.data, contract })
     }
 
-    const revisionCompatibility = client.assessRevisionCompatibility(contract.revision)
-    if (revisionCompatibility === "requires_migration") {
-      throw new UnrecoverableError(
-        `[provision] server ${serverId} endpoint ${row.endpointId} is deployed with revision ${contract.revision}, code supports in-place upgrade from revision ${client.clientSupportedRevision} and up; redeploy may invalidate created user configs — a state migration is required`,
-      )
-    }
-    if (revisionCompatibility === "newer_than_code") {
-      throw new UnrecoverableError(
-        `[provision] server ${serverId} endpoint ${row.endpointId} is deployed with revision ${contract.revision}, code has older revision ${client.clientRevision}; refusing to downgrade the server`,
-      )
-    }
-
     deployments.push({
       client,
       contract,

@@ -5,12 +5,8 @@ import { getDeviceTypesService } from "../services/getDeviceTypesService.js"
 const getDeviceTypesRoute = new Hono<{ Variables: AppVariables }>()
 
 getDeviceTypesRoute.get("/", async (c) => {
-  try {
-    const data = await getDeviceTypesService()
-    return c.json({ data })
-  } catch {
-    return c.json({ error: "Internal server error" }, 500)
-  }
+  const result = await getDeviceTypesService()
+  return c.json({ data: result.data.deviceTypes })
 })
 
 export { getDeviceTypesRoute }

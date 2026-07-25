@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm"
 import { db } from "@/core/database/index.js"
+import type { ServiceResult } from "@/core/types/index.js"
 import { countReservedServerConfigs } from "../queries/countReservedServerConfigs.js"
 import { deleteServer } from "../queries/deleteServer.js"
 import { deleteServerConfigs } from "../queries/deleteServerConfigs.js"
@@ -7,9 +8,9 @@ import { findServerById } from "../queries/findServerById.js"
 import { softDeleteServer } from "../queries/softDeleteServer.js"
 import { createServersFromDatabaseData } from "../utils/createServersFromDatabaseData.js"
 
-type DeleteServerResult = { ok: true } | { ok: false; reason: "not_found" | "current" }
+type ErrorCode = "not_found" | "current"
 
-export async function deleteServerService(id: string): Promise<DeleteServerResult> {
+export async function deleteServerService(id: string): Promise<ServiceResult<null, ErrorCode>> {
   const rows = await findServerById(db, id)
   if (rows.length === 0) return { ok: false, reason: "not_found" }
 
@@ -29,5 +30,5 @@ export async function deleteServerService(id: string): Promise<DeleteServerResul
     }
   })
 
-  return { ok: true }
+  return { ok: true, data: null }
 }

@@ -1,33 +1,39 @@
 import { Hono } from "hono"
-import { zValidator } from "@hono/zod-validator"
+import { requestValidator } from "@/core/validation/index.js"
 import { UpsertConfigSchema } from "@spurro/shared"
 import type { AppVariables } from "@/core/types/index.js"
+import { configLogger } from "@/core/logger/index.js"
 import { createUserConfigService } from "../services/createUserConfigService.js"
 
 const createUserConfigRoute = new Hono<{ Variables: AppVariables }>()
 
-createUserConfigRoute.post("/", zValidator("json", UpsertConfigSchema), async (c) => {
-  try {
-    const result = await createUserConfigService(c.get("userId"), c.req.valid("json"))
-    if (!result.ok) {
-      if (result.reason === "failed") {
+createUserConfigRoute.post("/", requestValidator("json", UpsertConfigSchema), async (c) => {
+  const result = await createUserConfigService(c.get("userId"), c.req.valid("json"))
+  if (!result.ok) {
+    switch (result.reason) {
+      case "failed":
+        configLogger.error({ reason: result.reason, error: result.error }, "Create config failed.")
         return c.json({ error: "Failed to create VPN config" }, 502)
-      }
-      if (result.reason === "unsupported_protocol") {
-        return c.json({ error: "Unsupported protocol" }, 400)
-      }
-      if (result.reason === "no_available_ip") {
+      case "no_available_ip":
+        configLogger.error({ reason: result.reason, error: result.error }, "Create config failed.")
         return c.json({ error: "Server is at capacity (no available IP)" }, 503)
-      }
-      if (result.reason === "limit_reached") {
+      case "unsupported_protocol":
+        configLogger.warn({ reason: result.reason, error: result.error }, "Create config failed.")
+        return c.json({ error: "Unsupported protocol" }, 400)
+      case "limit_reached":
+        configLogger.warn({ reason: result.reason, error: result.error }, "Create config failed.")
         return c.json({ error: "Config limit reached for this protocol family" }, 409)
-      }
-      return c.json({ error: "Invalid endpoint or device type" }, 400)
+      case "endpoint_invalid":
+        configLogger.warn({ reason: result.reason, error: result.error }, "Create config failed.")
+        return c.json({ error: "Invalid endpoint" }, 400)
+      case "device_type_invalid":
+        configLogger.warn({ reason: result.reason, error: result.error }, "Create config failed.")
+        return c.json({ error: "Invalid device type" }, 400)
+      default:
+        return result.reason satisfies never
     }
-    return c.json({ data: result.data }, 201)
-  } catch {
-    return c.json({ error: "Internal server error" }, 500)
   }
+  return c.json({ data: result.data.config }, 201)
 })
 
 export { createUserConfigRoute }

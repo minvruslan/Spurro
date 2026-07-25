@@ -26,7 +26,7 @@ const urlString = z
         return false
       }
     },
-    { message: "must be a valid URL" },
+    { message: "Must be a valid URL" },
   )
 
 const EnvSchema = z.object({
@@ -42,7 +42,7 @@ const EnvSchema = z.object({
     .string()
     .min(1)
     .refine((value) => Buffer.from(value, "base64").length === 32, {
-      message: "must be 32 bytes encoded as base64 (generate: openssl rand -base64 32)",
+      message: "Must be 32 bytes encoded as base64 (generate: openssl rand -base64 32)",
     }),
   APP_SSH_PRIVATE_KEY: z.preprocess(
     unescapeNewlines,
@@ -58,7 +58,7 @@ const EnvSchema = z.object({
     z
       .string()
       .regex(AUTHORIZED_KEYS_LINE_PATTERN, {
-        message: "must be a single authorized_keys line: <type> <base64> [comment]",
+        message: "Must be a single authorized_keys line: <type> <base64> [comment]",
       })
       .optional(),
   ),

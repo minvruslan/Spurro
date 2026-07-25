@@ -1,5 +1,5 @@
 import type { ServiceFailure } from "./ServiceFailure.js"
 
-export type ServiceResult<Success, Reason extends string> =
-  | ({ ok: true } & Success)
-  | ServiceFailure<Reason>
+export type ServiceResult<Data extends object | null, Reason extends string = never> =
+  | { ok: true; data: Data }
+  | ([Reason] extends [never] ? never : ServiceFailure<Reason>)

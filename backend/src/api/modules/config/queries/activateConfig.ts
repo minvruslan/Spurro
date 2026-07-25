@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import type { ConfigData } from "@spurro/shared"
 import type { DbOrTx } from "@/core/database/index.js"
 import { config } from "@/core/database/schemas/domainSchema.js"
@@ -7,6 +7,6 @@ export async function activateConfig(executor: DbOrTx, configId: string, data: C
   return executor
     .update(config)
     .set({ data, status: "active" })
-    .where(eq(config.id, configId))
+    .where(and(eq(config.id, configId), eq(config.status, "pending")))
     .returning({ id: config.id })
 }

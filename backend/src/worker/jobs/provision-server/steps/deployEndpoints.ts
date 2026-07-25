@@ -22,8 +22,6 @@ export async function deployEndpoints(
       ...endpointData,
       contract: {
         ...contract,
-        version: client.version,
-        revision: client.clientRevision,
         deployedAt: new Date().toISOString(),
       },
     })

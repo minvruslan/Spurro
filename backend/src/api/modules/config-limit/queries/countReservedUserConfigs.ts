@@ -1,7 +1,8 @@
-import { and, count, eq, ne } from "drizzle-orm"
+import { and, count, eq } from "drizzle-orm"
 import type { SupportedProtocolFamily } from "@spurro/shared"
 import type { DbOrTx } from "@/core/database/index.js"
 import { config, endpoint, protocol } from "@/core/database/schemas/domainSchema.js"
+import { reservedConfigCondition } from "./conditions/reservedConfigCondition.js"
 
 export async function countReservedUserConfigs(
   executor: DbOrTx,
@@ -17,7 +18,7 @@ export async function countReservedUserConfigs(
       and(
         eq(config.userId, userId),
         eq(protocol.family, protocolFamily),
-        ne(config.status, "deleted"),
+        reservedConfigCondition(),
       ),
     )
   return row.reserved

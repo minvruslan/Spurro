@@ -5,12 +5,8 @@ import { getServersService } from "../services/getServersService.js"
 const getServersRoute = new Hono<{ Variables: AppVariables }>()
 
 getServersRoute.get("/", async (c) => {
-  try {
-    const data = await getServersService()
-    return c.json({ data })
-  } catch {
-    return c.json({ error: "Internal server error" }, 500)
-  }
+  const result = await getServersService()
+  return c.json({ data: result.data.servers })
 })
 
 export { getServersRoute }

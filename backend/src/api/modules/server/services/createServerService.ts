@@ -1,7 +1,7 @@
 import type { UpsertServer, Server } from "@spurro/shared"
 import { SUPPORTED_PROTOCOLS, SupportedProtocolCodeSchema, ServerSchema } from "@spurro/shared"
 import { db } from "@/core/database/index.js"
-import { serverLogger } from "@/core/logger/index.js"
+import type { ServiceResult } from "@/core/types/index.js"
 import {
   PROVISION_SERVER_JOB_NAME,
   provisionServerQueue,
@@ -13,72 +13,113 @@ import { insertEndpoints } from "../queries/insertEndpoints.js"
 import { insertServer } from "../queries/insertServer.js"
 import { createServersFromDatabaseData } from "../utils/createServersFromDatabaseData.js"
 
-export async function createServerService(input: UpsertServer): Promise<Server> {
+type ErrorCode =
+  | "credentials_required"
+  | "protocol_not_found"
+  | "unsupported_protocol"
+  | "duplicate_protocol"
+  | "enqueue_failed"
+
+export async function createServerService(
+  input: UpsertServer,
+): Promise<ServiceResult<{ server: Server }, ErrorCode>> {
   const credentials = input.credentials
 
-  if (!credentials) {
-    throw new Error("Server credentials (username/password) are required for provisioning")
-  }
+  if (!credentials) return { ok: false, reason: "credentials_required" }
 
   const endpoints = input.endpoints ?? []
 
-  const result = await db.transaction(async (tx) => {
-    const protocolCodes = await findProtocolCodes(
-      tx,
-      endpoints.map((item) => item.protocolId),
-    )
-    const codeByProtocolId = new Map(protocolCodes.map((row) => [row.protocolId, row.protocolCode]))
+  const result = await db.transaction(
+    async (tx): Promise<ServiceResult<{ server: Server }, ErrorCode>> => {
+      const protocolCodes = await findProtocolCodes(
+        tx,
+        endpoints.map((item) => item.protocolId),
+      )
+      const codeByProtocolId = new Map(
+        protocolCodes.map((row) => [row.protocolId, row.protocolCode]),
+      )
 
-    const seenProtocolCodes = new Set<string>()
-    const endpointsToInsert = endpoints.map((item) => {
-      const code = codeByProtocolId.get(item.protocolId)
-      if (!code) {
-        throw new Error(`[createServer] protocol ${item.protocolId} not found`)
+      const seenProtocolCodes = new Set<string>()
+      const endpointsToInsert: { protocolId: string; port: number }[] = []
+      for (const item of endpoints) {
+        const code = codeByProtocolId.get(item.protocolId)
+        if (!code) {
+          return {
+            ok: false,
+            reason: "protocol_not_found",
+            error: new Error(`Protocol ${item.protocolId} not found.`),
+          }
+        }
+
+        const parsedCode = SupportedProtocolCodeSchema.safeParse(code)
+        if (!parsedCode.success) {
+          return {
+            ok: false,
+            reason: "unsupported_protocol",
+            error: new Error(`Unsupported protocol "${code}".`),
+          }
+        }
+
+        if (seenProtocolCodes.has(code)) {
+          return {
+            ok: false,
+            reason: "duplicate_protocol",
+            error: new Error(
+              `Multiple endpoints of protocol "${code}"; one endpoint per protocol is supported.`,
+            ),
+          }
+        }
+        seenProtocolCodes.add(code)
+
+        endpointsToInsert.push({
+          protocolId: item.protocolId,
+          port: item.port ?? SUPPORTED_PROTOCOLS[parsedCode.data].defaultPort,
+        })
       }
 
-      const parsedCode = SupportedProtocolCodeSchema.safeParse(code)
-      if (!parsedCode.success) {
-        throw new Error(`[createServer] unsupported protocol "${code}"`)
-      }
+      const [row] = await insertServer(tx, {
+        name: input.name,
+        domainName: input.domainName ?? null,
+        ip: input.ip,
+        country: input.country,
+        status: "provisioning",
+        data: { ssh: { username: credentials.username, password: credentials.password } },
+      })
 
-      if (seenProtocolCodes.has(code)) {
-        throw new Error(
-          `[createServer] multiple endpoints of protocol "${code}"; one endpoint per protocol is supported`,
-        )
-      }
-      seenProtocolCodes.add(code)
+      await insertEndpoints(tx, row.id, endpointsToInsert)
+
+      const rows = await findServerById(tx, row.id)
 
       return {
-        protocolId: item.protocolId,
-        port: item.port ?? SUPPORTED_PROTOCOLS[parsedCode.data].defaultPort,
+        ok: true,
+        data: { server: ServerSchema.parse(createServersFromDatabaseData(rows)[0]) },
       }
-    })
+    },
+  )
 
-    const [row] = await insertServer(tx, {
-      name: input.name,
-      domainName: input.domainName ?? null,
-      ip: input.ip,
-      country: input.country,
-      status: "provisioning",
-      data: { ssh: { username: credentials.username, password: credentials.password } },
-    })
-
-    await insertEndpoints(tx, row.id, endpointsToInsert)
-
-    const rows = await findServerById(tx, row.id)
-
-    return ServerSchema.parse(createServersFromDatabaseData(rows)[0])
-  })
+  if (!result.ok) return result
 
   try {
     const queue = provisionServerQueue()
-    await queue.remove(result.id)
-    await queue.add(PROVISION_SERVER_JOB_NAME, { serverId: result.id }, { jobId: result.id })
-  } catch (error) {
-    await deleteServer(db, result.id).catch((rollbackError) =>
-      serverLogger.error({ error: rollbackError, serverId: result.id }, "Create rollback failed."),
+    await queue.add(
+      PROVISION_SERVER_JOB_NAME,
+      { serverId: result.data.server.id },
+      { jobId: result.data.server.id },
     )
-    throw error
+  } catch (error) {
+    try {
+      await deleteServer(db, result.data.server.id)
+    } catch (rollbackError) {
+      return {
+        ok: false,
+        reason: "enqueue_failed",
+        error: new AggregateError(
+          [error, rollbackError],
+          "Provision enqueue failed and create rollback failed.",
+        ),
+      }
+    }
+    return { ok: false, reason: "enqueue_failed", error }
   }
 
   return result

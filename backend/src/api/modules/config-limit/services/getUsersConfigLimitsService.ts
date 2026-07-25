@@ -2,6 +2,7 @@ import type { ConfigLimit } from "@spurro/shared"
 import { ConfigLimitSchema } from "@spurro/shared"
 import { db } from "@/core/database/index.js"
 import type { DbOrTx } from "@/core/database/index.js"
+import type { ServiceResult } from "@/core/types/index.js"
 import { findUsersConfigLimits } from "../queries/findUsersConfigLimits.js"
 import { countUsersConfigsByProtocolFamily } from "../queries/countUsersConfigsByProtocolFamily.js"
 import { createConfigLimitFromDatabaseData } from "../utils/createConfigLimitFromDatabaseData.js"
@@ -9,9 +10,9 @@ import { createConfigLimitFromDatabaseData } from "../utils/createConfigLimitFro
 export async function getUsersConfigLimitsService(
   userIds: string[],
   executor: DbOrTx = db,
-): Promise<Map<string, ConfigLimit[]>> {
+): Promise<ServiceResult<{ configLimitsByUserId: Map<string, ConfigLimit[]> }>> {
   const result = new Map<string, ConfigLimit[]>()
-  if (userIds.length === 0) return result
+  if (userIds.length === 0) return { ok: true, data: { configLimitsByUserId: result } }
 
   const [limitRows, usageRows] = await Promise.all([
     findUsersConfigLimits(executor, userIds),
@@ -28,5 +29,5 @@ export async function getUsersConfigLimitsService(
     result.set(row.userId, list)
   }
 
-  return result
+  return { ok: true, data: { configLimitsByUserId: result } }
 }

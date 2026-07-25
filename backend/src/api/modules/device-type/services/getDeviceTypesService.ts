@@ -1,9 +1,12 @@
 import type { DeviceType } from "@spurro/shared"
 import { DeviceTypeSchema } from "@spurro/shared"
 import { db } from "@/core/database/index.js"
-import { findDeviceTypes } from "../queries/findDeviceTypes.js"
+import type { ServiceResult } from "@/core/types/index.js"
+import { findActiveDeviceTypes } from "../queries/findActiveDeviceTypes.js"
 
-export async function getDeviceTypesService(): Promise<DeviceType[]> {
-  const rows = await findDeviceTypes(db)
-  return DeviceTypeSchema.array().parse(rows)
+export async function getDeviceTypesService(): Promise<
+  ServiceResult<{ deviceTypes: DeviceType[] }>
+> {
+  const rows = await findActiveDeviceTypes(db)
+  return { ok: true, data: { deviceTypes: DeviceTypeSchema.array().parse(rows) } }
 }

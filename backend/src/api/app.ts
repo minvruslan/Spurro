@@ -1,8 +1,8 @@
 import { Hono } from "hono"
-import { logger } from "hono/logger"
 import type { AppVariables } from "@/core/types/index.js"
+import { apiLogger } from "@/core/logger/index.js"
 import { authServer } from "@/core/auth-server/index.js"
-import { requireAuth, requireAdmin } from "@/core/middlewares/index.js"
+import { requireAuth, requireAdmin, requestLogger } from "@/core/middlewares/index.js"
 import { configRouter } from "@/api/modules/config/index.js"
 import { configLimitRouter } from "@/api/modules/config-limit/index.js"
 import { userRouter } from "@/api/modules/user/index.js"
@@ -13,7 +13,12 @@ import { deviceTypeRouter } from "@/api/modules/device-type/index.js"
 
 const app = new Hono<{ Variables: AppVariables }>()
 
-app.use("*", logger())
+app.use("*", requestLogger)
+
+app.onError((error, c) => {
+  apiLogger.error({ error, method: c.req.method, path: c.req.path }, "Unhandled error.")
+  return c.json({ error: "Internal server error" }, 500)
+})
 
 app.get("/health", (c) => c.json({ status: "ok" }))
 

@@ -6,6 +6,5 @@ export const EndpointContractSchema = z.object({
   protocolCode: SupportedProtocolCodeSchema,
   port: PortSchema,
   version: z.string().optional(),
-  revision: z.number().int().optional(),
   deployedAt: z.iso.datetime().optional(),
 })

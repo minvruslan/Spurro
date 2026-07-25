@@ -6,5 +6,6 @@ export {
   configLogger,
   serverLogger,
   startupLogger,
+  userLogger,
   workerLogger,
 } from "./logger.js"

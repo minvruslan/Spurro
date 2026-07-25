@@ -15,7 +15,7 @@ export const ServerContractSchema = z.object({
     .refine(
       (value) => value.split(",").every((entry) => IPSchema.safeParse(entry.trim()).success),
       {
-        message: "dns must be a comma-separated list of IP addresses",
+        message: "DNS must be a comma-separated list of IP addresses",
       },
     ),
   service: z.object({

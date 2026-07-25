@@ -8,6 +8,7 @@ const DockerNameSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/)
 
 export const Amneziawg2EndpointContractSchema = EndpointContractSchema.extend({
   protocolCode: z.literal(SupportedProtocolCodeSchema.enum.amneziawg2),
+  version: z.string(),
   containerName: DockerNameSchema,
   stateVolumeName: DockerNameSchema,
   stateDirectory: UnixPathSchema,
