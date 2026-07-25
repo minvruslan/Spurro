@@ -1,4 +1,4 @@
-import type { ServerAccess, ServerContract } from "@spurro/shared/infrastructure"
+import type { ServerAccess, ServerContract } from "@spurro/infrastructure/types"
 import { env } from "@/core/env/index.js"
 
 export function buildServiceUserAccess(

@@ -1,6 +1,6 @@
 import { UnrecoverableError } from "bullmq"
 import { SupportedProtocolCodeSchema } from "@spurro/shared"
-import type { EndpointContract } from "@spurro/shared/infrastructure"
+import type { EndpointContract } from "@spurro/infrastructure/types"
 import type { RemoteServer } from "@spurro/infrastructure"
 import { findActiveEndpoints } from "../queries/findActiveEndpoints.js"
 import { updateEndpointData } from "../queries/updateEndpointData.js"

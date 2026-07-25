@@ -1,5 +1,5 @@
 import { SUPPORTED_PROTOCOLS } from "@spurro/shared"
-import type { ServerContract } from "@spurro/shared/infrastructure"
+import type { ServerContract } from "@spurro/infrastructure/types"
 import type { RemoteServer } from "@spurro/infrastructure"
 import { updateEndpointData } from "../queries/updateEndpointData.js"
 import type { ensureEndpointContracts } from "./ensureEndpointContracts.js"

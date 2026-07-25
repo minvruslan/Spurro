@@ -13,7 +13,7 @@ import {
   check,
 } from "drizzle-orm/pg-core"
 import type { ConfigData, SupportedProtocolFamily } from "@spurro/shared"
-import type { EndpointContract, ServerContract } from "@spurro/shared/infrastructure"
+import type { EndpointContract, ServerContract } from "@spurro/infrastructure/types"
 import { encryptedJsonb, encryptedText } from "../columns/index.js"
 import { user } from "./authSchema"
 

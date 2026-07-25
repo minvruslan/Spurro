@@ -1,7 +1,7 @@
 import { cp, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { ServerAccessSchema, type ServerAccess } from "@spurro/shared/infrastructure"
+import { ServerAccessSchema, type ServerAccess } from "../types/index.js"
 import { PROJECT_NAME } from "../common/constants/index.js"
 import { CommandRunner } from "../command-runner/index.js"
 import { assertAnsibleAssetExists } from "./utils/index.js"

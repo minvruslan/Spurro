@@ -1,5 +1,5 @@
-import { ServerContractSchema } from "@spurro/shared/infrastructure"
-import type { ServerContract } from "@spurro/shared/infrastructure"
+import { ServerContractSchema } from "@spurro/infrastructure/types"
+import type { ServerContract } from "@spurro/infrastructure/types"
 import {
   VPN_NODE_BASE_DIRECTORY,
   VPN_NODE_DNS,

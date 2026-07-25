@@ -1,5 +1,5 @@
 import { UnrecoverableError } from "bullmq"
-import type { ServerAccess, ServerContract } from "@spurro/shared/infrastructure"
+import type { ServerAccess, ServerContract } from "@spurro/infrastructure/types"
 import { RemoteServer } from "@spurro/infrastructure"
 import { buildServerAccess, buildServiceUserAccess } from "@/core/server-access/index.js"
 import type { findProvisionableServer } from "./findProvisionableServer.js"

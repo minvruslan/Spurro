@@ -15,7 +15,7 @@ import {
   type Amneziawg2EndpointContract,
   type EndpointContract,
   type ServerContract,
-} from "@spurro/shared/infrastructure"
+} from "../../../types/index.js"
 import type { RemoteCommandRunner } from "../../../remote-command-runner/index.js"
 import { Amneziawg2CreatedAccessSchema } from "./types/index.js"
 import {

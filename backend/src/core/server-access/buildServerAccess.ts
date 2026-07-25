@@ -1,4 +1,4 @@
-import { ServerContractSchema, type ServerAccess } from "@spurro/shared/infrastructure"
+import { ServerContractSchema, type ServerAccess } from "@spurro/infrastructure/types"
 import type { server } from "@/core/database/schemas/domainSchema.js"
 import { BOOTSTRAP_SSH_PORT } from "./BOOTSTRAP_SSH_PORT.js"
 import { buildServiceUserAccess } from "./buildServiceUserAccess.js"

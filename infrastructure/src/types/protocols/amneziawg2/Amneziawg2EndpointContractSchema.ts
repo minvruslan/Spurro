@@ -1,6 +1,5 @@
 import { z } from "zod"
-import { SupportedProtocolCodeSchema } from "../../../../core/supported-protocol/types/SupportedProtocolCodeSchema"
-import { UnixPathSchema } from "../../../../core/unix/UnixPathSchema"
+import { SupportedProtocolCodeSchema, UnixPathSchema } from "@spurro/shared"
 import { EndpointContractSchema } from "../common/EndpointContractSchema"
 import { Amneziawg2KeySchema } from "./Amneziawg2KeySchema"
 

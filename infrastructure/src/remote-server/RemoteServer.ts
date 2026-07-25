@@ -12,7 +12,7 @@ import {
   type SupportedProtocolCode,
   type TransportProtocol,
 } from "@spurro/shared"
-import type { EndpointContract, ServerAccess, ServerContract } from "@spurro/shared/infrastructure"
+import type { EndpointContract, ServerAccess, ServerContract } from "../types/index.js"
 import { PROJECT_NAME } from "../common/constants/index.js"
 import { CommandRunner } from "../command-runner/index.js"
 import { RemoteCommandRunner } from "../remote-command-runner/index.js"

@@ -1,6 +1,5 @@
 import { z } from "zod"
-import { PortSchema } from "../../../../core/network/PortSchema"
-import { SupportedProtocolCodeSchema } from "../../../../core/supported-protocol/types/SupportedProtocolCodeSchema"
+import { PortSchema, SupportedProtocolCodeSchema } from "@spurro/shared"
 
 export const EndpointContractSchema = z.object({
   protocolCode: SupportedProtocolCodeSchema,

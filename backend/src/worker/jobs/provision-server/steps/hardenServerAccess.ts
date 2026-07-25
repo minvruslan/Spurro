@@ -1,4 +1,4 @@
-import type { ServerAccess, ServerContract } from "@spurro/shared/infrastructure"
+import type { ServerAccess, ServerContract } from "@spurro/infrastructure/types"
 import { RemoteServer } from "@spurro/infrastructure"
 import { env } from "@/core/env/index.js"
 import { BOOTSTRAP_SSH_PORT, buildServiceUserAccess } from "@/core/server-access/index.js"
