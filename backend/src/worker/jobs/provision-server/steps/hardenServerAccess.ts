@@ -1,7 +1,6 @@
 import type { ServerAccess, ServerContract } from "@spurro/infrastructure/types"
-import { RemoteServer } from "@spurro/infrastructure"
+import { RemoteServer, BOOTSTRAP_SSH_PORT, buildServiceUserAccess } from "@spurro/infrastructure"
 import { env } from "@/core/env/index.js"
-import { BOOTSTRAP_SSH_PORT, buildServiceUserAccess } from "@/core/server-access/index.js"
 import { updateServerData } from "../queries/updateServerData.js"
 import type { findProvisionableServer } from "./findProvisionableServer.js"
 
@@ -27,6 +26,7 @@ export async function hardenServerAccess(
     serverContract,
     sshHostKeys,
     serverContract.sshPort,
+    env.APP_SSH_PRIVATE_KEY,
   )
 
   if ("privateKey" in serverAccess) {
@@ -37,6 +37,7 @@ export async function hardenServerAccess(
       serverContract,
       sshHostKeys,
       BOOTSTRAP_SSH_PORT,
+      env.APP_SSH_PRIVATE_KEY,
     )
     const preHardenServer = new RemoteServer(preHardenAccess)
     await preHardenServer.assertConnectivity()
@@ -46,8 +47,11 @@ export async function hardenServerAccess(
 
   await new RemoteServer(hardenedAccess).assertConnectivity()
 
-  if (!("hardenedAt" in server.data.ssh)) {
-    const data = { ...server.data, ssh: { hardenedAt: new Date().toISOString() } }
+  if (!("hardenedAt" in server.data.state.ssh)) {
+    const data = {
+      ...server.data,
+      state: { ...server.data.state, ssh: { hardenedAt: new Date().toISOString() } },
+    }
     await updateServerData(serverId, data)
     server.data = data
   }

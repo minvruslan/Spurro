@@ -13,7 +13,7 @@ import {
   check,
 } from "drizzle-orm/pg-core"
 import type { ConfigData, SupportedProtocolFamily } from "@spurro/shared"
-import type { EndpointContract, ServerContract } from "@spurro/infrastructure/types"
+import type { EndpointData, ServerData } from "@spurro/infrastructure/types"
 import { encryptedJsonb, encryptedText } from "../columns/index.js"
 import { user } from "./authSchema"
 
@@ -94,11 +94,7 @@ export const server = pgTable(
     ip: encryptedText("ip").notNull(),
     country: text("country").notNull(),
     status: serverStatus("status").default("active").notNull(),
-    data: encryptedJsonb<{
-      ssh: { username: string; password: string } | { hardenedAt: string }
-      sshHostKeys?: string[]
-      contract?: ServerContract
-    }>("data"),
+    data: encryptedJsonb<ServerData>("data"),
     isCurrent: boolean("is_current").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -124,9 +120,7 @@ export const endpoint = pgTable(
       .notNull()
       .references(() => protocol.id, { onDelete: "restrict" }),
     port: integer("port").notNull(),
-    data: encryptedJsonb<{
-      contract?: EndpointContract
-    }>("data").notNull(),
+    data: encryptedJsonb<EndpointData>("data").notNull(),
     status: endpointStatus("status").default("active").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")

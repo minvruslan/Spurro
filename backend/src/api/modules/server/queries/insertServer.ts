@@ -1,4 +1,5 @@
 import type { ServerStatus } from "@spurro/shared"
+import type { ServerData } from "@spurro/infrastructure/types"
 import type { DbOrTx } from "@/core/database/index.js"
 import { server } from "@/core/database/schemas/domainSchema.js"
 
@@ -8,7 +9,7 @@ type ServerFields = {
   ip: string
   country: string
   status?: ServerStatus
-  data?: { ssh: { username: string; password: string } }
+  data?: ServerData
 }
 
 export async function insertServer(executor: DbOrTx, fields: ServerFields) {

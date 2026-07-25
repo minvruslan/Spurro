@@ -20,10 +20,8 @@ export async function deployEndpoints(
 
     await updateEndpointData(endpointId, {
       ...endpointData,
-      contract: {
-        ...contract,
-        deployedAt: new Date().toISOString(),
-      },
+      contract,
+      state: { ...endpointData.state, deployedAt: new Date().toISOString() },
     })
   }
 }

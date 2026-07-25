@@ -1,5 +1,4 @@
-import { RemoteServer } from "@spurro/infrastructure"
-import { BOOTSTRAP_SSH_PORT } from "@/core/server-access/index.js"
+import { RemoteServer, BOOTSTRAP_SSH_PORT } from "@spurro/infrastructure"
 import { updateServerData } from "../queries/updateServerData.js"
 import type { findProvisionableServer } from "./findProvisionableServer.js"
 
@@ -9,12 +8,12 @@ export async function ensureSSHHostKeys(
   serverId: string,
   server: ProvisionableServer,
 ): Promise<string[]> {
-  const existing = server.data.sshHostKeys
+  const existing = server.data.state.sshHostKeys
   if (existing?.length) return existing
 
   const sshHostKeys = await RemoteServer.scanSSHHostKeys(server.ip, BOOTSTRAP_SSH_PORT)
 
-  const data = { ...server.data, sshHostKeys }
+  const data = { ...server.data, state: { ...server.data.state, sshHostKeys } }
   await updateServerData(serverId, data)
   server.data = data
 

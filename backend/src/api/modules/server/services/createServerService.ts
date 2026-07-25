@@ -83,7 +83,7 @@ export async function createServerService(
         ip: input.ip,
         country: input.country,
         status: "provisioning",
-        data: { ssh: { username: credentials.username, password: credentials.password } },
+        data: { state: { ssh: { username: credentials.username, password: credentials.password } } },
       })
 
       await insertEndpoints(tx, row.id, endpointsToInsert)

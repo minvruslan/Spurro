@@ -1,5 +1,6 @@
 import { ServerContractSchema } from "@spurro/infrastructure/types"
 import type { ServerContract } from "@spurro/infrastructure/types"
+import { buildServerContract } from "@spurro/infrastructure"
 import {
   VPN_NODE_BASE_DIRECTORY,
   VPN_NODE_DNS,
@@ -15,19 +16,16 @@ export async function ensureServerContract(
   serverId: string,
   server: ProvisionableServer,
 ): Promise<ServerContract> {
-  const existing = server.data.contract
-  const parsedExisting = ServerContractSchema.safeParse(existing)
+  const parsedExisting = ServerContractSchema.safeParse(server.data.contract)
   if (parsedExisting.success) return parsedExisting.data
 
-  const contract = ServerContractSchema.parse({
-    domain: existing?.domain !== undefined ? existing.domain : server.domainName,
-    ip: existing?.ip ?? server.ip,
-    sshPort: existing?.sshPort ?? VPN_NODE_SSH_PORT,
-    dns: existing?.dns ?? VPN_NODE_DNS,
-    service: {
-      username: existing?.service?.username ?? VPN_NODE_USERNAME,
-      baseDirectory: existing?.service?.baseDirectory ?? VPN_NODE_BASE_DIRECTORY,
-    },
+  const contract = buildServerContract({
+    domain: server.domainName,
+    ip: server.ip,
+    sshPort: VPN_NODE_SSH_PORT,
+    dns: VPN_NODE_DNS,
+    serviceUsername: VPN_NODE_USERNAME,
+    baseDirectory: VPN_NODE_BASE_DIRECTORY,
   })
 
   const data = { ...server.data, contract }

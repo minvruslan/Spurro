@@ -2,9 +2,9 @@ import type { SupportedProtocolCode } from "@spurro/shared"
 import { SupportedProtocolCodeSchema } from "@spurro/shared"
 import type { EndpointContract, ServerContract } from "@spurro/infrastructure/types"
 import { ServerContractSchema } from "@spurro/infrastructure/types"
-import { RemoteServer } from "@spurro/infrastructure"
+import { RemoteServer, buildServerAccess } from "@spurro/infrastructure"
 import { db } from "@/core/database/index.js"
-import { buildServerAccess } from "@/core/server-access/index.js"
+import { env } from "@/core/env/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findEndpointAccessData } from "../queries/findEndpointAccessData.js"
 
@@ -40,7 +40,10 @@ export async function getEndpointProtocolClientService(
     }
   }
 
-  const serverAccess = buildServerAccess({ ip: accessData.serverIp, data: accessData.serverData })
+  const serverAccess = buildServerAccess(
+    { ip: accessData.serverIp, data: accessData.serverData },
+    env.APP_SSH_PRIVATE_KEY,
+  )
   const serverContract = accessData.serverData?.contract
   if (!serverAccess || !serverContract) {
     return {

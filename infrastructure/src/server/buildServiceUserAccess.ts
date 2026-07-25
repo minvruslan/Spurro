@@ -1,17 +1,17 @@
-import type { ServerAccess, ServerContract } from "@spurro/infrastructure/types"
-import { env } from "@/core/env/index.js"
+import type { ServerAccess, ServerContract } from "../types/index.js"
 
 export function buildServiceUserAccess(
   ip: string,
   serverContract: ServerContract,
   sshHostKeys: string[],
   port: number,
+  appSshPrivateKey: string,
 ): ServerAccess {
   return {
     ip,
     port,
     username: serverContract.service.username,
-    privateKey: env.APP_SSH_PRIVATE_KEY,
+    privateKey: appSshPrivateKey,
     sshHostKeys,
   }
 }
