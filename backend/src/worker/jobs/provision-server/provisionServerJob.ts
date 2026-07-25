@@ -14,21 +14,17 @@ export async function provisionServerJob(job: ProvisionServerJob) {
 
   const server = await findProvisionableServer(serverId)
   const serverContract = await ensureServerContract(serverId, server)
-  const sshHostKeys = await ensureSSHHostKeys(serverId, server)
-  const serverAccess = await resolveServerAccess(serverId, server, serverContract, sshHostKeys)
+  await ensureSSHHostKeys(serverId, server)
+  const serverAccess = await resolveServerAccess(serverId, server)
 
-  await new RemoteServer(serverAccess).bootstrap(
+  const bootstrapServer = new RemoteServer(serverAccess)
+  await bootstrapServer.installDocker()
+  await bootstrapServer.createServiceUser(
     serverContract.service.username,
     serverContract.service.baseDirectory,
   )
 
-  const serviceUserAccess = await hardenServerAccess(
-    serverId,
-    server,
-    serverContract,
-    sshHostKeys,
-    serverAccess,
-  )
+  const serviceUserAccess = await hardenServerAccess(serverId, server, serverContract, serverAccess)
 
   const remoteServer = new RemoteServer(serviceUserAccess)
   const deployments = await ensureEndpointContracts(serverId, remoteServer)

@@ -1,6 +1,6 @@
+import { UnrecoverableError } from "bullmq"
 import { ServerContractSchema } from "@spurro/infrastructure/types"
 import type { ServerContract } from "@spurro/infrastructure/types"
-import { buildServerContract } from "@spurro/infrastructure"
 import {
   VPN_NODE_BASE_DIRECTORY,
   VPN_NODE_DNS,
@@ -19,13 +19,23 @@ export async function ensureServerContract(
   const parsedExisting = ServerContractSchema.safeParse(server.data.contract)
   if (parsedExisting.success) return parsedExisting.data
 
-  const contract = buildServerContract({
+  if (server.data.contract !== undefined) {
+    throw new UnrecoverableError(
+      `Server ${serverId} has a contract that failed schema validation; refusing to recreate it: ${parsedExisting.error.issues
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+        .join("; ")}.`,
+    )
+  }
+
+  const contract = ServerContractSchema.parse({
     domain: server.domainName,
     ip: server.ip,
     sshPort: VPN_NODE_SSH_PORT,
     dns: VPN_NODE_DNS,
-    serviceUsername: VPN_NODE_USERNAME,
-    baseDirectory: VPN_NODE_BASE_DIRECTORY,
+    service: {
+      username: VPN_NODE_USERNAME,
+      baseDirectory: VPN_NODE_BASE_DIRECTORY,
+    },
   })
 
   const data = { ...server.data, contract }

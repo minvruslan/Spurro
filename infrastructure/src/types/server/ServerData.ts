@@ -1,7 +1,4 @@
-import type { ServerContract } from "./ServerContract"
-import type { ServerState } from "./ServerState"
+import type { z } from "zod"
+import type { ServerDataSchema } from "./ServerDataSchema"
 
-export type ServerData = {
-  contract?: ServerContract
-  state: ServerState
-}
+export type ServerData = z.infer<typeof ServerDataSchema>

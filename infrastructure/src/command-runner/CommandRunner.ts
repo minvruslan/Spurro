@@ -24,6 +24,6 @@ export class CommandRunner {
     if (typeof stdout === "string") return stdout
     if (options.stdout === "inherit") return ""
 
-    throw new Error(`[command-runner] no stdout captured from: ${command.join(" ")}`)
+    throw new Error(`No stdout captured from: ${command.join(" ")}.`)
   }
 }

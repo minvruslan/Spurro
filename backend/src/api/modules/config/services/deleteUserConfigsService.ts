@@ -1,16 +1,17 @@
 import { db } from "@/core/database/index.js"
+import { configLogger } from "@/core/logger/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import type { DeletableUserConfig } from "../queries/findDeletableUserConfigs.js"
 import { findDeletableUserConfigs } from "../queries/findDeletableUserConfigs.js"
 import { setUserConfigsStatus } from "../queries/setUserConfigsStatus.js"
 import { deleteUserConfigsFromRemoteEndpointService } from "./deleteUserConfigsFromRemoteEndpointService.js"
 
-type ErrorCode = "not_found" | "delete_failed"
-
 export async function deleteUserConfigsService(
   userId: string,
   configIds?: string[],
-): Promise<ServiceResult<{ deletedConfigIds: string[] }, ErrorCode>> {
+): Promise<
+  ServiceResult<{ deletedConfigIds: string[]; deleteFailedConfigIds: string[] }, "not_found">
+> {
   const configs = await findDeletableUserConfigs(db, userId, configIds)
 
   if (configIds && configs.length === 0) return { ok: false, reason: "not_found" }
@@ -22,8 +23,8 @@ export async function deleteUserConfigsService(
     else configsByEndpointId.set(config.endpointId, [config])
   }
 
-  const errors: unknown[] = []
   const deletedConfigIds: string[] = []
+  const deleteFailedConfigIds: string[] = []
 
   for (const [endpointId, group] of configsByEndpointId) {
     const groupConfigIds = group.map((config) => config.id)
@@ -32,11 +33,11 @@ export async function deleteUserConfigsService(
 
     const deleted = await deleteUserConfigsFromRemoteEndpointService(endpointId, group)
     if (!deleted.ok) {
-      errors.push(
-        new Error(`Failed to delete configs on endpoint ${endpointId} (${deleted.reason}).`, {
-          cause: deleted.error,
-        }),
+      configLogger.error(
+        { endpointId, configIds: groupConfigIds, reason: deleted.reason, error: deleted.error },
+        "Failed to delete configs on endpoint.",
       )
+      deleteFailedConfigIds.push(...groupConfigIds)
       continue
     }
 
@@ -50,13 +51,5 @@ export async function deleteUserConfigsService(
     deletedConfigIds.push(...deletedRows.map((row) => row.id))
   }
 
-  if (errors.length > 0) {
-    return {
-      ok: false,
-      reason: "delete_failed",
-      error: new AggregateError(errors, "Failed to delete configs on some endpoints."),
-    }
-  }
-
-  return { ok: true, data: { deletedConfigIds } }
+  return { ok: true, data: { deletedConfigIds, deleteFailedConfigIds } }
 }

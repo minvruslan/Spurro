@@ -13,6 +13,9 @@ import { insertEndpoints } from "../queries/insertEndpoints.js"
 import { insertServer } from "../queries/insertServer.js"
 import { createServersFromDatabaseData } from "../utils/createServersFromDatabaseData.js"
 
+// Port a freshly created hoster node listens on before provisioning hardens it.
+const REMOTE_SERVER_SSH_PORT = 22
+
 type ErrorCode =
   | "credentials_required"
   | "protocol_not_found"
@@ -83,7 +86,15 @@ export async function createServerService(
         ip: input.ip,
         country: input.country,
         status: "provisioning",
-        data: { state: { ssh: { username: credentials.username, password: credentials.password } } },
+        data: {
+          state: {
+            ssh: {
+              username: credentials.username,
+              password: credentials.password,
+              port: REMOTE_SERVER_SSH_PORT,
+            },
+          },
+        },
       })
 
       await insertEndpoints(tx, row.id, endpointsToInsert)

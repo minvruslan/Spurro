@@ -1,12 +1,12 @@
 import type { SupportedProtocolCode } from "@spurro/shared"
 import { SupportedProtocolCodeSchema } from "@spurro/shared"
 import type { EndpointContract, ServerContract } from "@spurro/infrastructure/types"
-import { ServerContractSchema } from "@spurro/infrastructure/types"
-import { RemoteServer, buildServerAccess } from "@spurro/infrastructure"
+import { EndpointContractSchema, ServerContractSchema } from "@spurro/infrastructure/types"
+import { RemoteServer } from "@spurro/infrastructure"
 import { db } from "@/core/database/index.js"
 import { env } from "@/core/env/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
-import { findEndpointAccessData } from "../queries/findEndpointAccessData.js"
+import { findEndpointProtocolClientData } from "../queries/findEndpointProtocolClientData.js"
 
 type EndpointProtocolClient = {
   client: ReturnType<RemoteServer["getProtocolClient"]>
@@ -20,8 +20,8 @@ type ErrorCode = "unavailable" | "unsupported_protocol"
 export async function getEndpointProtocolClientService(
   endpointId: string,
 ): Promise<ServiceResult<EndpointProtocolClient, ErrorCode>> {
-  const accessData = await findEndpointAccessData(db, endpointId)
-  if (!accessData) {
+  const endpointProtocolClientData = await findEndpointProtocolClientData(db, endpointId)
+  if (!endpointProtocolClientData) {
     return {
       ok: false,
       reason: "unavailable",
@@ -29,23 +29,27 @@ export async function getEndpointProtocolClientService(
     }
   }
 
-  const parsedCode = SupportedProtocolCodeSchema.safeParse(accessData.protocolCode)
+  const parsedCode = SupportedProtocolCodeSchema.safeParse(endpointProtocolClientData.protocolCode)
   if (!parsedCode.success) {
     return {
       ok: false,
       reason: "unsupported_protocol",
       error: new Error(
-        `Endpoint ${endpointId} has unsupported protocol "${accessData.protocolCode}".`,
+        `Endpoint ${endpointId} has unsupported protocol "${endpointProtocolClientData.protocolCode}".`,
       ),
     }
   }
 
-  const serverAccess = buildServerAccess(
-    { ip: accessData.serverIp, data: accessData.serverData },
-    env.APP_SSH_PRIVATE_KEY,
+  const serverAccess = endpointProtocolClientData.serverData
+    ? RemoteServer.buildServerAccess(
+        { ip: endpointProtocolClientData.serverIp, data: endpointProtocolClientData.serverData },
+        env.APP_SSH_PRIVATE_KEY,
+      )
+    : null
+  const serverContract = ServerContractSchema.safeParse(
+    endpointProtocolClientData.serverData?.contract,
   )
-  const serverContract = accessData.serverData?.contract
-  if (!serverAccess || !serverContract) {
+  if (!serverAccess || !serverContract.success) {
     return {
       ok: false,
       reason: "unavailable",
@@ -53,8 +57,10 @@ export async function getEndpointProtocolClientService(
     }
   }
 
-  const endpointContract = accessData.endpointData?.contract
-  if (!endpointContract) {
+  const endpointContract = EndpointContractSchema.safeParse(
+    endpointProtocolClientData.endpointData?.contract,
+  )
+  if (!endpointContract.success) {
     return {
       ok: false,
       reason: "unavailable",
@@ -68,8 +74,8 @@ export async function getEndpointProtocolClientService(
     ok: true,
     data: {
       client,
-      serverContract: ServerContractSchema.parse(serverContract),
-      endpointContract,
+      serverContract: serverContract.data,
+      endpointContract: endpointContract.data,
       protocolCode: parsedCode.data,
     },
   }

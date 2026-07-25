@@ -4,13 +4,11 @@ import { findServer } from "../queries/findServer.js"
 export async function findProvisionableServer(serverId: string) {
   const server = await findServer(serverId)
   if (!server) {
-    throw new UnrecoverableError(`[provision] server ${serverId} not found`)
+    throw new UnrecoverableError(`Server ${serverId} not found.`)
+  }
+  if (!server.data) {
+    throw new UnrecoverableError(`Server ${serverId} has missing or invalid data.`)
   }
 
-  const data = server.data
-  if (!data?.state?.ssh) {
-    throw new UnrecoverableError(`[provision] server ${serverId} has no SSH access data`)
-  }
-
-  return { ip: server.ip, domainName: server.domainName, data }
+  return { ip: server.ip, domainName: server.domainName, data: server.data }
 }

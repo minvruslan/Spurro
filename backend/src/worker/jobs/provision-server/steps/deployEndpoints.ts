@@ -11,17 +11,16 @@ export async function deployEndpoints(
   serverContract: ServerContract,
   deployments: EndpointDeployment[],
 ): Promise<void> {
-  for (const { client, contract, endpointId, endpointData } of deployments) {
+  for (const { client, endpointId, data } of deployments) {
     await remoteServer.allowFirewallPort(
-      contract.port,
+      data.contract.port,
       SUPPORTED_PROTOCOLS[client.protocolCode].transportProtocol,
     )
-    await client.install(serverContract, contract)
+    await client.install(serverContract, data.contract)
 
     await updateEndpointData(endpointId, {
-      ...endpointData,
-      contract,
-      state: { ...endpointData.state, deployedAt: new Date().toISOString() },
+      ...data,
+      state: { ...data.state, deployedAt: new Date().toISOString() },
     })
   }
 }

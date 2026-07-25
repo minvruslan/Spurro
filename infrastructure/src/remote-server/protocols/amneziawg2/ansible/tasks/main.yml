@@ -2,7 +2,7 @@
   ansible.builtin.assert:
     that:
       - service_username is defined
-      - amneziawg2_version is defined
+      - amneziawg2_docker_image_version is defined
       - amneziawg2_deploy_directory is defined
       - amneziawg2_port is defined
       - amneziawg2_address is defined

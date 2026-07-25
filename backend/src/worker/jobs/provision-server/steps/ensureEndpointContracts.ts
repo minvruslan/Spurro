@@ -1,6 +1,7 @@
 import { UnrecoverableError } from "bullmq"
 import { SupportedProtocolCodeSchema } from "@spurro/shared"
-import type { EndpointContract } from "@spurro/infrastructure/types"
+import { EndpointContractSchema } from "@spurro/infrastructure/types"
+import type { EndpointContract, EndpointData } from "@spurro/infrastructure/types"
 import type { RemoteServer } from "@spurro/infrastructure"
 import { findActiveEndpoints } from "../queries/findActiveEndpoints.js"
 import { updateEndpointData } from "../queries/updateEndpointData.js"
@@ -12,9 +13,8 @@ export async function ensureEndpointContracts(serverId: string, remoteServer: Re
 
   const deployments: {
     client: ReturnType<RemoteServer["getProtocolClient"]>
-    contract: EndpointContract
     endpointId: string
-    endpointData: (typeof endpoints)[number]["data"]
+    data: EndpointData & { contract: EndpointContract }
   }[] = []
 
   for (const row of endpoints) {
@@ -22,7 +22,7 @@ export async function ensureEndpointContracts(serverId: string, remoteServer: Re
 
     if (!parsedCode.success) {
       throw new UnrecoverableError(
-        `[provision] server ${serverId} endpoint ${row.endpointId} has unknown protocol "${row.protocolCode}"`,
+        `Server ${serverId} endpoint ${row.endpointId} has unknown protocol "${row.protocolCode}".`,
       )
     }
 
@@ -30,7 +30,7 @@ export async function ensureEndpointContracts(serverId: string, remoteServer: Re
 
     if (seenProtocolCodes.has(protocolCode)) {
       throw new UnrecoverableError(
-        `[provision] server ${serverId} has multiple active endpoints of protocol "${protocolCode}"; one active endpoint per protocol is supported`,
+        `Server ${serverId} has multiple active endpoints of protocol "${protocolCode}"; one active endpoint per protocol is supported.`,
       )
     }
 
@@ -38,17 +38,31 @@ export async function ensureEndpointContracts(serverId: string, remoteServer: Re
 
     const client = remoteServer.getProtocolClient(protocolCode)
 
-    let contract = row.data?.contract
-    if (!contract?.protocolCode) {
+    if (row.data === null) {
+      throw new UnrecoverableError(
+        `Server ${serverId} endpoint ${row.endpointId} has data that failed schema validation; refusing to touch its contract.`,
+      )
+    }
+
+    const existingContract = EndpointContractSchema.safeParse(row.data.contract)
+    let contract: EndpointContract
+    if (existingContract.success) {
+      contract = existingContract.data
+    } else if (row.data.contract !== undefined) {
+      throw new UnrecoverableError(
+        `Server ${serverId} endpoint ${row.endpointId} has a contract that failed schema validation; refusing to recreate it: ${existingContract.error.issues
+          .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+          .join("; ")}.`,
+      )
+    } else {
       contract = client.createEndpointContract(row.port)
       await updateEndpointData(row.endpointId, { ...row.data, contract })
     }
 
     deployments.push({
       client,
-      contract,
       endpointId: row.endpointId,
-      endpointData: { ...row.data, contract },
+      data: { ...row.data, contract },
     })
   }
 

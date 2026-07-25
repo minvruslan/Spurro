@@ -1,8 +1,8 @@
 import { z } from "zod"
 import { PortSchema, SupportedProtocolCodeSchema } from "@spurro/shared"
 
-export const EndpointContractSchema = z.object({
+export const EndpointContractSchema = z.looseObject({
   protocolCode: SupportedProtocolCodeSchema,
   port: PortSchema,
-  version: z.string().optional(),
+  dockerImageVersion: z.string().optional(),
 })

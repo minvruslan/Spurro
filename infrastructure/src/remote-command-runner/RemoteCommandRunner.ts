@@ -105,7 +105,7 @@ export class RemoteCommandRunner {
     }
   }
 
-  async runAnsiblePlaybook(
+  private async runAnsiblePlaybook(
     localPlaybookDirectory: string,
     playbookFilename: string,
     variables: Record<string, unknown>,
@@ -148,7 +148,7 @@ export class RemoteCommandRunner {
       const reservedKeys = Object.keys(connectionVariables).filter((key) => key in variables)
       if (reservedKeys.length > 0) {
         throw new Error(
-          `[remote-command-runner] variables collide with connection variables: ${reservedKeys.join(", ")}`,
+          `Variables collide with connection variables: ${reservedKeys.join(", ")}.`,
         )
       }
 
@@ -186,7 +186,7 @@ export class RemoteCommandRunner {
   ): void {
     for (const argument of [remoteContainerName, remoteScriptName]) {
       if (!CONTAINER_SCRIPT_ARGUMENT_PATTERN.test(argument)) {
-        throw new Error(`[remote-command-runner] unsafe container script argument: "${argument}"`)
+        throw new Error(`Unsafe container script argument: "${argument}".`)
       }
     }
   }

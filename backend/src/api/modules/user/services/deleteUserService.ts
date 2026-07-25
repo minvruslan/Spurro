@@ -17,6 +17,15 @@ export async function deleteUserService(id: string): Promise<ServiceResult<null,
   if (!deleteUserConfigsResult.ok) {
     return { ok: false, reason: "config_delete_failed", error: deleteUserConfigsResult.error }
   }
+  if (deleteUserConfigsResult.data.deleteFailedConfigIds.length > 0) {
+    return {
+      ok: false,
+      reason: "config_delete_failed",
+      error: new Error(
+        `Failed to delete configs [${deleteUserConfigsResult.data.deleteFailedConfigIds.join(", ")}] of user ${id}; user not deleted.`,
+      ),
+    }
+  }
 
   const deleteUserResult = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${id}))`)

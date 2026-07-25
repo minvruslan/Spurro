@@ -5,7 +5,7 @@ export async function assertCommandRunnerImageExists(imageName: string): Promise
     await execa("docker", ["image", "inspect", imageName])
   } catch (error) {
     throw new Error(
-      `[command-runner] docker image "${imageName}" is unavailable — build it with "pnpm build:command-runner-image"`,
+      `Docker image "${imageName}" is unavailable — build it with "pnpm build:command-runner-image".`,
       { cause: error },
     )
   }

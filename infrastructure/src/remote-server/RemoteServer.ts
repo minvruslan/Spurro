@@ -12,14 +12,19 @@ import {
   type SupportedProtocolCode,
   type TransportProtocol,
 } from "@spurro/shared"
-import type { EndpointContract, ServerAccess, ServerContract } from "../types/index.js"
+import {
+  ServerContractSchema,
+  type EndpointContract,
+  type ServerAccess,
+  type ServerContract,
+  type ServerData,
+} from "../types/index.js"
 import { PROJECT_NAME } from "../common/constants/index.js"
 import { CommandRunner } from "../command-runner/index.js"
 import { RemoteCommandRunner } from "../remote-command-runner/index.js"
 import { createProtocolClient } from "./protocols/index.js"
 
 const ANSIBLE_DIRECTORY = resolve(dirname(fileURLToPath(import.meta.url)), "ansible")
-const BOOTSTRAP_SERVER_ANSIBLE_PLAYBOOK_FILENAME = "bootstrap-server.yml"
 const SSH_KEYSCAN_TIMEOUT_SECONDS = 15
 const SSH_PRIVATE_KEY_MOUNT_PATH = "/ssh-private-key"
 
@@ -28,6 +33,44 @@ export class RemoteServer {
 
   constructor(serverAccess: ServerAccess) {
     this.remoteCommandRunner = new RemoteCommandRunner(serverAccess)
+  }
+
+  static buildServerAccess(
+    server: { ip: string; data: ServerData },
+    appSshPrivateKey: string,
+  ): ServerAccess | null {
+    const state = server.data.state
+    const sshHostKeys = state.sshHostKeys
+    if (!sshHostKeys?.length) return null
+
+    if ("hardenedAt" in state.ssh) {
+      return RemoteServer.buildServiceUserServerAccess(server, appSshPrivateKey)
+    }
+
+    return {
+      ip: server.ip,
+      port: state.ssh.port,
+      username: state.ssh.username,
+      password: state.ssh.password,
+      sshHostKeys,
+    }
+  }
+
+  static buildServiceUserServerAccess(
+    server: { ip: string; data: ServerData },
+    appSshPrivateKey: string,
+  ): ServerAccess | null {
+    const serverContract = ServerContractSchema.safeParse(server.data.contract)
+    const sshHostKeys = server.data.state.sshHostKeys
+    if (!serverContract.success || !sshHostKeys?.length) return null
+
+    return {
+      ip: server.ip,
+      port: serverContract.data.sshPort,
+      username: serverContract.data.service.username,
+      privateKey: appSshPrivateKey,
+      sshHostKeys,
+    }
   }
 
   static async scanSSHHostKeys(ip: string, port: number): Promise<string[]> {
@@ -54,7 +97,7 @@ export class RemoteServer {
       .sort()
 
     if (sshHostKeys.length === 0) {
-      throw new Error(`[remote-server] ssh-keyscan returned no host keys for ${parsedIp}`)
+      throw new Error(`SSH host key scan returned no keys for ${parsedIp}.`)
     }
 
     return sshHostKeys
@@ -74,7 +117,7 @@ export class RemoteServer {
 
       const publicKey = stdout.trim()
       if (!publicKey) {
-        throw new Error("[remote-server] ssh-keygen produced no public key")
+        throw new Error("SSH public key derivation produced no output.")
       }
 
       return publicKey
@@ -91,15 +134,15 @@ export class RemoteServer {
     await this.remoteCommandRunner.execute("sudo -n true")
   }
 
-  bootstrap(serviceUsername: string, serviceBaseDirectory: string): Promise<void> {
-    return this.remoteCommandRunner.runAnsiblePlaybook(
-      ANSIBLE_DIRECTORY,
-      BOOTSTRAP_SERVER_ANSIBLE_PLAYBOOK_FILENAME,
-      {
-        service_username: UnixUsernameSchema.parse(serviceUsername),
-        service_base_directory: UnixPathSchema.parse(serviceBaseDirectory),
-      },
-    )
+  installDocker(): Promise<void> {
+    return this.remoteCommandRunner.runAnsibleRole(join(ANSIBLE_DIRECTORY, "roles", "docker"), {})
+  }
+
+  createServiceUser(serviceUsername: string, serviceBaseDirectory: string): Promise<void> {
+    return this.remoteCommandRunner.runAnsibleRole(join(ANSIBLE_DIRECTORY, "roles", "user"), {
+      service_username: UnixUsernameSchema.parse(serviceUsername),
+      service_base_directory: UnixPathSchema.parse(serviceBaseDirectory),
+    })
   }
 
   installServiceUserAuthorizedKeys(
@@ -115,7 +158,7 @@ export class RemoteServer {
     )
   }
 
-  harden(sshPort: number): Promise<void> {
+  hardenSSHAccess(sshPort: number): Promise<void> {
     return this.remoteCommandRunner.runAnsibleRole(join(ANSIBLE_DIRECTORY, "roles", "hardening"), {
       hardening_ssh_port: PortSchema.parse(sshPort),
     })

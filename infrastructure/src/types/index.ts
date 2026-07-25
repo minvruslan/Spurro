@@ -1,2 +1,2 @@
 export * from "./server"
-export * from "./protocols"
+export * from "./endpoint"

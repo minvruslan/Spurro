@@ -1,5 +1,6 @@
+import { UnrecoverableError } from "bullmq"
 import type { ServerAccess, ServerContract } from "@spurro/infrastructure/types"
-import { RemoteServer, BOOTSTRAP_SSH_PORT, buildServiceUserAccess } from "@spurro/infrastructure"
+import { RemoteServer } from "@spurro/infrastructure"
 import { env } from "@/core/env/index.js"
 import { updateServerData } from "../queries/updateServerData.js"
 import type { findProvisionableServer } from "./findProvisionableServer.js"
@@ -10,7 +11,6 @@ export async function hardenServerAccess(
   serverId: string,
   server: ProvisionableServer,
   serverContract: ServerContract,
-  sshHostKeys: string[],
   serverAccess: ServerAccess,
 ): Promise<ServerAccess> {
   const authorizedKeys = [await RemoteServer.deriveSSHPublicKey(env.APP_SSH_PRIVATE_KEY)]
@@ -21,28 +21,21 @@ export async function hardenServerAccess(
     authorizedKeys,
   )
 
-  const hardenedAccess = buildServiceUserAccess(
-    server.ip,
-    serverContract,
-    sshHostKeys,
-    serverContract.sshPort,
-    env.APP_SSH_PRIVATE_KEY,
-  )
+  const hardenedAccess = RemoteServer.buildServiceUserServerAccess(server, env.APP_SSH_PRIVATE_KEY)
+  if (!hardenedAccess) {
+    throw new UnrecoverableError(
+      `Server ${serverId} has no contract or SSH host keys for service user access.`,
+    )
+  }
 
   if ("privateKey" in serverAccess) {
-    await new RemoteServer(serverAccess).harden(serverContract.sshPort)
+    await new RemoteServer(serverAccess).hardenSSHAccess(serverContract.sshPort)
   } else {
-    const preHardenAccess = buildServiceUserAccess(
-      server.ip,
-      serverContract,
-      sshHostKeys,
-      BOOTSTRAP_SSH_PORT,
-      env.APP_SSH_PRIVATE_KEY,
-    )
+    const preHardenAccess = { ...hardenedAccess, port: serverAccess.port }
     const preHardenServer = new RemoteServer(preHardenAccess)
     await preHardenServer.assertConnectivity()
     await preHardenServer.assertPrivilegeEscalation()
-    await preHardenServer.harden(serverContract.sshPort)
+    await preHardenServer.hardenSSHAccess(serverContract.sshPort)
   }
 
   await new RemoteServer(hardenedAccess).assertConnectivity()

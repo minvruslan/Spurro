@@ -32,7 +32,7 @@ const AMNEZIAWG2_ANSIBLE_ROLE_DIRECTORY = resolve(
   "ansible",
 )
 const AMNEZIAWG2_PROTOCOL_CODE = "amneziawg2" satisfies SupportedProtocolCode
-const AMNEZIAWG2_VERSION = "0.2.19"
+const AMNEZIAWG2_DOCKER_IMAGE_VERSION = "0.2.19"
 const AMNEZIAWG2_CONTAINER_NAME = "amneziawg2"
 const AMNEZIAWG2_STATE_VOLUME_NAME = "amneziawg2_state"
 const AMNEZIAWG2_STATE_DIRECTORY = "/opt/amneziawg2"
@@ -41,7 +41,7 @@ const AMNEZIAWG2_SUBNET_PREFIX = "10.8.1"
 
 export class Amneziawg2Client {
   readonly protocolCode = AMNEZIAWG2_PROTOCOL_CODE
-  readonly version = AMNEZIAWG2_VERSION
+  readonly dockerImageVersion = AMNEZIAWG2_DOCKER_IMAGE_VERSION
 
   private readonly remoteCommandRunner: RemoteCommandRunner
 
@@ -58,7 +58,7 @@ export class Amneziawg2Client {
     const serverKeyPair = generateServerKeyPair()
     return {
       protocolCode: this.protocolCode,
-      version: this.version,
+      dockerImageVersion: this.dockerImageVersion,
       port: parsedPort,
       containerName: AMNEZIAWG2_CONTAINER_NAME,
       stateVolumeName: AMNEZIAWG2_STATE_VOLUME_NAME,
@@ -89,7 +89,7 @@ export class Amneziawg2Client {
     const contract = this.parseEndpointContract(endpointContract)
     await this.remoteCommandRunner.runAnsibleRole(AMNEZIAWG2_ANSIBLE_ROLE_DIRECTORY, {
       service_username: serverContract.service.username,
-      amneziawg2_version: contract.version,
+      amneziawg2_docker_image_version: contract.dockerImageVersion,
       amneziawg2_port: contract.port,
       amneziawg2_address: `${contract.subnetPrefix}.1/24`,
       amneziawg2_deploy_directory: `${serverContract.service.baseDirectory}/${this.protocolCode}`,
@@ -128,9 +128,9 @@ export class Amneziawg2Client {
 
     if (!parsed.success) {
       throw new Error(
-        `[amneziawg2] create-access.sh output failed validation: ${parsed.error.issues
+        `Output of create-access.sh failed validation: ${parsed.error.issues
           .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-          .join("; ")}`,
+          .join("; ")}.`,
       )
     }
 

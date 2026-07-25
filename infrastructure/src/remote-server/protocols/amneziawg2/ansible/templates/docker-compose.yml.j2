@@ -3,7 +3,7 @@ services:
     build:
       context: ./docker
       args:
-        VERSION: "{{ amneziawg2_version }}"
+        VERSION: "{{ amneziawg2_docker_image_version }}"
         STATE_DIRECTORY: "{{ amneziawg2_state_directory }}"
         INTERFACE: "{{ amneziawg2_interface_name }}"
     image: "{{ amneziawg2_container_name }}:latest"
