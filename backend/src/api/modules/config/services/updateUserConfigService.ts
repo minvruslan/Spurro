@@ -16,14 +16,14 @@ export async function updateUserConfigService(
 ): Promise<ServiceResult<{ config: Config }, ErrorCode>> {
   return db.transaction(async (tx) => {
     const deviceType = await findActiveDeviceTypeById(tx, input.deviceTypeId)
-    if (!deviceType) return { ok: false, reason: "device_type_invalid" }
+    if (!deviceType) return { ok: false, errorCode: "device_type_invalid" }
 
     const [row] = await updateUserConfig(tx, userId, configId, {
       name: input.name,
       deviceTypeId: input.deviceTypeId,
     })
 
-    if (!row) return { ok: false, reason: "not_found" }
+    if (!row) return { ok: false, errorCode: "not_found" }
 
     const rows = await findConfigById(tx, row.id)
     return { ok: true, data: { config: ConfigSchema.parse(createConfigFromDatabaseData(rows[0])) } }

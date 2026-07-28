@@ -10,12 +10,12 @@ const createUserRoute = new Hono<{ Variables: AppVariables }>()
 createUserRoute.post("/", requestValidator("json", UpsertUserSchema), async (c) => {
   const result = await createUserService(c.req.valid("json"))
   if (!result.ok) {
-    switch (result.reason) {
+    switch (result.errorCode) {
       case "email_taken":
-        userLogger.warn({ reason: result.reason, error: result.error }, "Create user failed.")
+        userLogger.warn({ errorCode: result.errorCode, error: result.error }, "Create user failed.")
         return c.json({ error: "User with this email already exists" }, 409)
       default:
-        return result.reason satisfies never
+        return result.errorCode satisfies never
     }
   }
   return c.json({ data: result.data.user }, 201)

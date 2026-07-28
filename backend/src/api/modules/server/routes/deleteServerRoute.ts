@@ -14,15 +14,21 @@ deleteServerRoute.delete(
     const id = c.req.valid("param").id
     const result = await deleteServerService(id)
     if (!result.ok) {
-      switch (result.reason) {
+      switch (result.errorCode) {
         case "current":
-          serverLogger.warn({ reason: result.reason, error: result.error }, "Delete server failed.")
+          serverLogger.warn(
+            { errorCode: result.errorCode, error: result.error },
+            "Delete server failed.",
+          )
           return c.json({ error: "Cannot delete current server" }, 409)
         case "not_found":
-          serverLogger.warn({ reason: result.reason, error: result.error }, "Delete server failed.")
+          serverLogger.warn(
+            { errorCode: result.errorCode, error: result.error },
+            "Delete server failed.",
+          )
           return c.json({ error: "Server not found" }, 404)
         default:
-          return result.reason satisfies never
+          return result.errorCode satisfies never
       }
     }
     return c.json({ data: { id } })

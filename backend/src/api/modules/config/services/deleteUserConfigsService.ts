@@ -14,7 +14,7 @@ export async function deleteUserConfigsService(
 > {
   const configs = await findDeletableUserConfigs(db, userId, configIds)
 
-  if (configIds && configs.length === 0) return { ok: false, reason: "not_found" }
+  if (configIds && configs.length === 0) return { ok: false, errorCode: "not_found" }
 
   const configsByEndpointId = new Map<string, DeletableUserConfig[]>()
   for (const config of configs) {
@@ -34,7 +34,12 @@ export async function deleteUserConfigsService(
     const deleted = await deleteUserConfigsFromRemoteEndpointService(endpointId, group)
     if (!deleted.ok) {
       configLogger.error(
-        { endpointId, configIds: groupConfigIds, reason: deleted.reason, error: deleted.error },
+        {
+          endpointId,
+          configIds: groupConfigIds,
+          errorCode: deleted.errorCode,
+          error: deleted.error,
+        },
         "Failed to delete configs on endpoint.",
       )
       deleteFailedConfigIds.push(...groupConfigIds)

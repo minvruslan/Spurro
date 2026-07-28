@@ -38,7 +38,7 @@ export async function createUserService(
       cause.code === "23505" &&
       cause.constraint_name === "user_email_unique"
     ) {
-      return { ok: false, reason: "email_taken", error }
+      return { ok: false, errorCode: "email_taken", error }
     }
     throw error
   }

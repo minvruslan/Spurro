@@ -11,8 +11,8 @@ export async function getServerService(
   id: string,
 ): Promise<ServiceResult<{ server: Server }, ErrorCode>> {
   const rows = await findServerById(db, id)
-  if (rows.length === 0) return { ok: false, reason: "not_found" }
+  if (rows.length === 0) return { ok: false, errorCode: "not_found" }
   const server = createServersFromDatabaseData(rows)[0]
-  if (server.status === "deleted") return { ok: false, reason: "not_found" }
+  if (server.status === "deleted") return { ok: false, errorCode: "not_found" }
   return { ok: true, data: { server: ServerSchema.parse(server) } }
 }

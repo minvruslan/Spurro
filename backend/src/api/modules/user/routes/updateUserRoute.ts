@@ -10,12 +10,12 @@ const updateUserRoute = new Hono<{ Variables: AppVariables }>()
 updateUserRoute.put("/:id", requestValidator("json", UpsertUserSchema), async (c) => {
   const result = await updateUserService(c.req.param("id"), c.req.valid("json"))
   if (!result.ok) {
-    switch (result.reason) {
+    switch (result.errorCode) {
       case "not_found":
-        userLogger.warn({ reason: result.reason, error: result.error }, "Update user failed.")
+        userLogger.warn({ errorCode: result.errorCode, error: result.error }, "Update user failed.")
         return c.json({ error: "User not found" }, 404)
       default:
-        return result.reason satisfies never
+        return result.errorCode satisfies never
     }
   }
   return c.json({ data: result.data.user })

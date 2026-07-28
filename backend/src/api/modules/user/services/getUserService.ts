@@ -12,7 +12,7 @@ export async function getUserService(
   id: string,
 ): Promise<ServiceResult<{ user: User }, ErrorCode>> {
   const [row] = await findUserById(db, id)
-  if (!row) return { ok: false, reason: "not_found" }
+  if (!row) return { ok: false, errorCode: "not_found" }
   const limitsResult = await getUserConfigLimitsService(id)
   return {
     ok: true,

@@ -10,11 +10,15 @@ import {
   type SupportedProtocolCode,
 } from "@spurro/shared"
 import {
-  Amneziawg2EndpointContractSchema,
+  Amneziawg2EndpointActualStateSchema,
+  Amneziawg2EndpointDesiredStateSchema,
   Amneziawg2KeySchema,
-  type Amneziawg2EndpointContract,
-  type EndpointContract,
-  type ServerContract,
+  type Amneziawg2EndpointActualState,
+  type Amneziawg2EndpointDesiredState,
+  type EndpointActualState,
+  type EndpointDesiredState,
+  type ServerActualState,
+  type ServerDesiredState,
 } from "../../../types/index.js"
 import type { RemoteCommandRunner } from "../../../remote-command-runner/index.js"
 import { Amneziawg2CreatedAccessSchema } from "./types/index.js"
@@ -49,13 +53,18 @@ export class Amneziawg2Client {
     this.remoteCommandRunner = remoteCommandRunner
   }
 
-  parseEndpointContract(contract: EndpointContract): Amneziawg2EndpointContract {
-    return Amneziawg2EndpointContractSchema.parse(contract)
+  parseEndpointDesiredState(desiredState: EndpointDesiredState): Amneziawg2EndpointDesiredState {
+    return Amneziawg2EndpointDesiredStateSchema.parse(desiredState)
   }
 
-  createEndpointContract(port: number): Amneziawg2EndpointContract {
+  parseEndpointActualState(actualState: EndpointActualState): Amneziawg2EndpointActualState {
+    return Amneziawg2EndpointActualStateSchema.parse(actualState)
+  }
+
+  createEndpointDesiredState(port: number): Amneziawg2EndpointDesiredState {
     const parsedPort = PortSchema.parse(port)
     const serverKeyPair = generateServerKeyPair()
+
     return {
       protocolCode: this.protocolCode,
       dockerImageVersion: this.dockerImageVersion,
@@ -71,11 +80,11 @@ export class Amneziawg2Client {
   }
 
   allocateClientIdentifier(
-    endpointContract: EndpointContract,
+    endpointActualState: EndpointActualState,
     reservedClientIdentifiers: (string | null)[],
   ): Amneziawg2ClientIdentifier | null {
-    const contract = this.parseEndpointContract(endpointContract)
-    return pickFreeClientIP(reservedClientIdentifiers, contract.subnetPrefix)
+    const actualState = this.parseEndpointActualState(endpointActualState)
+    return pickFreeClientIP(reservedClientIdentifiers, actualState.subnetPrefix)
   }
 
   createInitialConfigData(clientIdentifier: string): Amneziawg2ConfigData {
@@ -85,33 +94,41 @@ export class Amneziawg2Client {
     }
   }
 
-  async install(serverContract: ServerContract, endpointContract: EndpointContract): Promise<void> {
-    const contract = this.parseEndpointContract(endpointContract)
+  async install(
+    server: { desiredState: ServerDesiredState },
+    endpointDesiredState: EndpointDesiredState,
+  ): Promise<void> {
+    const desiredState = this.parseEndpointDesiredState(endpointDesiredState)
+
     await this.remoteCommandRunner.runAnsibleRole(AMNEZIAWG2_ANSIBLE_ROLE_DIRECTORY, {
-      service_username: serverContract.service.username,
-      amneziawg2_docker_image_version: contract.dockerImageVersion,
-      amneziawg2_port: contract.port,
-      amneziawg2_address: `${contract.subnetPrefix}.1/24`,
-      amneziawg2_deploy_directory: `${serverContract.service.baseDirectory}/${this.protocolCode}`,
-      amneziawg2_container_name: contract.containerName,
-      amneziawg2_state_volume_name: contract.stateVolumeName,
-      amneziawg2_state_directory: contract.stateDirectory,
-      amneziawg2_interface_name: contract.interfaceName,
-      amneziawg2_server_private_key: contract.serverPrivateKey,
-      amneziawg2_server_public_key: contract.serverPublicKey,
+      service_username: server.desiredState.ssh.username,
+      amneziawg2_docker_image_version: desiredState.dockerImageVersion,
+      amneziawg2_port: desiredState.port,
+      amneziawg2_address: `${desiredState.subnetPrefix}.1/24`,
+      amneziawg2_deploy_directory: `${server.desiredState.baseDirectory}/${this.protocolCode}`,
+      amneziawg2_container_name: desiredState.containerName,
+      amneziawg2_state_volume_name: desiredState.stateVolumeName,
+      amneziawg2_state_directory: desiredState.stateDirectory,
+      amneziawg2_interface_name: desiredState.interfaceName,
+      amneziawg2_server_private_key: desiredState.serverPrivateKey,
+      amneziawg2_server_public_key: desiredState.serverPublicKey,
     })
   }
 
   async createAccess(
-    serverContract: ServerContract,
-    endpointContract: EndpointContract,
+    server: { ip: string; domainName: string | null; actualState: ServerActualState },
+    endpointActualState: EndpointActualState,
     clientIdentifier: string,
   ): Promise<{ configData: Amneziawg2ConfigData; clientConfiguration: string }> {
-    const contract = this.parseEndpointContract(endpointContract)
+    const actualState = this.parseEndpointActualState(endpointActualState)
     const clientIP = IPSchema.parse(clientIdentifier)
 
+    if (!server.actualState.dns) {
+      throw new Error("Server actual state has no DNS; server may not be hardened.")
+    }
+
     const output = await this.remoteCommandRunner.executeContainerScript(
-      contract.containerName,
+      actualState.containerName,
       "create-access.sh",
       clientIP,
     )
@@ -141,9 +158,9 @@ export class Amneziawg2Client {
       clientIP,
       serverPublicKey: createdAccess.serverPublicKey,
       presharedKey: createdAccess.presharedKey,
-      serverEndpoint: `${serverContract.domain ?? serverContract.ip}:${contract.port}`,
+      serverEndpoint: `${server.domainName ?? server.ip}:${actualState.port}`,
       obfuscation: createdAccess.obfuscation,
-      dns: serverContract.dns,
+      dns: server.actualState.dns,
     })
 
     return {
@@ -157,27 +174,27 @@ export class Amneziawg2Client {
   }
 
   async deleteAccessByClientIdentifier(
-    endpointContract: EndpointContract,
+    endpointActualState: EndpointActualState,
     clientIdentifier: string,
   ): Promise<void> {
-    const contract = this.parseEndpointContract(endpointContract)
+    const actualState = this.parseEndpointActualState(endpointActualState)
 
     const clientPublicKey = await findClientPublicKeyByClientIP(
       this.remoteCommandRunner,
-      contract.containerName,
+      actualState.containerName,
       IPSchema.parse(clientIdentifier),
     )
 
     if (!clientPublicKey) return
 
-    await this.deleteClientPublicKeys(contract, [clientPublicKey])
+    await this.deleteClientPublicKeys(actualState, [clientPublicKey])
   }
 
   async deleteAccesses(
-    endpointContract: EndpointContract,
+    endpointActualState: EndpointActualState,
     configDatas: (ConfigData | null)[],
   ): Promise<void> {
-    const contract = this.parseEndpointContract(endpointContract)
+    const actualState = this.parseEndpointActualState(endpointActualState)
 
     const clientPublicKeys = configDatas
       .filter(
@@ -187,11 +204,11 @@ export class Amneziawg2Client {
       .map((configData) => configData.publicKey)
       .filter((publicKey): publicKey is string => Boolean(publicKey))
 
-    await this.deleteClientPublicKeys(contract, clientPublicKeys)
+    await this.deleteClientPublicKeys(actualState, clientPublicKeys)
   }
 
   private async deleteClientPublicKeys(
-    endpointContract: Amneziawg2EndpointContract,
+    endpointActualState: Amneziawg2EndpointActualState,
     clientPublicKeys: string[],
   ): Promise<void> {
     if (clientPublicKeys.length === 0) return
@@ -199,7 +216,7 @@ export class Amneziawg2Client {
     const parsedClientPublicKeys = z.array(Amneziawg2KeySchema).parse(clientPublicKeys)
 
     await this.remoteCommandRunner.executeContainerScript(
-      endpointContract.containerName,
+      endpointActualState.containerName,
       "delete-accesses.sh",
       parsedClientPublicKeys.map((clientPublicKey) => `${clientPublicKey}\n`).join(""),
     )

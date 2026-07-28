@@ -1,7 +1,8 @@
 import type { SupportedProtocolCode } from "@spurro/shared"
 import { SupportedProtocolCodeSchema } from "@spurro/shared"
-import type { EndpointContract, ServerContract } from "@spurro/infrastructure/types"
-import { EndpointContractSchema, ServerContractSchema } from "@spurro/infrastructure/types"
+import type { EndpointActualState, ServerActualState } from "@spurro/infrastructure/types"
+import { EndpointActualStateSchema } from "@spurro/infrastructure/types"
+import type { ProtocolClient } from "@spurro/infrastructure"
 import { RemoteServer } from "@spurro/infrastructure"
 import { db } from "@/core/database/index.js"
 import { env } from "@/core/env/index.js"
@@ -9,9 +10,9 @@ import type { ServiceResult } from "@/core/types/index.js"
 import { findEndpointProtocolClientData } from "../queries/findEndpointProtocolClientData.js"
 
 type EndpointProtocolClient = {
-  client: ReturnType<RemoteServer["getProtocolClient"]>
-  serverContract: ServerContract
-  endpointContract: EndpointContract
+  client: ProtocolClient
+  server: { ip: string; domainName: string | null; actualState: ServerActualState }
+  endpointActualState: EndpointActualState
   protocolCode: SupportedProtocolCode
 }
 
@@ -24,7 +25,7 @@ export async function getEndpointProtocolClientService(
   if (!endpointProtocolClientData) {
     return {
       ok: false,
-      reason: "unavailable",
+      errorCode: "unavailable",
       error: new Error(`Endpoint ${endpointId} not found.`),
     }
   }
@@ -33,38 +34,52 @@ export async function getEndpointProtocolClientService(
   if (!parsedCode.success) {
     return {
       ok: false,
-      reason: "unsupported_protocol",
+      errorCode: "unsupported_protocol",
       error: new Error(
         `Endpoint ${endpointId} has unsupported protocol "${endpointProtocolClientData.protocolCode}".`,
       ),
     }
   }
 
-  const serverAccess = endpointProtocolClientData.serverData
-    ? RemoteServer.buildServerAccess(
-        { ip: endpointProtocolClientData.serverIp, data: endpointProtocolClientData.serverData },
-        env.APP_SSH_PRIVATE_KEY,
-      )
-    : null
-  const serverContract = ServerContractSchema.safeParse(
-    endpointProtocolClientData.serverData?.contract,
-  )
-  if (!serverAccess || !serverContract.success) {
+  const serverData = endpointProtocolClientData.serverData
+  if (!serverData) {
     return {
       ok: false,
-      reason: "unavailable",
-      error: new Error(`Endpoint ${endpointId} server has no usable access or contract.`),
+      errorCode: "unavailable",
+      error: new Error(`Endpoint ${endpointId} server has no valid data.`),
     }
   }
 
-  const endpointContract = EndpointContractSchema.safeParse(
-    endpointProtocolClientData.endpointData?.contract,
+  const serverAccess = RemoteServer.buildServerAccessFromActualState(
+    { ip: endpointProtocolClientData.serverIp, data: serverData },
+    env.APP_SSH_PRIVATE_KEY,
   )
-  if (!endpointContract.success) {
+  if (!serverAccess) {
     return {
       ok: false,
-      reason: "unavailable",
-      error: new Error(`Endpoint ${endpointId} has no contract; server may not be provisioned.`),
+      errorCode: "unavailable",
+      error: new Error(`Endpoint ${endpointId} server has no usable access.`),
+    }
+  }
+
+  if (!serverData.actualState.dns) {
+    return {
+      ok: false,
+      errorCode: "unavailable",
+      error: new Error(
+        `Endpoint ${endpointId} server actual state has no DNS; server may not be hardened.`,
+      ),
+    }
+  }
+
+  const endpointActualState = EndpointActualStateSchema.safeParse(
+    endpointProtocolClientData.endpointData?.actualState,
+  )
+  if (!endpointActualState.success) {
+    return {
+      ok: false,
+      errorCode: "unavailable",
+      error: new Error(`Endpoint ${endpointId} has no actual state; it may not be deployed.`),
     }
   }
 
@@ -74,8 +89,12 @@ export async function getEndpointProtocolClientService(
     ok: true,
     data: {
       client,
-      serverContract: serverContract.data,
-      endpointContract: endpointContract.data,
+      server: {
+        ip: endpointProtocolClientData.serverIp,
+        domainName: endpointProtocolClientData.serverDomainName,
+        actualState: serverData.actualState,
+      },
+      endpointActualState: endpointActualState.data,
       protocolCode: parsedCode.data,
     },
   }

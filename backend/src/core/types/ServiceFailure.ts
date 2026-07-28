@@ -1,5 +1,5 @@
-export type ServiceFailure<Reason extends string> = {
+export type ServiceFailure<ErrorCode extends string> = {
   ok: false
-  reason: Reason
+  errorCode: ErrorCode
   error?: unknown
 }

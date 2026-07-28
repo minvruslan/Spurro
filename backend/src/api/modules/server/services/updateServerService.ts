@@ -13,7 +13,7 @@ export async function updateServerService(
   input: UpsertServer,
 ): Promise<ServiceResult<{ server: Server }, ErrorCode>> {
   const [row] = await updateServer(db, id, { name: input.name, country: input.country })
-  if (!row) return { ok: false, reason: "not_found" }
+  if (!row) return { ok: false, errorCode: "not_found" }
   const rows = await findServerById(db, row.id)
   return { ok: true, data: { server: ServerSchema.parse(createServersFromDatabaseData(rows)[0]) } }
 }

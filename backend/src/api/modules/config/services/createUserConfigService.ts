@@ -27,21 +27,21 @@ export async function createUserConfigService(
   input: UpsertConfig,
 ): Promise<ServiceResult<{ config: Config }, ErrorCode>> {
   const endpoint = await findActiveEndpointById(db, input.endpointId)
-  if (!endpoint) return { ok: false, reason: "endpoint_invalid" }
+  if (!endpoint) return { ok: false, errorCode: "endpoint_invalid" }
 
   const deviceType = await findActiveDeviceTypeById(db, input.deviceTypeId)
-  if (!deviceType) return { ok: false, reason: "device_type_invalid" }
+  if (!deviceType) return { ok: false, errorCode: "device_type_invalid" }
 
   const resolved = await getEndpointProtocolClientService(endpoint.id)
   if (!resolved.ok) {
     return {
       ok: false,
-      reason: resolved.reason === "unavailable" ? "failed" : resolved.reason,
+      errorCode: resolved.errorCode === "unavailable" ? "failed" : resolved.errorCode,
       error: resolved.error,
     }
   }
 
-  const { client, serverContract, endpointContract } = resolved.data
+  const { client, server, endpointActualState } = resolved.data
 
   const reserved = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
@@ -58,7 +58,7 @@ export async function createUserConfigService(
     const reservedClientIdentifiers = await findReservedClientIdentifiers(tx, endpoint.serverId)
 
     const clientIdentifier = client.allocateClientIdentifier(
-      endpointContract,
+      endpointActualState,
       reservedClientIdentifiers,
     )
 
@@ -76,13 +76,13 @@ export async function createUserConfigService(
     return { configId: row.id, clientIdentifier }
   })
 
-  if (typeof reserved === "string") return { ok: false, reason: reserved }
+  if (typeof reserved === "string") return { ok: false, errorCode: reserved }
 
   const { configId, clientIdentifier } = reserved
 
   let created
   try {
-    created = await client.createAccess(serverContract, endpointContract, clientIdentifier)
+    created = await client.createAccess(server, endpointActualState, clientIdentifier)
 
     const [activated] = await activateConfig(db, configId, created.configData)
     if (!activated) {
@@ -90,11 +90,11 @@ export async function createUserConfigService(
     }
   } catch (error) {
     try {
-      await client.deleteAccessByClientIdentifier(endpointContract, clientIdentifier)
+      await client.deleteAccessByClientIdentifier(endpointActualState, clientIdentifier)
     } catch (rollbackError) {
       return {
         ok: false,
-        reason: "failed",
+        errorCode: "failed",
         error: new AggregateError(
           [error, rollbackError],
           "Access create failed and rollback delete failed; peer may be left on server.",
@@ -104,7 +104,7 @@ export async function createUserConfigService(
 
     await setUserConfigsStatus(db, userId, [configId], "deleted", "pending")
 
-    return { ok: false, reason: "failed", error }
+    return { ok: false, errorCode: "failed", error }
   }
 
   const rows = await findConfigById(db, configId)

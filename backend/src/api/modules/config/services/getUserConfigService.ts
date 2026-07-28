@@ -12,6 +12,6 @@ export async function getUserConfigService(
   configId: string,
 ): Promise<ServiceResult<{ config: Config }, ErrorCode>> {
   const rows = await findUserConfig(db, userId, configId)
-  if (rows.length === 0) return { ok: false, reason: "not_found" }
+  if (rows.length === 0) return { ok: false, errorCode: "not_found" }
   return { ok: true, data: { config: ConfigSchema.parse(createConfigFromDatabaseData(rows[0])) } }
 }

@@ -1,3 +1,5 @@
-export { Amneziawg2EndpointContractSchema } from "./Amneziawg2EndpointContractSchema"
-export type { Amneziawg2EndpointContract } from "./Amneziawg2EndpointContract"
+export { Amneziawg2EndpointDesiredStateSchema } from "./Amneziawg2EndpointDesiredStateSchema"
+export type { Amneziawg2EndpointDesiredState } from "./Amneziawg2EndpointDesiredState"
+export { Amneziawg2EndpointActualStateSchema } from "./Amneziawg2EndpointActualStateSchema"
+export type { Amneziawg2EndpointActualState } from "./Amneziawg2EndpointActualState"
 export { Amneziawg2KeySchema } from "./Amneziawg2KeySchema"

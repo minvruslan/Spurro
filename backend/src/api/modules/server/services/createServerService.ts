@@ -28,7 +28,7 @@ export async function createServerService(
 ): Promise<ServiceResult<{ server: Server }, ErrorCode>> {
   const credentials = input.credentials
 
-  if (!credentials) return { ok: false, reason: "credentials_required" }
+  if (!credentials) return { ok: false, errorCode: "credentials_required" }
 
   const endpoints = input.endpoints ?? []
 
@@ -49,7 +49,7 @@ export async function createServerService(
         if (!code) {
           return {
             ok: false,
-            reason: "protocol_not_found",
+            errorCode: "protocol_not_found",
             error: new Error(`Protocol ${item.protocolId} not found.`),
           }
         }
@@ -58,7 +58,7 @@ export async function createServerService(
         if (!parsedCode.success) {
           return {
             ok: false,
-            reason: "unsupported_protocol",
+            errorCode: "unsupported_protocol",
             error: new Error(`Unsupported protocol "${code}".`),
           }
         }
@@ -66,7 +66,7 @@ export async function createServerService(
         if (seenProtocolCodes.has(code)) {
           return {
             ok: false,
-            reason: "duplicate_protocol",
+            errorCode: "duplicate_protocol",
             error: new Error(
               `Multiple endpoints of protocol "${code}"; one endpoint per protocol is supported.`,
             ),
@@ -87,12 +87,14 @@ export async function createServerService(
         country: input.country,
         status: "provisioning",
         data: {
-          state: {
+          actualState: {
             ssh: {
+              type: "password",
               username: credentials.username,
               password: credentials.password,
               port: REMOTE_SERVER_SSH_PORT,
             },
+            appliedAt: new Date().toISOString(),
           },
         },
       })
@@ -123,14 +125,14 @@ export async function createServerService(
     } catch (rollbackError) {
       return {
         ok: false,
-        reason: "enqueue_failed",
+        errorCode: "enqueue_failed",
         error: new AggregateError(
           [error, rollbackError],
           "Provision enqueue failed and create rollback failed.",
         ),
       }
     }
-    return { ok: false, reason: "enqueue_failed", error }
+    return { ok: false, errorCode: "enqueue_failed", error }
   }
 
   return result

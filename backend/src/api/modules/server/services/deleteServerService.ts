@@ -12,11 +12,11 @@ type ErrorCode = "not_found" | "current"
 
 export async function deleteServerService(id: string): Promise<ServiceResult<null, ErrorCode>> {
   const rows = await findServerById(db, id)
-  if (rows.length === 0) return { ok: false, reason: "not_found" }
+  if (rows.length === 0) return { ok: false, errorCode: "not_found" }
 
   const server = createServersFromDatabaseData(rows)[0]
-  if (server.status === "deleted") return { ok: false, reason: "not_found" }
-  if (server.isCurrent) return { ok: false, reason: "current" }
+  if (server.status === "deleted") return { ok: false, errorCode: "not_found" }
+  if (server.isCurrent) return { ok: false, errorCode: "current" }
 
   await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${id}))`)

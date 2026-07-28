@@ -1,7 +1,9 @@
 import { z } from "zod"
-import { ServerStateSchema } from "./ServerStateSchema"
+import { ServerActualStateSchema } from "./ServerActualStateSchema"
+import { ServerFactsSchema } from "./ServerFactsSchema"
 
 export const ServerDataSchema = z.looseObject({
-  contract: z.unknown().optional(),
-  state: ServerStateSchema,
+  desiredState: z.unknown().optional(),
+  actualState: ServerActualStateSchema,
+  facts: ServerFactsSchema.optional(),
 })

@@ -11,16 +11,16 @@ type ErrorCode = "not_found" | "config_delete_failed" | "configs_appeared"
 export async function deleteUserService(id: string): Promise<ServiceResult<null, ErrorCode>> {
   const [user] = await findUserById(db, id)
 
-  if (!user) return { ok: false, reason: "not_found" }
+  if (!user) return { ok: false, errorCode: "not_found" }
 
   const deleteUserConfigsResult = await deleteUserConfigsService(id)
   if (!deleteUserConfigsResult.ok) {
-    return { ok: false, reason: "config_delete_failed", error: deleteUserConfigsResult.error }
+    return { ok: false, errorCode: "config_delete_failed", error: deleteUserConfigsResult.error }
   }
   if (deleteUserConfigsResult.data.deleteFailedConfigIds.length > 0) {
     return {
       ok: false,
-      reason: "config_delete_failed",
+      errorCode: "config_delete_failed",
       error: new Error(
         `Failed to delete configs [${deleteUserConfigsResult.data.deleteFailedConfigIds.join(", ")}] of user ${id}; user not deleted.`,
       ),
@@ -40,12 +40,12 @@ export async function deleteUserService(id: string): Promise<ServiceResult<null,
   if (deleteUserResult === "configs_appeared") {
     return {
       ok: false,
-      reason: "configs_appeared",
+      errorCode: "configs_appeared",
       error: new Error(`User ${id} got new configs while being deleted; user not deleted.`),
     }
   }
 
-  if (deleteUserResult === "not_found") return { ok: false, reason: "not_found" }
+  if (deleteUserResult === "not_found") return { ok: false, errorCode: "not_found" }
 
   return { ok: true, data: null }
 }

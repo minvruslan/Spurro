@@ -17,7 +17,7 @@ export async function updateUserService(
 ): Promise<ServiceResult<{ user: User }, ErrorCode>> {
   return db.transaction(async (tx) => {
     const [updated] = await updateUser(tx, id, { name: input.name })
-    if (!updated) return { ok: false, reason: "not_found" }
+    if (!updated) return { ok: false, errorCode: "not_found" }
     await setUserConfigLimitsService(id, input.limits ?? [], tx)
     const limitsResult = await getUserConfigLimitsService(id, tx)
     return {

@@ -10,27 +10,45 @@ const createUserConfigRoute = new Hono<{ Variables: AppVariables }>()
 createUserConfigRoute.post("/", requestValidator("json", UpsertConfigSchema), async (c) => {
   const result = await createUserConfigService(c.get("userId"), c.req.valid("json"))
   if (!result.ok) {
-    switch (result.reason) {
+    switch (result.errorCode) {
       case "failed":
-        configLogger.error({ reason: result.reason, error: result.error }, "Create config failed.")
+        configLogger.error(
+          { errorCode: result.errorCode, error: result.error },
+          "Create config failed.",
+        )
         return c.json({ error: "Failed to create VPN config" }, 502)
       case "no_available_ip":
-        configLogger.error({ reason: result.reason, error: result.error }, "Create config failed.")
+        configLogger.error(
+          { errorCode: result.errorCode, error: result.error },
+          "Create config failed.",
+        )
         return c.json({ error: "Server is at capacity (no available IP)" }, 503)
       case "unsupported_protocol":
-        configLogger.warn({ reason: result.reason, error: result.error }, "Create config failed.")
+        configLogger.warn(
+          { errorCode: result.errorCode, error: result.error },
+          "Create config failed.",
+        )
         return c.json({ error: "Unsupported protocol" }, 400)
       case "limit_reached":
-        configLogger.warn({ reason: result.reason, error: result.error }, "Create config failed.")
+        configLogger.warn(
+          { errorCode: result.errorCode, error: result.error },
+          "Create config failed.",
+        )
         return c.json({ error: "Config limit reached for this protocol family" }, 409)
       case "endpoint_invalid":
-        configLogger.warn({ reason: result.reason, error: result.error }, "Create config failed.")
+        configLogger.warn(
+          { errorCode: result.errorCode, error: result.error },
+          "Create config failed.",
+        )
         return c.json({ error: "Invalid endpoint" }, 400)
       case "device_type_invalid":
-        configLogger.warn({ reason: result.reason, error: result.error }, "Create config failed.")
+        configLogger.warn(
+          { errorCode: result.errorCode, error: result.error },
+          "Create config failed.",
+        )
         return c.json({ error: "Invalid device type" }, 400)
       default:
-        return result.reason satisfies never
+        return result.errorCode satisfies never
     }
   }
   return c.json({ data: result.data.config }, 201)

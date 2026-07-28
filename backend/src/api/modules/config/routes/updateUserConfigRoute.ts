@@ -19,15 +19,21 @@ updateUserConfigRoute.put(
       c.req.valid("json"),
     )
     if (!result.ok) {
-      switch (result.reason) {
+      switch (result.errorCode) {
         case "device_type_invalid":
-          configLogger.warn({ reason: result.reason, error: result.error }, "Update config failed.")
+          configLogger.warn(
+            { errorCode: result.errorCode, error: result.error },
+            "Update config failed.",
+          )
           return c.json({ error: "Invalid device type" }, 400)
         case "not_found":
-          configLogger.warn({ reason: result.reason, error: result.error }, "Update config failed.")
+          configLogger.warn(
+            { errorCode: result.errorCode, error: result.error },
+            "Update config failed.",
+          )
           return c.json({ error: "Config not found" }, 404)
         default:
-          return result.reason satisfies never
+          return result.errorCode satisfies never
       }
     }
     return c.json({ data: result.data.config })

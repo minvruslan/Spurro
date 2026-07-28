@@ -14,12 +14,15 @@ deleteUserConfigRoute.delete(
     const id = c.req.valid("param").id
     const result = await deleteUserConfigsService(c.get("userId"), [id])
     if (!result.ok) {
-      switch (result.reason) {
+      switch (result.errorCode) {
         case "not_found":
-          configLogger.warn({ reason: result.reason, error: result.error }, "Delete config failed.")
+          configLogger.warn(
+            { errorCode: result.errorCode, error: result.error },
+            "Delete config failed.",
+          )
           return c.json({ error: "Config not found" }, 404)
         default:
-          return result.reason satisfies never
+          return result.errorCode satisfies never
       }
     }
 

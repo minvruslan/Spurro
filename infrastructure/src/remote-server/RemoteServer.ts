@@ -12,13 +12,7 @@ import {
   type SupportedProtocolCode,
   type TransportProtocol,
 } from "@spurro/shared"
-import {
-  ServerContractSchema,
-  type EndpointContract,
-  type ServerAccess,
-  type ServerContract,
-  type ServerData,
-} from "../types/index.js"
+import { ServerDesiredStateSchema, type ServerAccess, type ServerData } from "../types/index.js"
 import { PROJECT_NAME } from "../common/constants/index.js"
 import { CommandRunner } from "../command-runner/index.js"
 import { RemoteCommandRunner } from "../remote-command-runner/index.js"
@@ -35,40 +29,49 @@ export class RemoteServer {
     this.remoteCommandRunner = new RemoteCommandRunner(serverAccess)
   }
 
-  static buildServerAccess(
+  static buildServerAccessFromActualState(
     server: { ip: string; data: ServerData },
-    appSshPrivateKey: string,
+    appSSHPrivateKey: string,
   ): ServerAccess | null {
-    const state = server.data.state
-    const sshHostKeys = state.sshHostKeys
+    const sshHostKeys = server.data.facts?.sshHostKeys
     if (!sshHostKeys?.length) return null
 
-    if ("hardenedAt" in state.ssh) {
-      return RemoteServer.buildServiceUserServerAccess(server, appSshPrivateKey)
+    const ssh = server.data.actualState.ssh
+    if (ssh.type === "password") {
+      return {
+        ip: server.ip,
+        port: ssh.port,
+        username: ssh.username,
+        password: ssh.password,
+        sshHostKeys,
+      }
     }
 
     return {
       ip: server.ip,
-      port: state.ssh.port,
-      username: state.ssh.username,
-      password: state.ssh.password,
+      port: ssh.port,
+      username: ssh.username,
+      privateKey: appSSHPrivateKey,
       sshHostKeys,
     }
   }
 
-  static buildServiceUserServerAccess(
+  static buildServerAccessFromDesiredState(
     server: { ip: string; data: ServerData },
-    appSshPrivateKey: string,
+    appSSHPrivateKey: string,
   ): ServerAccess | null {
-    const serverContract = ServerContractSchema.safeParse(server.data.contract)
-    const sshHostKeys = server.data.state.sshHostKeys
-    if (!serverContract.success || !sshHostKeys?.length) return null
+    const desiredState = ServerDesiredStateSchema.safeParse(server.data.desiredState)
+    const sshHostKeys = server.data.facts?.sshHostKeys
+    if (!desiredState.success || !sshHostKeys?.length) return null
+
+    const ssh = desiredState.data.ssh
+    if (ssh.type !== "privateKey") return null
 
     return {
       ip: server.ip,
-      port: serverContract.data.sshPort,
-      username: serverContract.data.service.username,
-      privateKey: appSshPrivateKey,
+      port: ssh.port,
+      username: ssh.username,
+      privateKey: appSSHPrivateKey,
       sshHostKeys,
     }
   }
@@ -172,14 +175,6 @@ export class RemoteServer {
         firewall_transport_protocol: TransportProtocolSchema.parse(transportProtocol),
       },
     )
-  }
-
-  async install(
-    protocolCode: SupportedProtocolCode,
-    serverContract: ServerContract,
-    endpointContract: EndpointContract,
-  ): Promise<void> {
-    await this.getProtocolClient(protocolCode).install(serverContract, endpointContract)
   }
 
   getProtocolClient(protocolCode: SupportedProtocolCode) {
