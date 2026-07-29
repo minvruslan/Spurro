@@ -7,6 +7,7 @@ import {
   type ProvisionServerJob,
 } from "@/core/queue/provision-server/index.js"
 import { provisionServerJob } from "./jobs/provision-server/provisionServerJob.js"
+import { ProvisioningError } from "./jobs/provision-server/ProvisioningError.js"
 import { updateServerStatus } from "./jobs/provision-server/queries/updateServerStatus.js"
 
 try {
@@ -27,7 +28,14 @@ const worker = new Worker<ProvisionServerJob>(
 )
 
 worker.on("failed", async (job, err) => {
-  workerLogger.error({ error: err, jobId: job?.id }, "Job failed.")
+  if (err instanceof ProvisioningError) {
+    workerLogger.error(
+      { serverId: err.serverId, errorCode: err.errorCode, error: err.error, jobId: job?.id },
+      err.message,
+    )
+  } else {
+    workerLogger.error({ error: err, jobId: job?.id }, "Job failed.")
+  }
   if (!job) return
 
   const attemptsLeft = (job.opts.attempts ?? 1) - job.attemptsMade

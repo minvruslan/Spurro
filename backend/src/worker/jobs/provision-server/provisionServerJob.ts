@@ -1,160 +1,89 @@
 import { SUPPORTED_PROTOCOLS } from "@spurro/shared"
-import type { ProtocolClient } from "@spurro/infrastructure"
 import { RemoteServer } from "@spurro/infrastructure"
-import type {
-  EndpointData,
-  EndpointDesiredState,
-  ServerAccess,
-  ServerDesiredState,
-} from "@spurro/infrastructure/types"
 import { env } from "@/core/env/index.js"
 import type { ProvisionServerJob } from "@/core/queue/provision-server/index.js"
+import { ProvisioningError } from "./ProvisioningError.js"
 import { findServer } from "./queries/findServer.js"
 import { findActiveEndpoints } from "./queries/findActiveEndpoints.js"
 import { updateServerData } from "./queries/updateServerData.js"
 import { updateEndpointData } from "./queries/updateEndpointData.js"
 import { updateServerStatus } from "./queries/updateServerStatus.js"
-import { provisioningFailure } from "./utils/provisioningFailure.js"
-import { parseServerDesiredState } from "./utils/parseServerDesiredState.js"
-import { createServerDesiredState } from "./utils/createServerDesiredState.js"
-import { planEndpointDeployment } from "./utils/planEndpointDeployment.js"
-
-type EndpointDeployment = {
-  client: ProtocolClient
-  endpointId: string
-  endpointData: EndpointData
-  endpointDesiredState: EndpointDesiredState
-}
+import { resolveServerDesiredState } from "./steps/resolveServerDesiredState.js"
+import { scanSSHHostKeys } from "./steps/scanSSHHostKeys.js"
+import { resolveServerAccess } from "./steps/resolveServerAccess.js"
+import { installRequiredSoftware } from "./steps/installRequiredSoftware.js"
+import { createServiceUserAccess } from "./steps/createServiceUserAccess.js"
+import { hardenSSHAccess } from "./steps/hardenSSHAccess.js"
+import { resolveEndpointDeployments } from "./steps/resolveEndpointDeployments.js"
 
 export async function provisionServerJob(job: ProvisionServerJob) {
   const { serverId } = job
 
   const server = await findServer(serverId)
-  if (!server) throw provisioningFailure(serverId, "server_not_found")
-  if (!server.data) throw provisioningFailure(serverId, "invalid_server_data")
+  if (!server) throw new ProvisioningError(serverId, "server_not_found")
+  if (!server.data) throw new ProvisioningError(serverId, "invalid_server_data")
+
+  const desiredState = await resolveServerDesiredState(serverId, {
+    desiredState: server.data.desiredState,
+  })
 
   let serverData = server.data
-
-  const parsedDesiredState = parseServerDesiredState(serverData)
-  if (parsedDesiredState.status === "invalid") {
-    throw provisioningFailure(serverId, "invalid_server_desired_state", {
-      error: parsedDesiredState.error,
-    })
-  }
-
-  let desiredState: ServerDesiredState
-  if (parsedDesiredState.status === "found") {
-    desiredState = parsedDesiredState.desiredState
-  } else {
-    desiredState = createServerDesiredState()
+  if (server.data.desiredState === undefined) {
     serverData = { ...serverData, desiredState }
     await updateServerData(serverId, serverData)
   }
 
   if (!serverData.facts?.sshHostKeys?.length) {
-    const actualSSH = serverData.actualState.ssh
-    if (actualSSH.type === "privateKey") {
-      throw provisioningFailure(serverId, "hardened_without_ssh_host_keys")
-    }
-    const sshHostKeys = await RemoteServer.scanSSHHostKeys(server.ip, actualSSH.port)
+    const sshHostKeys = await scanSSHHostKeys(serverId, {
+      ip: server.ip,
+      ssh: serverData.actualState.ssh,
+    })
     serverData = { ...serverData, facts: { ...serverData.facts, sshHostKeys } }
     await updateServerData(serverId, serverData)
   }
 
-  const actualStateAccess = RemoteServer.buildServerAccessFromActualState(
-    { ip: server.ip, data: serverData },
-    env.APP_SSH_PRIVATE_KEY,
-  )
-  if (!actualStateAccess) throw provisioningFailure(serverId, "hardened_without_ssh_host_keys")
-
-  const desiredStateAccess = RemoteServer.buildServerAccessFromDesiredState(
-    { ip: server.ip, data: serverData },
-    env.APP_SSH_PRIVATE_KEY,
-  )
-  if (!desiredStateAccess) throw provisioningFailure(serverId, "no_desired_state_access")
-
-  let workingAccess: ServerAccess
-  if ("privateKey" in actualStateAccess) {
-    workingAccess = actualStateAccess
-  } else {
-    try {
-      await new RemoteServer(desiredStateAccess).assertConnectivity()
-      workingAccess = desiredStateAccess
-    } catch {
-      workingAccess = actualStateAccess
-    }
-  }
-
-  const workingRemoteServer = new RemoteServer(workingAccess)
-  await workingRemoteServer.installDocker()
-  await workingRemoteServer.createServiceUser(desiredState.ssh.username, desiredState.baseDirectory)
+  const { currentAccess, targetAccess } = await resolveServerAccess(serverId, {
+    ip: server.ip,
+    serverData,
+    appSSHPrivateKey: env.APP_SSH_PRIVATE_KEY,
+  })
 
   const authorizedKeys = [await RemoteServer.deriveSSHPublicKey(env.APP_SSH_PRIVATE_KEY)]
   if (env.OPERATOR_SSH_PUBLIC_KEY) authorizedKeys.push(env.OPERATOR_SSH_PUBLIC_KEY)
-  await workingRemoteServer.installServiceUserAuthorizedKeys(
-    desiredState.ssh.username,
-    authorizedKeys,
-  )
 
-  if ("privateKey" in workingAccess) {
-    await workingRemoteServer.hardenSSHAccess(desiredState.ssh.port)
-  } else {
-    const preHardenAccess = { ...desiredStateAccess, port: workingAccess.port }
-    const preHardenServer = new RemoteServer(preHardenAccess)
-    await preHardenServer.assertConnectivity()
-    await preHardenServer.assertPrivilegeEscalation()
-    await preHardenServer.hardenSSHAccess(desiredState.ssh.port)
-  }
+  let remoteServer = new RemoteServer(currentAccess)
+  await installRequiredSoftware(serverId, { remoteServer })
+  await createServiceUserAccess(serverId, { remoteServer, desiredState, authorizedKeys })
+  await hardenSSHAccess(serverId, { currentAccess, targetAccess })
 
-  const hardenedRemoteServer = new RemoteServer(desiredStateAccess)
-  await hardenedRemoteServer.assertConnectivity()
+  remoteServer = new RemoteServer(targetAccess)
+  await remoteServer.assertConnectivity()
 
   serverData = {
     ...serverData,
     actualState: { ...desiredState, appliedAt: new Date().toISOString() },
   }
+
   await updateServerData(serverId, serverData)
 
   const endpoints = await findActiveEndpoints(serverId)
-  const seenProtocolCodes = new Set<string>()
-  const deployments: EndpointDeployment[] = []
+  const { endpointDeployments, endpointDataUpdates } = await resolveEndpointDeployments(serverId, {
+    remoteServer,
+    endpoints,
+  })
 
-  for (const endpoint of endpoints) {
-    const planEndpointDeploymentResult = planEndpointDeployment(endpoint, seenProtocolCodes)
-    if (!planEndpointDeploymentResult.ok) {
-      throw provisioningFailure(serverId, planEndpointDeploymentResult.errorCode, {
-        endpointId: endpoint.endpointId,
-        protocolCode: endpoint.protocolCode,
-        error: planEndpointDeploymentResult.error,
-      })
-    }
-    seenProtocolCodes.add(planEndpointDeploymentResult.protocolCode)
-
-    const protocolClient = hardenedRemoteServer.getProtocolClient(
-      planEndpointDeploymentResult.protocolCode,
-    )
-    let endpointData = planEndpointDeploymentResult.endpointData
-    let endpointDesiredState = planEndpointDeploymentResult.endpointDesiredState
-    if (!endpointDesiredState) {
-      endpointDesiredState = protocolClient.createEndpointDesiredState(endpoint.port)
-      endpointData = { ...endpointData, desiredState: endpointDesiredState }
-      await updateEndpointData(endpoint.endpointId, endpointData)
-    }
-
-    deployments.push({
-      client: protocolClient,
-      endpointId: endpoint.endpointId,
-      endpointData,
-      endpointDesiredState,
-    })
+  for (const { endpointId, endpointData } of endpointDataUpdates) {
+    await updateEndpointData(endpointId, endpointData)
   }
 
-  for (const { client, endpointId, endpointData, endpointDesiredState } of deployments) {
-    await hardenedRemoteServer.allowFirewallPort(
+  for (const { client, endpointId, endpointData, endpointDesiredState } of endpointDeployments) {
+    await remoteServer.allowFirewallPort(
       endpointDesiredState.port,
       SUPPORTED_PROTOCOLS[client.protocolCode].transportProtocol,
     )
+
     await client.install({ desiredState }, endpointDesiredState)
+
     await updateEndpointData(endpointId, {
       ...endpointData,
       actualState: { ...endpointDesiredState, appliedAt: new Date().toISOString() },

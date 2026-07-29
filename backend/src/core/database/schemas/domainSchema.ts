@@ -132,6 +132,9 @@ export const endpoint = pgTable(
     uniqueIndex("endpoint_server_port_uq")
       .on(t.serverId, t.port)
       .where(sql`${t.status} = 'active'`),
+    uniqueIndex("endpoint_server_protocol_uq")
+      .on(t.serverId, t.protocolId)
+      .where(sql`${t.status} = 'active'`),
     index("endpoint_server_idx").on(t.serverId),
     index("endpoint_protocol_idx").on(t.protocolId),
   ],

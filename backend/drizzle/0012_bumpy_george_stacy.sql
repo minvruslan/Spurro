@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "endpoint_server_protocol_uq" ON "endpoint" USING btree ("server_id","protocol_id") WHERE "endpoint"."status" = 'active';
