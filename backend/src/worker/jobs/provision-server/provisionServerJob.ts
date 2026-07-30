@@ -9,11 +9,11 @@ import { updateServerData } from "./queries/updateServerData.js"
 import { updateEndpointData } from "./queries/updateEndpointData.js"
 import { updateServerStatus } from "./queries/updateServerStatus.js"
 import { resolveServerDesiredState } from "./steps/resolveServerDesiredState.js"
-import { scanSSHHostKeys } from "./steps/scanSSHHostKeys.js"
+import { scanSshHostKeys } from "./steps/scanSshHostKeys.js"
 import { resolveServerAccess } from "./steps/resolveServerAccess.js"
 import { installRequiredSoftware } from "./steps/installRequiredSoftware.js"
 import { createServiceUserAccess } from "./steps/createServiceUserAccess.js"
-import { hardenSSHAccess } from "./steps/hardenSSHAccess.js"
+import { hardenSshAccess } from "./steps/hardenSshAccess.js"
 import { resolveEndpointDeployments } from "./steps/resolveEndpointDeployments.js"
 
 export async function provisionServerJob(job: ProvisionServerJob) {
@@ -34,7 +34,7 @@ export async function provisionServerJob(job: ProvisionServerJob) {
   }
 
   if (!serverData.facts?.sshHostKeys?.length) {
-    const sshHostKeys = await scanSSHHostKeys(serverId, {
+    const sshHostKeys = await scanSshHostKeys(serverId, {
       ip: server.ip,
       ssh: serverData.actualState.ssh,
     })
@@ -45,16 +45,16 @@ export async function provisionServerJob(job: ProvisionServerJob) {
   const { currentAccess, targetAccess } = await resolveServerAccess(serverId, {
     ip: server.ip,
     serverData,
-    appSSHPrivateKey: env.APP_SSH_PRIVATE_KEY,
+    appSshPrivateKey: env.APP_SSH_PRIVATE_KEY,
   })
 
-  const authorizedKeys = [await RemoteServer.deriveSSHPublicKey(env.APP_SSH_PRIVATE_KEY)]
+  const authorizedKeys = [await RemoteServer.deriveSshPublicKey(env.APP_SSH_PRIVATE_KEY)]
   if (env.OPERATOR_SSH_PUBLIC_KEY) authorizedKeys.push(env.OPERATOR_SSH_PUBLIC_KEY)
 
   let remoteServer = new RemoteServer(currentAccess)
   await installRequiredSoftware(serverId, { remoteServer })
   await createServiceUserAccess(serverId, { remoteServer, desiredState, authorizedKeys })
-  await hardenSSHAccess(serverId, { currentAccess, targetAccess })
+  await hardenSshAccess(serverId, { currentAccess, targetAccess })
 
   remoteServer = new RemoteServer(targetAccess)
   await remoteServer.assertConnectivity()

@@ -1,9 +1,9 @@
 import { RemoteServer } from "@spurro/infrastructure"
-import type { ServerSSH } from "@spurro/infrastructure/types"
+import type { ServerSsh } from "@spurro/infrastructure/types"
 import { ProvisioningError } from "../ProvisioningError.js"
 import type { ProvisioningStep } from "./ProvisioningStep.js"
 
-export const scanSSHHostKeys: ProvisioningStep<{ ip: string; ssh: ServerSSH }, string[]> = async (
+export const scanSshHostKeys: ProvisioningStep<{ ip: string; ssh: ServerSsh }, string[]> = async (
   serverId,
   { ip, ssh },
 ) => {
@@ -11,5 +11,5 @@ export const scanSSHHostKeys: ProvisioningStep<{ ip: string; ssh: ServerSSH }, s
     throw new ProvisioningError(serverId, "hardened_without_ssh_host_keys")
   }
 
-  return RemoteServer.scanSSHHostKeys(ip, ssh.port)
+  return RemoteServer.scanSshHostKeys(ip, ssh.port)
 }

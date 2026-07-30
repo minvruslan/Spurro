@@ -1,5 +1,5 @@
-export { ServerSSHSchema } from "./ServerSSHSchema"
-export type { ServerSSH } from "./ServerSSH"
+export { ServerSshSchema } from "./ServerSshSchema"
+export type { ServerSsh } from "./ServerSsh"
 export { ServerDesiredStateSchema } from "./ServerDesiredStateSchema"
 export type { ServerDesiredState } from "./ServerDesiredState"
 export { ServerActualStateSchema } from "./ServerActualStateSchema"

@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { PortSchema, UnixUsernameSchema } from "@spurro/shared"
 
-export const ServerSSHSchema = z.discriminatedUnion("type", [
+export const ServerSshSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("password"),
     username: UnixUsernameSchema,

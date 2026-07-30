@@ -1,6 +1,6 @@
 export { buildClientConfiguration } from "./buildClientConfiguration.js"
 export { extractField } from "./extractField.js"
-export { findClientPublicKeyByClientIP } from "./findClientPublicKeyByClientIP.js"
+export { findClientPublicKeyByClientIp } from "./findClientPublicKeyByClientIp.js"
 export { generateServerKeyPair } from "./generateServerKeyPair.js"
 export { parseObfuscation } from "./parseObfuscation.js"
-export { pickFreeClientIP } from "./pickFreeClientIP.js"
+export { pickFreeClientIp } from "./pickFreeClientIp.js"

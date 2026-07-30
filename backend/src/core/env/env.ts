@@ -4,7 +4,7 @@ import { config } from "dotenv"
 config()
 
 import { z } from "zod"
-import { CountryCodeSchema, DomainNameSchema, IPSchema } from "@spurro/shared"
+import { CountryCodeSchema, DomainNameSchema, IpSchema } from "@spurro/shared"
 
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value)
 
@@ -63,7 +63,7 @@ const EnvSchema = z.object({
       .optional(),
   ),
   DOMAIN_NAME: z.preprocess(emptyToUndefined, DomainNameSchema.optional()),
-  IP: IPSchema,
+  IP: IpSchema,
   COUNTRY: z
     .string()
     .transform((value) => value.toUpperCase())

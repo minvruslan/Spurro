@@ -1,3 +1,3 @@
-import { IPSchema } from "../../network/IPSchema"
+import { IpSchema } from "../../network/IpSchema"
 
-export const Amneziawg2ClientIdentifierSchema = IPSchema.brand<"Amneziawg2ClientIdentifier">()
+export const Amneziawg2ClientIdentifierSchema = IpSchema.brand<"Amneziawg2ClientIdentifier">()

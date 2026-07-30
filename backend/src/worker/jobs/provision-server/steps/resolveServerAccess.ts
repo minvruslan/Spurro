@@ -9,12 +9,12 @@ type ResolveServerAccessResult = {
 }
 
 export const resolveServerAccess: ProvisioningStep<
-  { ip: string; serverData: ServerData; appSSHPrivateKey: string },
+  { ip: string; serverData: ServerData; appSshPrivateKey: string },
   ResolveServerAccessResult
-> = async (serverId, { ip, serverData, appSSHPrivateKey }) => {
+> = async (serverId, { ip, serverData, appSshPrivateKey }) => {
   const actualStateAccess = RemoteServer.buildServerAccessFromActualState(
     { ip, data: serverData },
-    appSSHPrivateKey,
+    appSshPrivateKey,
   )
   if (!actualStateAccess) {
     throw new ProvisioningError(serverId, "hardened_without_ssh_host_keys")
@@ -22,7 +22,7 @@ export const resolveServerAccess: ProvisioningStep<
 
   const desiredStateAccess = RemoteServer.buildServerAccessFromDesiredState(
     { ip, data: serverData },
-    appSSHPrivateKey,
+    appSshPrivateKey,
   )
   if (!desiredStateAccess) {
     throw new ProvisioningError(serverId, "no_desired_state_access")

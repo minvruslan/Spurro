@@ -2,7 +2,7 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { z } from "zod"
 import {
-  IPSchema,
+  IpSchema,
   PortSchema,
   type Amneziawg2ClientIdentifier,
   type Amneziawg2ConfigData,
@@ -25,10 +25,10 @@ import { Amneziawg2CreatedAccessSchema } from "./types/index.js"
 import {
   buildClientConfiguration,
   extractField,
-  findClientPublicKeyByClientIP,
+  findClientPublicKeyByClientIp,
   generateServerKeyPair,
   parseObfuscation,
-  pickFreeClientIP,
+  pickFreeClientIp,
 } from "./utils/index.js"
 
 const AMNEZIAWG2_ANSIBLE_ROLE_DIRECTORY = resolve(
@@ -84,13 +84,13 @@ export class Amneziawg2Client {
     reservedClientIdentifiers: (string | null)[],
   ): Amneziawg2ClientIdentifier | null {
     const actualState = this.parseEndpointActualState(endpointActualState)
-    return pickFreeClientIP(reservedClientIdentifiers, actualState.subnetPrefix)
+    return pickFreeClientIp(reservedClientIdentifiers, actualState.subnetPrefix)
   }
 
   createInitialConfigData(clientIdentifier: string): Amneziawg2ConfigData {
     return {
       protocolCode: this.protocolCode,
-      ip: IPSchema.parse(clientIdentifier),
+      ip: IpSchema.parse(clientIdentifier),
     }
   }
 
@@ -121,7 +121,7 @@ export class Amneziawg2Client {
     clientIdentifier: string,
   ): Promise<{ configData: Amneziawg2ConfigData; clientConfiguration: string }> {
     const actualState = this.parseEndpointActualState(endpointActualState)
-    const clientIP = IPSchema.parse(clientIdentifier)
+    const clientIp = IpSchema.parse(clientIdentifier)
 
     if (!server.actualState.dns) {
       throw new Error("Server actual state has no DNS; server may not be hardened.")
@@ -130,7 +130,7 @@ export class Amneziawg2Client {
     const output = await this.remoteCommandRunner.executeContainerScript(
       actualState.containerName,
       "create-access.sh",
-      clientIP,
+      clientIp,
     )
 
     const parsed = Amneziawg2CreatedAccessSchema.safeParse({
@@ -155,7 +155,7 @@ export class Amneziawg2Client {
 
     const clientConfiguration = buildClientConfiguration({
       clientPrivateKey: createdAccess.clientPrivateKey,
-      clientIP,
+      clientIp,
       serverPublicKey: createdAccess.serverPublicKey,
       presharedKey: createdAccess.presharedKey,
       serverEndpoint: `${server.domainName ?? server.ip}:${actualState.port}`,
@@ -179,10 +179,10 @@ export class Amneziawg2Client {
   ): Promise<void> {
     const actualState = this.parseEndpointActualState(endpointActualState)
 
-    const clientPublicKey = await findClientPublicKeyByClientIP(
+    const clientPublicKey = await findClientPublicKeyByClientIp(
       this.remoteCommandRunner,
       actualState.containerName,
-      IPSchema.parse(clientIdentifier),
+      IpSchema.parse(clientIdentifier),
     )
 
     if (!clientPublicKey) return

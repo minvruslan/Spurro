@@ -1,15 +1,15 @@
 import type { RemoteCommandRunner } from "../../../../remote-command-runner/index.js"
 
-export async function findClientPublicKeyByClientIP(
+export async function findClientPublicKeyByClientIp(
   remoteCommandRunner: RemoteCommandRunner,
   containerName: string,
-  clientIP: string,
+  clientIp: string,
 ): Promise<string | undefined> {
   const output = await remoteCommandRunner.executeContainerScript(
     containerName,
     "list-allowed-ips.sh",
   )
-  const target = `${clientIP}/32`
+  const target = `${clientIp}/32`
   for (const line of output.trim().split("\n")) {
     const parts = line.trim().split(/\s+/)
     const clientPublicKey = parts[0]

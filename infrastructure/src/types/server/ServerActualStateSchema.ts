@@ -1,8 +1,8 @@
 import { z } from "zod"
 import { ServerDesiredStateSchema } from "./ServerDesiredStateSchema"
-import { ServerSSHSchema } from "./ServerSSHSchema"
+import { ServerSshSchema } from "./ServerSshSchema"
 
 export const ServerActualStateSchema = ServerDesiredStateSchema.partial().extend({
-  ssh: ServerSSHSchema,
+  ssh: ServerSshSchema,
   appliedAt: z.iso.datetime(),
 })

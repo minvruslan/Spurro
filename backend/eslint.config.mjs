@@ -1,4 +1,81 @@
+import { dirname, resolve } from "node:path"
 import rootEslintConfig from "../eslint.config.mjs"
+
+const LOGGER_METHOD_NAMES = new Set(["trace", "debug", "info", "warn", "error", "fatal"])
+
+const messageStartsUppercaseRule = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      lowercaseMessage: "Log and error messages must start with an uppercase letter.",
+    },
+  },
+  create(context) {
+    const firstTextCharacter = (node) => {
+      if (node.type === "Literal" && typeof node.value === "string") return node.value[0]
+      if (node.type === "TemplateLiteral") return node.quasis[0]?.value.cooked?.[0]
+      return undefined
+    }
+
+    const checkMessageArgument = (argument) => {
+      const character = firstTextCharacter(argument)
+      if (character && /[a-zа-я]/.test(character)) {
+        context.report({ node: argument, messageId: "lowercaseMessage" })
+      }
+    }
+
+    return {
+      NewExpression(node) {
+        if (node.callee.type !== "Identifier" || !node.callee.name.endsWith("Error")) return
+        if (node.arguments[0]) checkMessageArgument(node.arguments[0])
+      },
+      CallExpression(node) {
+        if (node.callee.type !== "MemberExpression") return
+        const { object, property } = node.callee
+        if (property.type !== "Identifier" || !LOGGER_METHOD_NAMES.has(property.name)) return
+        if (object.type !== "Identifier" || !/(logger|Logger)$/.test(object.name)) return
+        for (const argument of node.arguments) checkMessageArgument(argument)
+      },
+    }
+  },
+}
+
+const MODULE_PATH_PATTERN = /\/src\/api\/modules\/([^/]+)(\/|$)/
+
+const moduleBoundariesRule = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      deepImport:
+        'Import from module "{{module}}" through its index, not "{{source}}" directly.',
+    },
+  },
+  create(context) {
+    const ownModule = context.filename.match(MODULE_PATH_PATTERN)?.[1]
+    if (!ownModule) return {}
+
+    return {
+      ImportDeclaration(node) {
+        const source = node.source.value
+        if (typeof source !== "string" || !source.startsWith(".")) return
+
+        const resolvedPath = resolve(dirname(context.filename), source)
+        const importedModule = resolvedPath.match(MODULE_PATH_PATTERN)?.[1]
+        if (!importedModule || importedModule === ownModule) return
+
+        if (!/\/index(\.js|\.ts)?$/.test(resolvedPath)) {
+          context.report({
+            node: node.source,
+            messageId: "deepImport",
+            data: { module: importedModule, source },
+          })
+        }
+      },
+    }
+  },
+}
 
 const singleExportRule = {
   meta: {
@@ -99,6 +176,21 @@ export default [
     },
     rules: {
       "spurro/single-export": "error",
+    },
+  },
+  {
+    files: ["src/**/*.ts"],
+    plugins: {
+      spurroStyle: {
+        rules: {
+          "message-starts-uppercase": messageStartsUppercaseRule,
+          "module-boundaries": moduleBoundariesRule,
+        },
+      },
+    },
+    rules: {
+      "spurroStyle/message-starts-uppercase": "error",
+      "spurroStyle/module-boundaries": "error",
     },
   },
   {

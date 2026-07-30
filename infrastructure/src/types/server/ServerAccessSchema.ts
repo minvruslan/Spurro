@@ -1,8 +1,8 @@
 import { z } from "zod"
-import { IPSchema, PortSchema, UnixUsernameSchema } from "@spurro/shared"
+import { IpSchema, PortSchema, UnixUsernameSchema } from "@spurro/shared"
 
 const ServerAccessBaseSchema = z.object({
-  ip: IPSchema,
+  ip: IpSchema,
   port: PortSchema,
   username: UnixUsernameSchema,
   sshHostKeys: z.array(z.string().min(1)).min(1),

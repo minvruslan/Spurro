@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { z } from "zod"
 import {
-  IPSchema,
+  IpSchema,
   PortSchema,
   TransportProtocolSchema,
   UnixPathSchema,
@@ -31,7 +31,7 @@ export class RemoteServer {
 
   static buildServerAccessFromActualState(
     server: { ip: string; data: ServerData },
-    appSSHPrivateKey: string,
+    appSshPrivateKey: string,
   ): ServerAccess | null {
     const sshHostKeys = server.data.facts?.sshHostKeys
     if (!sshHostKeys?.length) return null
@@ -51,14 +51,14 @@ export class RemoteServer {
       ip: server.ip,
       port: ssh.port,
       username: ssh.username,
-      privateKey: appSSHPrivateKey,
+      privateKey: appSshPrivateKey,
       sshHostKeys,
     }
   }
 
   static buildServerAccessFromDesiredState(
     server: { ip: string; data: ServerData },
-    appSSHPrivateKey: string,
+    appSshPrivateKey: string,
   ): ServerAccess | null {
     const desiredState = ServerDesiredStateSchema.safeParse(server.data.desiredState)
     const sshHostKeys = server.data.facts?.sshHostKeys
@@ -71,13 +71,13 @@ export class RemoteServer {
       ip: server.ip,
       port: ssh.port,
       username: ssh.username,
-      privateKey: appSSHPrivateKey,
+      privateKey: appSshPrivateKey,
       sshHostKeys,
     }
   }
 
-  static async scanSSHHostKeys(ip: string, port: number): Promise<string[]> {
-    const parsedIp = IPSchema.parse(ip)
+  static async scanSshHostKeys(ip: string, port: number): Promise<string[]> {
+    const parsedIp = IpSchema.parse(ip)
     const parsedPort = PortSchema.parse(port)
 
     const stdout = await CommandRunner.run(
@@ -106,7 +106,7 @@ export class RemoteServer {
     return sshHostKeys
   }
 
-  static async deriveSSHPublicKey(privateKey: string): Promise<string> {
+  static async deriveSshPublicKey(privateKey: string): Promise<string> {
     const localTmpDirectory = await mkdtemp(join(tmpdir(), `${PROJECT_NAME}-ssh-public-key-`))
 
     try {
@@ -161,7 +161,7 @@ export class RemoteServer {
     )
   }
 
-  hardenSSHAccess(sshPort: number): Promise<void> {
+  hardenSshAccess(sshPort: number): Promise<void> {
     return this.remoteCommandRunner.runAnsibleRole(join(ANSIBLE_DIRECTORY, "roles", "hardening"), {
       hardening_ssh_port: PortSchema.parse(sshPort),
     })

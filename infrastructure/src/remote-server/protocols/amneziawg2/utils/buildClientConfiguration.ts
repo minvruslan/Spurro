@@ -2,7 +2,7 @@ import type { Amneziawg2Obfuscation } from "../types/index.js"
 
 export function buildClientConfiguration(params: {
   clientPrivateKey: string
-  clientIP: string
+  clientIp: string
   serverPublicKey: string
   presharedKey: string
   serverEndpoint: string
@@ -11,7 +11,7 @@ export function buildClientConfiguration(params: {
 }): string {
   const {
     clientPrivateKey,
-    clientIP,
+    clientIp,
     serverPublicKey,
     presharedKey,
     serverEndpoint,
@@ -21,7 +21,7 @@ export function buildClientConfiguration(params: {
 
   return [
     "[Interface]",
-    `Address = ${clientIP}/32`,
+    `Address = ${clientIp}/32`,
     `DNS = ${dns}`,
     `PrivateKey = ${clientPrivateKey}`,
     `Jc = ${obfuscation.Jc}`,
