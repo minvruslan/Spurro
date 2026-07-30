@@ -1,7 +1,8 @@
 import { z } from "zod"
-import { PortSchema, SupportedProtocolCodeSchema } from "@spurro/shared"
+import { PortSchema } from "../common/network/PortSchema"
+import { ProtocolCodeSchema } from "../protocols/ProtocolCodeSchema"
 
 export const EndpointDesiredStateSchema = z.looseObject({
-  protocolCode: SupportedProtocolCodeSchema,
+  protocolCode: ProtocolCodeSchema,
   port: PortSchema,
 })

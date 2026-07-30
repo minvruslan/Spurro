@@ -1,5 +1,6 @@
 import { z } from "zod"
-import { IpSchema, UnixPathSchema } from "@spurro/shared"
+import { IpSchema } from "../common/network/IpSchema"
+import { UnixPathSchema } from "../common/unix/UnixPathSchema"
 import { ServerSshSchema } from "./ServerSshSchema"
 
 export const ServerDesiredStateSchema = z.object({

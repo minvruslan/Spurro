@@ -6,13 +6,15 @@ import { z } from "zod"
 import {
   IpSchema,
   PortSchema,
+  ServerDesiredStateSchema,
   TransportProtocolSchema,
   UnixPathSchema,
   UnixUsernameSchema,
-  type SupportedProtocolCode,
+  type ServerAccess,
+  type ServerData,
+  type ProtocolCode,
   type TransportProtocol,
-} from "@spurro/shared"
-import { ServerDesiredStateSchema, type ServerAccess, type ServerData } from "../types/index.js"
+} from "../types/index.js"
 import { PROJECT_NAME } from "../common/constants/index.js"
 import { CommandRunner } from "../command-runner/index.js"
 import { RemoteCommandRunner } from "../remote-command-runner/index.js"
@@ -177,7 +179,7 @@ export class RemoteServer {
     )
   }
 
-  getProtocolClient(protocolCode: SupportedProtocolCode) {
+  getProtocolClient(protocolCode: ProtocolCode) {
     return createProtocolClient(protocolCode, this.remoteCommandRunner)
   }
 }

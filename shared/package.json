@@ -11,6 +11,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
+    "@spurro/infrastructure": "workspace:*",
     "zod": "^4.3.6"
   }
 }

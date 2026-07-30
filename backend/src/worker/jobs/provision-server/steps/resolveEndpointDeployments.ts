@@ -1,4 +1,4 @@
-import { SupportedProtocolCodeSchema } from "@spurro/shared"
+import { ProtocolCodeSchema } from "@spurro/shared"
 import type { ProtocolClient, RemoteServer } from "@spurro/infrastructure"
 import { EndpointDesiredStateSchema } from "@spurro/infrastructure/types"
 import type { EndpointData, EndpointDesiredState } from "@spurro/infrastructure/types"
@@ -33,7 +33,7 @@ export const resolveEndpointDeployments: ProvisioningStep<
   const endpointDataUpdates: EndpointDataUpdate[] = []
 
   for (const endpoint of endpoints) {
-    const parsedProtocolCode = SupportedProtocolCodeSchema.safeParse(endpoint.protocolCode)
+    const parsedProtocolCode = ProtocolCodeSchema.safeParse(endpoint.protocolCode)
     if (!parsedProtocolCode.success) {
       throw new ProvisioningError(
         serverId,

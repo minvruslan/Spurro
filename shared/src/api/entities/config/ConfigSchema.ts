@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { Amneziawg2ConfigDataSchema } from "../../../core/supported-protocol/types/Amneziawg2ConfigDataSchema"
+import { Amneziawg2ConfigDataSchema } from "@spurro/infrastructure/types"
 import { DeviceTypeSchema } from "../device-type/DeviceTypeSchema"
 import { EndpointSchema } from "../endpoint/EndpointSchema"
 import { ConfigStatusSchema } from "./ConfigStatusSchema"

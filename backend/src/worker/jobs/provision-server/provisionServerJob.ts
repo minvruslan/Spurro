@@ -1,4 +1,4 @@
-import { SUPPORTED_PROTOCOLS } from "@spurro/shared"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { RemoteServer } from "@spurro/infrastructure"
 import { env } from "@/core/env/index.js"
 import type { ProvisionServerJob } from "@/core/queue/provision-server/index.js"
@@ -79,7 +79,7 @@ export async function provisionServerJob(job: ProvisionServerJob) {
   for (const { client, endpointId, endpointData, endpointDesiredState } of endpointDeployments) {
     await remoteServer.allowFirewallPort(
       endpointDesiredState.port,
-      SUPPORTED_PROTOCOLS[client.protocolCode].transportProtocol,
+      ProtocolRegistry[client.protocolCode].transportProtocol,
     )
 
     await client.install({ desiredState }, endpointDesiredState)

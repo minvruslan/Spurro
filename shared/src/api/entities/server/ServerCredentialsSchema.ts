@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { UnixUsernameSchema } from "../../../core/unix/UnixUsernameSchema"
+import { UnixUsernameSchema } from "@spurro/infrastructure/types"
 
 export const ServerCredentialsSchema = z.object({
   username: UnixUsernameSchema,

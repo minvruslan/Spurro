@@ -1,12 +1,14 @@
-export { SupportedProtocolFamilySchema } from "./SupportedProtocolFamilySchema"
-export type { SupportedProtocolFamily } from "./SupportedProtocolFamily"
-export { SupportedProtocolCodeSchema } from "./SupportedProtocolCodeSchema"
-export type { SupportedProtocolCode } from "./SupportedProtocolCode"
-export { Amneziawg2ConfigDataSchema } from "./Amneziawg2ConfigDataSchema"
-export type { Amneziawg2ConfigData } from "./Amneziawg2ConfigData"
-export { Amneziawg2ClientIdentifierSchema } from "./Amneziawg2ClientIdentifierSchema"
-export type { Amneziawg2ClientIdentifier } from "./Amneziawg2ClientIdentifier"
-export type { ConfigDataByProtocol } from "./ConfigDataByProtocol"
-export type { ConfigData } from "./ConfigData"
-export type { ClientIdentifierByProtocol } from "./ClientIdentifierByProtocol"
-export type { ConfigProtocolFields } from "./ConfigProtocolFields"
+export {
+  ProtocolRegistry,
+  ProtocolFamilyRegistry,
+  ProtocolCodeSchema,
+  ProtocolFamilyCodeSchema,
+  Amneziawg2ConfigDataSchema,
+  Amneziawg2ClientIdentifierSchema,
+  type ProtocolCode,
+  type ProtocolFamilyCode,
+  type ConfigData,
+  type ConfigProtocolFields,
+  type Amneziawg2ConfigData,
+  type Amneziawg2ClientIdentifier,
+} from "@spurro/infrastructure/types"

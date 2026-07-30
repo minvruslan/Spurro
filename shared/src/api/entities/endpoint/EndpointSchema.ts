@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { PortSchema } from "../../../core/network/PortSchema"
+import { PortSchema } from "@spurro/infrastructure/types"
 import { ProtocolSchema } from "../protocol/ProtocolSchema"
 import { EndpointServerSchema } from "./EndpointServerSchema"
 

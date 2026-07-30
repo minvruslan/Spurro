@@ -2,13 +2,14 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { z } from "zod"
 import {
+  DomainNameSchema,
   IpSchema,
   PortSchema,
   type Amneziawg2ClientIdentifier,
   type Amneziawg2ConfigData,
   type ConfigData,
-  type SupportedProtocolCode,
-} from "@spurro/shared"
+  type ProtocolCode,
+} from "../../../types/index.js"
 import {
   Amneziawg2EndpointActualStateSchema,
   Amneziawg2EndpointDesiredStateSchema,
@@ -35,7 +36,7 @@ const AMNEZIAWG2_ANSIBLE_ROLE_DIRECTORY = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "ansible",
 )
-const AMNEZIAWG2_PROTOCOL_CODE = "amneziawg2" satisfies SupportedProtocolCode
+const AMNEZIAWG2_PROTOCOL_CODE = "amneziawg2" satisfies ProtocolCode
 const AMNEZIAWG2_DOCKER_IMAGE_VERSION = "0.2.19"
 const AMNEZIAWG2_CONTAINER_NAME = "amneziawg2"
 const AMNEZIAWG2_STATE_VOLUME_NAME = "amneziawg2_state"
@@ -122,6 +123,10 @@ export class Amneziawg2Client {
   ): Promise<{ configData: Amneziawg2ConfigData; clientConfiguration: string }> {
     const actualState = this.parseEndpointActualState(endpointActualState)
     const clientIp = IpSchema.parse(clientIdentifier)
+    const serverHost =
+      server.domainName === null
+        ? IpSchema.parse(server.ip)
+        : DomainNameSchema.parse(server.domainName)
 
     if (!server.actualState.dns) {
       throw new Error("Server actual state has no DNS; server may not be hardened.")
@@ -158,7 +163,7 @@ export class Amneziawg2Client {
       clientIp,
       serverPublicKey: createdAccess.serverPublicKey,
       presharedKey: createdAccess.presharedKey,
-      serverEndpoint: `${server.domainName ?? server.ip}:${actualState.port}`,
+      serverEndpoint: `${serverHost}:${actualState.port}`,
       obfuscation: createdAccess.obfuscation,
       dns: server.actualState.dns,
     })

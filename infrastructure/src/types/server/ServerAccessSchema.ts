@@ -1,5 +1,7 @@
 import { z } from "zod"
-import { IpSchema, PortSchema, UnixUsernameSchema } from "@spurro/shared"
+import { IpSchema } from "../common/network/IpSchema"
+import { PortSchema } from "../common/network/PortSchema"
+import { UnixUsernameSchema } from "../common/unix/UnixUsernameSchema"
 
 const ServerAccessBaseSchema = z.object({
   ip: IpSchema,

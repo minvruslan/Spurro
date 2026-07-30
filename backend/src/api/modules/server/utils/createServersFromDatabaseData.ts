@@ -1,5 +1,5 @@
 import type { Server } from "@spurro/shared"
-import { SupportedProtocolCodeSchema } from "@spurro/shared"
+import { ProtocolCodeSchema } from "@spurro/shared"
 import type { findServers } from "../queries/findServers.js"
 
 type ServerRow = Awaited<ReturnType<typeof findServers>>[number]
@@ -45,7 +45,7 @@ export function createServersFromDatabaseData(rows: ServerRow[]): Server[] {
       status: row.endpointStatus,
       protocol: {
         id: row.protocolId,
-        code: SupportedProtocolCodeSchema.parse(row.protocolCode),
+        code: ProtocolCodeSchema.parse(row.protocolCode),
         family: row.protocolFamily,
         name: row.protocolName,
       },

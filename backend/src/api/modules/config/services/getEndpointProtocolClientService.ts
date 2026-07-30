@@ -1,5 +1,5 @@
-import type { SupportedProtocolCode } from "@spurro/shared"
-import { SupportedProtocolCodeSchema } from "@spurro/shared"
+import type { ProtocolCode } from "@spurro/shared"
+import { ProtocolCodeSchema } from "@spurro/shared"
 import type { EndpointActualState, ServerActualState } from "@spurro/infrastructure/types"
 import { EndpointActualStateSchema } from "@spurro/infrastructure/types"
 import type { ProtocolClient } from "@spurro/infrastructure"
@@ -13,7 +13,7 @@ type EndpointProtocolClient = {
   client: ProtocolClient
   server: { ip: string; domainName: string | null; actualState: ServerActualState }
   endpointActualState: EndpointActualState
-  protocolCode: SupportedProtocolCode
+  protocolCode: ProtocolCode
 }
 
 type ErrorCode = "unavailable" | "unsupported_protocol"
@@ -30,7 +30,7 @@ export async function getEndpointProtocolClientService(
     }
   }
 
-  const parsedCode = SupportedProtocolCodeSchema.safeParse(endpointProtocolClientData.protocolCode)
+  const parsedCode = ProtocolCodeSchema.safeParse(endpointProtocolClientData.protocolCode)
   if (!parsedCode.success) {
     return {
       ok: false,

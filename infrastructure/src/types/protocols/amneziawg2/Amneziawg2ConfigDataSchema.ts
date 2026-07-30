@@ -1,9 +1,9 @@
 import { z } from "zod"
-import { IpSchema } from "../../network/IpSchema"
-import { SupportedProtocolCodeSchema } from "./SupportedProtocolCodeSchema"
+import { IpSchema } from "../../common/network/IpSchema"
+import { ProtocolCodeSchema } from "../ProtocolCodeSchema"
 
 export const Amneziawg2ConfigDataSchema = z.object({
-  protocolCode: z.literal(SupportedProtocolCodeSchema.enum.amneziawg2),
+  protocolCode: z.literal(ProtocolCodeSchema.enum.amneziawg2),
   ip: IpSchema,
   publicKey: z.string().optional(),
   presharedKey: z.string().optional(),

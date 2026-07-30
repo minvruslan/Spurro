@@ -184,9 +184,6 @@ importers:
 
   infrastructure:
     dependencies:
-      '@spurro/shared':
-        specifier: workspace:*
-        version: link:../shared
       execa:
         specifier: ^9.6.1
         version: 9.6.1
@@ -206,6 +203,9 @@ importers:
 
   shared:
     dependencies:
+      '@spurro/infrastructure':
+        specifier: workspace:*
+        version: link:../infrastructure
       zod:
         specifier: ^4.3.6
         version: 4.3.6

@@ -1,12 +1,13 @@
 import { z } from "zod"
-import { SupportedProtocolCodeSchema, UnixPathSchema } from "@spurro/shared"
+import { ProtocolCodeSchema } from "../../../protocols/ProtocolCodeSchema"
+import { UnixPathSchema } from "../../../common/unix/UnixPathSchema"
 import { EndpointDesiredStateSchema } from "../../EndpointDesiredStateSchema"
 import { Amneziawg2KeySchema } from "./Amneziawg2KeySchema"
 
 const DockerNameSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/)
 
 export const Amneziawg2EndpointDesiredStateSchema = EndpointDesiredStateSchema.extend({
-  protocolCode: z.literal(SupportedProtocolCodeSchema.enum.amneziawg2),
+  protocolCode: z.literal(ProtocolCodeSchema.enum.amneziawg2),
   dockerImageVersion: z.string(),
   containerName: DockerNameSchema,
   stateVolumeName: DockerNameSchema,

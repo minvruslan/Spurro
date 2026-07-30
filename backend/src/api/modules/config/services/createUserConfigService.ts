@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm"
 import type { Config, UpsertConfig } from "@spurro/shared"
-import { ConfigSchema, SUPPORTED_PROTOCOLS } from "@spurro/shared"
+import { ConfigSchema } from "@spurro/shared"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { isUserConfigLimitReachedService } from "@/api/modules/config-limit/index.js"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
@@ -50,7 +51,7 @@ export async function createUserConfigService(
     const limitCheck = await isUserConfigLimitReachedService(
       tx,
       userId,
-      SUPPORTED_PROTOCOLS[resolved.data.protocolCode].family,
+      ProtocolRegistry[resolved.data.protocolCode].family,
     )
 
     if (limitCheck.data.limitReached) return "limit_reached" as const

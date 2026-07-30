@@ -48,8 +48,7 @@ const moduleBoundariesRule = {
     type: "problem",
     schema: [],
     messages: {
-      deepImport:
-        'Import from module "{{module}}" through its index, not "{{source}}" directly.',
+      deepImport: 'Import from module "{{module}}" through its index, not "{{source}}" directly.',
     },
   },
   create(context) {
@@ -125,7 +124,7 @@ const singleExportRule = {
       ExportAllDeclaration(node) {
         valueExports.push({ node, name: undefined })
       },
-      "Program:exit"(program) {
+      "Program:exit"() {
         const fileName = context.filename
           .split("/")
           .pop()

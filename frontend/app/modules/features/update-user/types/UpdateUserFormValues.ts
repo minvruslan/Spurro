@@ -1,7 +1,7 @@
-import type { SupportedProtocolFamily } from "@spurro/shared"
+import type { ProtocolFamilyCode } from "@spurro/shared"
 
 export interface UpdateUserFormValues {
   name: string
   email: string
-  limits: Record<SupportedProtocolFamily, number>
+  limits: Record<ProtocolFamilyCode, number>
 }

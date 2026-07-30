@@ -1,5 +1,6 @@
 import type { UpsertServer, Server } from "@spurro/shared"
-import { SUPPORTED_PROTOCOLS, SupportedProtocolCodeSchema, ServerSchema } from "@spurro/shared"
+import { ProtocolCodeSchema, ServerSchema } from "@spurro/shared"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import {
@@ -54,7 +55,7 @@ export async function createServerService(
           }
         }
 
-        const parsedCode = SupportedProtocolCodeSchema.safeParse(code)
+        const parsedCode = ProtocolCodeSchema.safeParse(code)
         if (!parsedCode.success) {
           return {
             ok: false,
@@ -76,7 +77,7 @@ export async function createServerService(
 
         endpointsToInsert.push({
           protocolId: item.protocolId,
-          port: item.port ?? SUPPORTED_PROTOCOLS[parsedCode.data].defaultPort,
+          port: item.port ?? ProtocolRegistry[parsedCode.data].defaultPort,
         })
       }
 

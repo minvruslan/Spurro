@@ -12,7 +12,7 @@ import {
   pgEnum,
   check,
 } from "drizzle-orm/pg-core"
-import type { ConfigData, SupportedProtocolFamily } from "@spurro/shared"
+import type { ConfigData, ProtocolFamilyCode } from "@spurro/shared"
 import type { EndpointData, ServerData } from "@spurro/infrastructure/types"
 import { encryptedJsonb, encryptedText } from "../columns/index.js"
 import { user } from "./authSchema"
@@ -28,7 +28,7 @@ export const configStatus = pgEnum("config_status", ["active", "pending", "delet
 export const protocol = pgTable("protocol", {
   id: uuid("id").primaryKey().defaultRandom(),
   code: text("code").notNull().unique(),
-  family: text("family").$type<SupportedProtocolFamily>().notNull(),
+  family: text("family").$type<ProtocolFamilyCode>().notNull(),
   name: text("name").notNull(),
   isEnabled: boolean("is_enabled").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -72,7 +72,7 @@ export const configLimit = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    protocolFamily: text("protocol_family").$type<SupportedProtocolFamily>().notNull(),
+    protocolFamily: text("protocol_family").$type<ProtocolFamilyCode>().notNull(),
     maxCount: integer("max_count").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")

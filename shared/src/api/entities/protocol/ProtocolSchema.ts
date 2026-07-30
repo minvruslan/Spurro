@@ -1,12 +1,12 @@
 import { z } from "zod"
 import {
-  SupportedProtocolCodeSchema,
-  SupportedProtocolFamilySchema,
+  ProtocolCodeSchema,
+  ProtocolFamilyCodeSchema,
 } from "../../../core/supported-protocol/types"
 
 export const ProtocolSchema = z.object({
   id: z.uuid(),
-  code: SupportedProtocolCodeSchema,
-  family: SupportedProtocolFamilySchema,
+  code: ProtocolCodeSchema,
+  family: ProtocolFamilyCodeSchema,
   name: z.string(),
 })

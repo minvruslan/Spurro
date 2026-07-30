@@ -1,5 +1,7 @@
-export { IpSchema } from "./IpSchema"
-export { DomainNameSchema } from "./DomainNameSchema"
-export { PortSchema } from "./PortSchema"
-export { TransportProtocolSchema } from "./TransportProtocolSchema"
-export type { TransportProtocol } from "./TransportProtocol"
+export {
+  DomainNameSchema,
+  IpSchema,
+  PortSchema,
+  TransportProtocolSchema,
+  type TransportProtocol,
+} from "@spurro/infrastructure/types"

@@ -45,7 +45,8 @@ const camelCaseAcronymsRule = {
       MethodDefinition: (node) => !node.computed && check(node.key),
       TSPropertySignature: (node) => !node.computed && check(node.key),
       TSMethodSignature: (node) => !node.computed && check(node.key),
-      Property: (node) => !node.computed && node.parent.type === "ObjectExpression" && check(node.key),
+      Property: (node) =>
+        !node.computed && node.parent.type === "ObjectExpression" && check(node.key),
     }
   },
 }
@@ -56,6 +57,39 @@ export default tseslint.config(
   },
   ...tseslint.configs.recommended,
   eslintConfigPrettier,
+  {
+    files: ["infrastructure/src/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@spurro/shared", "@spurro/shared/*", "@spurro/backend*"],
+              message: "Infrastructure must not depend on application packages.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["infrastructure/src/types/**/*.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["node:*", "@spurro/shared", "@spurro/shared/*", "@spurro/backend*"],
+              message:
+                "The types subpackage must stay runtime-free (zod only) so the frontend can import it.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   {
     files: ["**/src/**/*.ts"],
     plugins: {

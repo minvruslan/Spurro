@@ -1,5 +1,5 @@
-import type { Amneziawg2ClientIdentifier } from "@spurro/shared"
-import { Amneziawg2ClientIdentifierSchema } from "@spurro/shared"
+import type { Amneziawg2ClientIdentifier } from "../../../../types/index.js"
+import { Amneziawg2ClientIdentifierSchema } from "../../../../types/index.js"
 
 const FIRST_CLIENT_OCTET = 2
 const LAST_CLIENT_OCTET = 254

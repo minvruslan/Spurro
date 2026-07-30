@@ -1,9 +1,9 @@
 import { bootstrapLogger } from "@/core/logger/index.js"
-import { SUPPORTED_PROTOCOLS } from "@spurro/shared"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { db } from "@/core/database/index.js"
 import { protocol } from "@/core/database/schemas/domainSchema.js"
 
-const PROTOCOL_ROWS = Object.entries(SUPPORTED_PROTOCOLS).map(([code, { family, name }]) => ({
+const PROTOCOL_ROWS = Object.entries(ProtocolRegistry).map(([code, { family, name }]) => ({
   code,
   family,
   name,
