@@ -4,7 +4,8 @@
   "version": "0.0.1",
   "private": true,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./types": "./src/types/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -13,7 +14,6 @@
     "build:command-runner-image": "tsx src/command-runner/image/buildCommandRunnerImage.ts"
   },
   "dependencies": {
-    "@spurro/shared": "workspace:*",
     "execa": "^9.6.1",
     "zod": "^4.3.6"
   },

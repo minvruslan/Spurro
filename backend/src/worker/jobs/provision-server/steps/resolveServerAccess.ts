@@ -1,35 +1,41 @@
-import { UnrecoverableError } from "bullmq"
-import type { ServerAccess, ServerContract } from "@spurro/shared/infrastructure"
-import { ServerProvisioner } from "@spurro/infrastructure"
-import { buildServerAccess, buildServiceUserAccess } from "@/core/server-access/index.js"
-import type { findProvisionableServer } from "./findProvisionableServer.js"
+import { RemoteServer } from "@spurro/infrastructure"
+import type { ServerAccess, ServerData } from "@spurro/infrastructure/types"
+import { ProvisioningError } from "../ProvisioningError.js"
+import type { ProvisioningStep } from "./ProvisioningStep.js"
 
-type ProvisionableServer = Awaited<ReturnType<typeof findProvisionableServer>>
+type ResolveServerAccessResult = {
+  currentAccess: ServerAccess
+  targetAccess: ServerAccess
+}
 
-export async function resolveServerAccess(
-  serverId: string,
-  server: ProvisionableServer,
-  serverContract: ServerContract,
-  sshHostKeys: string[],
-): Promise<ServerAccess> {
-  const access = buildServerAccess(server)
-  if (access && "privateKey" in access) return access
-
-  const serviceUserAccess = buildServiceUserAccess(
-    server.ip,
-    serverContract,
-    sshHostKeys,
-    serverContract.sshPort,
+export const resolveServerAccess: ProvisioningStep<
+  { ip: string; serverData: ServerData; appSshPrivateKey: string },
+  ResolveServerAccessResult
+> = async (serverId, { ip, serverData, appSshPrivateKey }) => {
+  const actualStateAccess = RemoteServer.buildServerAccessFromActualState(
+    { ip, data: serverData },
+    appSshPrivateKey,
   )
+  if (!actualStateAccess) {
+    throw new ProvisioningError(serverId, "hardened_without_ssh_host_keys")
+  }
+
+  const desiredStateAccess = RemoteServer.buildServerAccessFromDesiredState(
+    { ip, data: serverData },
+    appSshPrivateKey,
+  )
+  if (!desiredStateAccess) {
+    throw new ProvisioningError(serverId, "no_desired_state_access")
+  }
+
+  if ("privateKey" in actualStateAccess) {
+    return { currentAccess: actualStateAccess, targetAccess: desiredStateAccess }
+  }
+
   try {
-    await new ServerProvisioner(serviceUserAccess).assertConnectivity()
-    return serviceUserAccess
+    await new RemoteServer(desiredStateAccess).assertConnectivity()
+    return { currentAccess: desiredStateAccess, targetAccess: desiredStateAccess }
   } catch {
-    if (!access) {
-      throw new UnrecoverableError(
-        `[provision] server ${serverId} has neither working key access nor bootstrap credentials`,
-      )
-    }
-    return access
+    return { currentAccess: actualStateAccess, targetAccess: desiredStateAccess }
   }
 }

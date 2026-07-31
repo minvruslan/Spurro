@@ -1,11 +1,12 @@
 import type { Server } from "@spurro/shared"
+import { ProtocolCodeSchema } from "@spurro/shared"
 import type { findServers } from "../queries/findServers.js"
 
 type ServerRow = Awaited<ReturnType<typeof findServers>>[number]
 
 export function createServersFromDatabaseData(rows: ServerRow[]): Server[] {
   const serversById = new Map<string, Server>()
-  const order: string[] = []
+  const servers: Server[] = []
 
   for (const row of rows) {
     let server = serversById.get(row.id)
@@ -23,23 +24,33 @@ export function createServersFromDatabaseData(rows: ServerRow[]): Server[] {
         endpoints: [],
       }
       serversById.set(row.id, server)
-      order.push(row.id)
+      servers.push(server)
     }
 
-    if (row.endpointId !== null) {
-      server.endpoints.push({
-        id: row.endpointId,
-        port: row.endpointPort!,
-        status: row.endpointStatus!,
-        protocol: {
-          id: row.protocolId!,
-          code: row.protocolCode! as Server["endpoints"][number]["protocol"]["code"],
-          family: row.protocolFamily!,
-          name: row.protocolName!,
-        },
-      })
+    if (
+      row.endpointId === null ||
+      row.endpointPort === null ||
+      row.endpointStatus === null ||
+      row.protocolId === null ||
+      row.protocolCode === null ||
+      row.protocolFamily === null ||
+      row.protocolName === null
+    ) {
+      continue
     }
+
+    server.endpoints.push({
+      id: row.endpointId,
+      port: row.endpointPort,
+      status: row.endpointStatus,
+      protocol: {
+        id: row.protocolId,
+        code: ProtocolCodeSchema.parse(row.protocolCode),
+        family: row.protocolFamily,
+        name: row.protocolName,
+      },
+    })
   }
 
-  return order.map((id) => serversById.get(id)!)
+  return servers
 }

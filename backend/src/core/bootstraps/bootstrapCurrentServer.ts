@@ -1,3 +1,4 @@
+import { bootstrapLogger } from "@/core/logger/index.js"
 import { eq } from "drizzle-orm"
 import { db } from "@/core/database/index.js"
 import { server } from "@/core/database/schemas/domainSchema.js"
@@ -16,5 +17,5 @@ export async function bootstrapCurrentServer() {
     isCurrent: true,
   })
 
-  console.log(`[bootstrap] created current (local) server: ${env.DOMAIN_NAME ?? env.IP}`)
+  bootstrapLogger.info(`Created current (local) server: ${env.DOMAIN_NAME ?? env.IP}.`)
 }

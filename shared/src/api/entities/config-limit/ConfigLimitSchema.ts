@@ -1,9 +1,9 @@
 import { z } from "zod"
-import { SupportedProtocolFamilySchema } from "../../../core/supported-protocol/types"
+import { ProtocolFamilyCodeSchema } from "../../../core/supported-protocol/types"
 
 export const ConfigLimitSchema = z.object({
   id: z.uuid(),
-  protocolFamily: SupportedProtocolFamilySchema,
+  protocolFamily: ProtocolFamilyCodeSchema,
   maxCount: z.number().int(),
   used: z.number().int(),
   createdAt: z.iso.datetime(),

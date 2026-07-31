@@ -3,8 +3,7 @@
   "type": "module",
   "version": "0.0.1",
   "exports": {
-    ".": "./src/index.ts",
-    "./infrastructure": "./src/infrastructure/index.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -12,6 +11,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
+    "@spurro/infrastructure": "workspace:*",
     "zod": "^4.3.6"
   }
 }

@@ -1,10 +1,14 @@
 import type { Server } from "@spurro/shared"
 import { ServerSchema } from "@spurro/shared"
 import { db } from "@/core/database/index.js"
+import type { ServiceResult } from "@/core/types/index.js"
 import { findServers } from "../queries/findServers.js"
 import { createServersFromDatabaseData } from "../utils/createServersFromDatabaseData.js"
 
-export async function getServersService(): Promise<Server[]> {
+export async function getServersService(): Promise<ServiceResult<{ servers: Server[] }>> {
   const rows = await findServers(db)
-  return ServerSchema.array().parse(createServersFromDatabaseData(rows))
+  return {
+    ok: true,
+    data: { servers: ServerSchema.array().parse(createServersFromDatabaseData(rows)) },
+  }
 }

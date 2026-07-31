@@ -1,9 +1,10 @@
+import { startupLogger } from "@/core/logger/index.js"
 import { config } from "dotenv"
 
 config()
 
 import { z } from "zod"
-import { CountryCodeSchema, DomainNameSchema, IPSchema } from "@spurro/shared"
+import { CountryCodeSchema, DomainNameSchema, IpSchema } from "@spurro/shared"
 
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value)
 
@@ -25,7 +26,7 @@ const urlString = z
         return false
       }
     },
-    { message: "must be a valid URL" },
+    { message: "Must be a valid URL" },
   )
 
 const EnvSchema = z.object({
@@ -41,7 +42,7 @@ const EnvSchema = z.object({
     .string()
     .min(1)
     .refine((value) => Buffer.from(value, "base64").length === 32, {
-      message: "must be 32 bytes encoded as base64 (generate: openssl rand -base64 32)",
+      message: "Must be 32 bytes encoded as base64 (generate: openssl rand -base64 32)",
     }),
   APP_SSH_PRIVATE_KEY: z.preprocess(
     unescapeNewlines,
@@ -57,12 +58,12 @@ const EnvSchema = z.object({
     z
       .string()
       .regex(AUTHORIZED_KEYS_LINE_PATTERN, {
-        message: "must be a single authorized_keys line: <type> <base64> [comment]",
+        message: "Must be a single authorized_keys line: <type> <base64> [comment]",
       })
       .optional(),
   ),
   DOMAIN_NAME: z.preprocess(emptyToUndefined, DomainNameSchema.optional()),
-  IP: IPSchema,
+  IP: IpSchema,
   COUNTRY: z
     .string()
     .transform((value) => value.toUpperCase())
@@ -72,7 +73,7 @@ const EnvSchema = z.object({
 const parsed = EnvSchema.safeParse(process.env)
 
 if (!parsed.success) {
-  console.error("[env] invalid environment:\n" + z.prettifyError(parsed.error))
+  startupLogger.error("Invalid environment:\n" + z.prettifyError(parsed.error))
   process.exit(1)
 }
 

@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import type { SupportedProtocolFamily } from "@spurro/shared"
-import { SUPPORTED_PROTOCOL_FAMILIES } from "@spurro/shared"
+import type { ProtocolFamilyCode } from "@spurro/shared"
+import { ProtocolFamilyRegistry } from "@spurro/shared"
 import { computed } from "vue"
 import { Badge } from "@/components/ui/badge"
 
 const props = defineProps<{
-  protocolFamily: SupportedProtocolFamily
+  protocolFamily: ProtocolFamilyCode
   used: number
   max?: number
   withLimit?: boolean
 }>()
 
-const protocolFamilyName = computed(() => SUPPORTED_PROTOCOL_FAMILIES[props.protocolFamily].name)
+const protocolFamilyName = computed(() => ProtocolFamilyRegistry[props.protocolFamily].name)
 const isFull = computed(() => props.withLimit && props.used >= (props.max ?? 0))
 const fillPercent = computed(() =>
   props.withLimit ? Math.min(100, Math.max(0, (props.used / (props.max ?? 0)) * 100)) : 0,

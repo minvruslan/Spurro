@@ -9,14 +9,14 @@ export function decryptString(ciphertext: string): string {
   const [version, initializationVectorEncoded, payloadEncoded] = parts
 
   if (parts.length !== 3 || version !== "v1" || !initializationVectorEncoded || !payloadEncoded) {
-    throw new Error("unsupported ciphertext format")
+    throw new Error("Unsupported ciphertext format")
   }
 
   const initializationVector = Buffer.from(initializationVectorEncoded, "base64")
   const payload = Buffer.from(payloadEncoded, "base64")
 
   if (payload.length < AUTH_TAG_LENGTH) {
-    throw new Error("ciphertext payload is shorter than the auth tag")
+    throw new Error("Ciphertext payload is shorter than the auth tag")
   }
 
   const decipher = createDecipheriv("aes-256-gcm", readEncryptionKey(), initializationVector)

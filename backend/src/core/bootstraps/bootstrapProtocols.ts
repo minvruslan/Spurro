@@ -1,8 +1,9 @@
-import { SUPPORTED_PROTOCOLS } from "@spurro/shared"
+import { bootstrapLogger } from "@/core/logger/index.js"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { db } from "@/core/database/index.js"
 import { protocol } from "@/core/database/schemas/domainSchema.js"
 
-const PROTOCOL_ROWS = Object.entries(SUPPORTED_PROTOCOLS).map(([code, { family, name }]) => ({
+const PROTOCOL_ROWS = Object.entries(ProtocolRegistry).map(([code, { family, name }]) => ({
   code,
   family,
   name,
@@ -16,6 +17,6 @@ export async function bootstrapProtocols() {
     .returning({ code: protocol.code })
 
   if (inserted.length > 0) {
-    console.log(`[bootstrap] seeded protocols: ${inserted.map((r) => r.code).join(", ")}`)
+    bootstrapLogger.info(`Seeded protocols: ${inserted.map((r) => r.code).join(", ")}.`)
   }
 }

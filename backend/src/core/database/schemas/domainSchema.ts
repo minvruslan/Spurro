@@ -12,8 +12,8 @@ import {
   pgEnum,
   check,
 } from "drizzle-orm/pg-core"
-import type { ConfigData, SupportedProtocolFamily } from "@spurro/shared"
-import type { EndpointContract, ServerContract } from "@spurro/shared/infrastructure"
+import type { ConfigData, ProtocolFamilyCode } from "@spurro/shared"
+import type { EndpointData, ServerData } from "@spurro/infrastructure/types"
 import { encryptedJsonb, encryptedText } from "../columns/index.js"
 import { user } from "./authSchema"
 
@@ -28,7 +28,7 @@ export const configStatus = pgEnum("config_status", ["active", "pending", "delet
 export const protocol = pgTable("protocol", {
   id: uuid("id").primaryKey().defaultRandom(),
   code: text("code").notNull().unique(),
-  family: text("family").$type<SupportedProtocolFamily>().notNull(),
+  family: text("family").$type<ProtocolFamilyCode>().notNull(),
   name: text("name").notNull(),
   isEnabled: boolean("is_enabled").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -72,7 +72,7 @@ export const configLimit = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    protocolFamily: text("protocol_family").$type<SupportedProtocolFamily>().notNull(),
+    protocolFamily: text("protocol_family").$type<ProtocolFamilyCode>().notNull(),
     maxCount: integer("max_count").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -94,11 +94,7 @@ export const server = pgTable(
     ip: encryptedText("ip").notNull(),
     country: text("country").notNull(),
     status: serverStatus("status").default("active").notNull(),
-    data: encryptedJsonb<{
-      ssh: { username: string; password: string } | { hardenedAt: string }
-      sshHostKeys?: string[]
-      contract?: ServerContract
-    }>("data"),
+    data: encryptedJsonb<ServerData>("data"),
     isCurrent: boolean("is_current").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -124,9 +120,7 @@ export const endpoint = pgTable(
       .notNull()
       .references(() => protocol.id, { onDelete: "restrict" }),
     port: integer("port").notNull(),
-    data: encryptedJsonb<{
-      contract?: EndpointContract
-    }>("data").notNull(),
+    data: encryptedJsonb<EndpointData>("data").notNull(),
     status: endpointStatus("status").default("active").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -137,6 +131,9 @@ export const endpoint = pgTable(
   (t) => [
     uniqueIndex("endpoint_server_port_uq")
       .on(t.serverId, t.port)
+      .where(sql`${t.status} = 'active'`),
+    uniqueIndex("endpoint_server_protocol_uq")
+      .on(t.serverId, t.protocolId)
       .where(sql`${t.status} = 'active'`),
     index("endpoint_server_idx").on(t.serverId),
     index("endpoint_protocol_idx").on(t.protocolId),

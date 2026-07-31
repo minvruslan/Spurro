@@ -5,12 +5,8 @@ import { getUsersService } from "../services/getUsersService.js"
 const getUsersRoute = new Hono<{ Variables: AppVariables }>()
 
 getUsersRoute.get("/", async (c) => {
-  try {
-    const data = await getUsersService()
-    return c.json({ data })
-  } catch {
-    return c.json({ error: "Internal server error" }, 500)
-  }
+  const result = await getUsersService()
+  return c.json({ data: result.data.users })
 })
 
 export { getUsersRoute }

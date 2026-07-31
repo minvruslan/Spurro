@@ -8,6 +8,7 @@ import {
 } from "@/core/bootstraps/index.js"
 import { checkDatabaseConnection } from "@/core/database/checkDatabaseConnection.js"
 import { env } from "@/core/env/index.js"
+import { startupLogger } from "@/core/logger/index.js"
 import { checkQueueConnection } from "@/core/queue/index.js"
 import { provisionServerQueue } from "@/core/queue/provision-server/index.js"
 
@@ -18,9 +19,9 @@ try {
   await checkDatabaseConnection()
   await checkQueueConnection()
 } catch (error) {
-  console.error(
-    "[startup] dependency check failed — is Postgres/Redis running? (docker compose up -d)",
-    error,
+  startupLogger.error(
+    { error },
+    "Dependency check failed — is Postgres/Redis running? (docker compose up -d).",
   )
   process.exit(1)
 }
@@ -31,7 +32,7 @@ await bootstrapProtocols()
 await bootstrapCurrentServer()
 
 const server = serve({ fetch: app.fetch, port, hostname: host }, () => {
-  console.log(`Server running on http://${host}:${port}`)
+  startupLogger.info(`Server running on http://${host}:${port}.`)
 })
 
 const shutdown = async () => {

@@ -1,13 +1,15 @@
 import { cp, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { ServerAccessSchema, type ServerAccess } from "@spurro/shared/infrastructure"
+import { ServerAccessSchema, type ServerAccess } from "../types/index.js"
 import { PROJECT_NAME } from "../common/constants/index.js"
 import { CommandRunner } from "../command-runner/index.js"
 import { assertAnsibleAssetExists } from "./utils/index.js"
 
 const SSH_DEFAULT_PORT = 22
 const SSH_CONNECT_TIMEOUT_SECONDS = 15
+const SSH_KEEPALIVE_INTERVAL_SECONDS = 15
+const SSH_KEEPALIVE_MISSED_LIMIT = 3
 const SSH_COMMAND_TIMEOUT_MS = 5 * 60 * 1000
 const ANSIBLE_PLAYBOOK_TIMEOUT_MS = 30 * 60 * 1000
 
@@ -24,6 +26,11 @@ const TMP_ANSIBLE_PLAYBOOK_FILENAME = "playbook.yml"
 const TMP_ANSIBLE_PLAYBOOK_CONTENT = [
   "- hosts: all",
   "  become: true",
+  "  pre_tasks:",
+  "    - name: Wait for the apt lock held by unattended-upgrades to clear",
+  "      ansible.builtin.apt:",
+  "        update_cache: true",
+  "        lock_timeout: 300",
   "  roles:",
   `    - ${TMP_ANSIBLE_ROLE_NAME}`,
   "",
@@ -90,6 +97,10 @@ export class RemoteCommandRunner {
         `UserKnownHostsFile=${SSH_KNOWN_HOSTS_MOUNT_PATH}`,
         "-o",
         `ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}`,
+        "-o",
+        `ServerAliveInterval=${SSH_KEEPALIVE_INTERVAL_SECONDS}`,
+        "-o",
+        `ServerAliveCountMax=${SSH_KEEPALIVE_MISSED_LIMIT}`,
       ]
 
       const destination = `${this.serverAccess.username}@${this.serverAccess.ip}`
@@ -105,7 +116,7 @@ export class RemoteCommandRunner {
     }
   }
 
-  async runAnsiblePlaybook(
+  private async runAnsiblePlaybook(
     localPlaybookDirectory: string,
     playbookFilename: string,
     variables: Record<string, unknown>,
@@ -140,6 +151,12 @@ export class RemoteCommandRunner {
         "StrictHostKeyChecking=yes",
         "-o",
         `UserKnownHostsFile=${SSH_KNOWN_HOSTS_MOUNT_PATH}`,
+        "-o",
+        `ConnectTimeout=${SSH_CONNECT_TIMEOUT_SECONDS}`,
+        "-o",
+        `ServerAliveInterval=${SSH_KEEPALIVE_INTERVAL_SECONDS}`,
+        "-o",
+        `ServerAliveCountMax=${SSH_KEEPALIVE_MISSED_LIMIT}`,
         ...profile.ansible.sshArguments,
       ]
 
@@ -147,9 +164,7 @@ export class RemoteCommandRunner {
 
       const reservedKeys = Object.keys(connectionVariables).filter((key) => key in variables)
       if (reservedKeys.length > 0) {
-        throw new Error(
-          `[remote-command-runner] variables collide with connection variables: ${reservedKeys.join(", ")}`,
-        )
+        throw new Error(`Variables collide with connection variables: ${reservedKeys.join(", ")}.`)
       }
 
       const localVariablesPath = join(localTmpDirectory, "vars.json")
@@ -186,7 +201,7 @@ export class RemoteCommandRunner {
   ): void {
     for (const argument of [remoteContainerName, remoteScriptName]) {
       if (!CONTAINER_SCRIPT_ARGUMENT_PATTERN.test(argument)) {
-        throw new Error(`[remote-command-runner] unsafe container script argument: "${argument}"`)
+        throw new Error(`Unsafe container script argument: "${argument}".`)
       }
     }
   }

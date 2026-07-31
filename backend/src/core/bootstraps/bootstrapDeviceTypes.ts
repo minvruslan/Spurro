@@ -1,3 +1,4 @@
+import { bootstrapLogger } from "@/core/logger/index.js"
 import { db } from "@/core/database/index.js"
 import { deviceType } from "@/core/database/schemas/domainSchema.js"
 
@@ -17,6 +18,6 @@ export async function bootstrapDeviceTypes() {
     .returning({ code: deviceType.code })
 
   if (inserted.length > 0) {
-    console.log(`[bootstrap] seeded device types: ${inserted.map((r) => r.code).join(", ")}`)
+    bootstrapLogger.info(`Seeded device types: ${inserted.map((r) => r.code).join(", ")}.`)
   }
 }

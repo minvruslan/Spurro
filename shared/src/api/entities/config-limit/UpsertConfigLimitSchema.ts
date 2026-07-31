@@ -1,7 +1,7 @@
 import { z } from "zod"
-import { SupportedProtocolFamilySchema } from "../../../core/supported-protocol/types"
+import { ProtocolFamilyCodeSchema } from "../../../core/supported-protocol/types"
 
 export const UpsertConfigLimitSchema = z.object({
-  protocolFamily: SupportedProtocolFamilySchema,
+  protocolFamily: ProtocolFamilyCodeSchema,
   maxCount: z.number().int().min(0),
 })

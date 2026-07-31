@@ -1,4 +1,5 @@
 import { and, eq, ne } from "drizzle-orm"
+import { ServerDataSchema } from "@spurro/infrastructure/types"
 import { db } from "@/core/database/index.js"
 import { server } from "@/core/database/schemas/domainSchema.js"
 
@@ -13,5 +14,12 @@ export async function findServer(serverId: string) {
     .where(and(eq(server.id, serverId), ne(server.status, "deleted")))
     .limit(1)
 
-  return row
+  if (!row) return undefined
+
+  const parsedData = ServerDataSchema.safeParse(row.data)
+  if (!parsedData.success) {
+    return { ip: row.ip, domainName: row.domainName, data: null }
+  }
+
+  return { ip: row.ip, domainName: row.domainName, data: parsedData.data }
 }

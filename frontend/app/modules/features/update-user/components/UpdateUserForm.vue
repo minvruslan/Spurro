@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { SupportedProtocolFamily, User } from "@spurro/shared"
-import { SUPPORTED_PROTOCOL_FAMILIES } from "@spurro/shared"
+import type { ProtocolFamilyCode, User } from "@spurro/shared"
+import { ProtocolFamilyRegistry } from "@spurro/shared"
 import { onMounted, ref } from "vue"
 import { Save, Trash2 } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
@@ -25,9 +25,9 @@ const { pending: deleting, deleteUser } = useDeleteUser(props.id)
 const { confirm } = useConfirmationDialog()
 const { showSuccess, showError } = useNotificationBanner()
 
-const protocolFamilies = Object.entries(SUPPORTED_PROTOCOL_FAMILIES).map(
+const protocolFamilies = Object.entries(ProtocolFamilyRegistry).map(
   ([protocolFamily, { name }]) => ({
-    protocolFamily: protocolFamily as SupportedProtocolFamily,
+    protocolFamily: protocolFamily as ProtocolFamilyCode,
     name,
   }),
 )
@@ -48,7 +48,7 @@ const form = ref<UpdateUserFormValues>({
   email: loadedUser?.email ?? "",
   limits: Object.fromEntries(
     protocolFamilies.map(({ protocolFamily }) => [protocolFamily, saved.get(protocolFamily) ?? 0]),
-  ) as Record<SupportedProtocolFamily, number>,
+  ) as Record<ProtocolFamilyCode, number>,
 })
 
 const onSubmit = async () => {

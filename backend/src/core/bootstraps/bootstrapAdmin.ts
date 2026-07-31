@@ -1,3 +1,4 @@
+import { bootstrapLogger } from "@/core/logger/index.js"
 import { eq } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { db } from "@/core/database/index.js"
@@ -18,5 +19,5 @@ export async function bootstrapAdmin() {
     role: "admin",
   })
 
-  console.log(`[bootstrap] created admin user: ${email}`)
+  bootstrapLogger.info(`Created admin user: ${email}.`)
 }
