@@ -23,8 +23,3 @@ The system has two roles:
   - Generates VPN configs for themselves.
   - Gets setup instructions for their devices.
   - Gets email notifications about changes.
-
-## Docs
-
-- [Frontend architecture](./frontend/ARCHITECTURE.md)
-- [Backend architecture](./backend/ARCHITECTURE.md)
