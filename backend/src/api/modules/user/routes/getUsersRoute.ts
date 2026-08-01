@@ -1,12 +1,9 @@
-import { Hono } from "hono"
-import type { AppVariables } from "@/core/types/index.js"
+import { authorized } from "@/api/orpc/index.js"
 import { getUsersService } from "../services/getUsersService.js"
 
-const getUsersRoute = new Hono<{ Variables: AppVariables }>()
-
-getUsersRoute.get("/", async (c) => {
+const getUsersRoute = authorized.users.getUsers.handler(async () => {
   const result = await getUsersService()
-  return c.json({ data: result.data.users })
+  return result.data.users
 })
 
 export { getUsersRoute }

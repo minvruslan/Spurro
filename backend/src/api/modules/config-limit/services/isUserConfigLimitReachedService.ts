@@ -1,4 +1,4 @@
-import type { ProtocolFamilyCode } from "@spurro/shared"
+import type { ProtocolFamilyCode } from "@spurro/api-contract"
 import type { DbOrTx } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { countReservedUserConfigs } from "../queries/countReservedUserConfigs.js"

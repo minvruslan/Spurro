@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm"
-import type { ConfigData } from "@spurro/shared"
+import type { ConfigData } from "@spurro/api-contract"
 import type { DbOrTx } from "@/core/database/index.js"
 import { config } from "@/core/database/schemas/domainSchema.js"
 

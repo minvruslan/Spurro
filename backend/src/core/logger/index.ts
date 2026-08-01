@@ -1,3 +1,4 @@
+export { requestLogger } from "./requestLogger.js"
 export {
   logger,
   apiLogger,

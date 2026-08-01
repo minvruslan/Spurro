@@ -1,12 +1,9 @@
-import { Hono } from "hono"
-import type { AppVariables } from "@/core/types/index.js"
+import { authorized } from "@/api/orpc/index.js"
 import { getProtocolsService } from "../services/getProtocolsService.js"
 
-const getProtocolsRoute = new Hono<{ Variables: AppVariables }>()
-
-getProtocolsRoute.get("/", async (c) => {
+const getProtocolsRoute = authorized.protocols.getProtocols.handler(async () => {
   const result = await getProtocolsService()
-  return c.json({ data: result.data.protocols })
+  return result.data.protocols
 })
 
 export { getProtocolsRoute }

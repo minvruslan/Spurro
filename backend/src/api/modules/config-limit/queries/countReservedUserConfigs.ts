@@ -1,5 +1,5 @@
 import { and, count, eq } from "drizzle-orm"
-import type { ProtocolFamilyCode } from "@spurro/shared"
+import type { ProtocolFamilyCode } from "@spurro/api-contract"
 import type { DbOrTx } from "@/core/database/index.js"
 import { config, endpoint, protocol } from "@/core/database/schemas/domainSchema.js"
 import { reservedConfigCondition } from "./conditions/reservedConfigCondition.js"

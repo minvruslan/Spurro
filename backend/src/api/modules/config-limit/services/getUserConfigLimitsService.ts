@@ -1,5 +1,4 @@
-import type { ConfigLimit } from "@spurro/shared"
-import { ConfigLimitSchema } from "@spurro/shared"
+import type { ConfigLimit } from "@spurro/api-contract"
 import { db } from "@/core/database/index.js"
 import type { DbOrTx } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
@@ -21,10 +20,8 @@ export async function getUserConfigLimitsService(
   return {
     ok: true,
     data: {
-      configLimits: ConfigLimitSchema.array().parse(
-        limitRows.map((row) =>
-          createConfigLimitFromDatabaseData(row, usedByProtocolFamily.get(row.protocolFamily) ?? 0),
-        ),
+      configLimits: limitRows.map((row) =>
+        createConfigLimitFromDatabaseData(row, usedByProtocolFamily.get(row.protocolFamily) ?? 0),
       ),
     },
   }

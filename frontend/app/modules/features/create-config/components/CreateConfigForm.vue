@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Config, Endpoint, UpsertConfig } from "@spurro/shared"
+import type { Config, Endpoint, UpsertConfig } from "@spurro/api-contract"
 import { onMounted, ref } from "vue"
 import { Plus } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"

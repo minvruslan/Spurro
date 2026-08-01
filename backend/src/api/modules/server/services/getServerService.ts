@@ -1,5 +1,4 @@
-import type { Server } from "@spurro/shared"
-import { ServerSchema } from "@spurro/shared"
+import type { Server } from "@spurro/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findServerById } from "../queries/findServerById.js"
@@ -14,5 +13,5 @@ export async function getServerService(
   if (rows.length === 0) return { ok: false, errorCode: "not_found" }
   const server = createServersFromDatabaseData(rows)[0]
   if (server.status === "deleted") return { ok: false, errorCode: "not_found" }
-  return { ok: true, data: { server: ServerSchema.parse(server) } }
+  return { ok: true, data: { server } }
 }

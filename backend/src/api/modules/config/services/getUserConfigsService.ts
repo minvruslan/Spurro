@@ -1,5 +1,4 @@
-import type { Config } from "@spurro/shared"
-import { ConfigSchema } from "@spurro/shared"
+import type { Config } from "@spurro/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findUserConfigs } from "../queries/findUserConfigs.js"
@@ -11,6 +10,6 @@ export async function getUserConfigsService(
   const rows = await findUserConfigs(db, userId)
   return {
     ok: true,
-    data: { configs: ConfigSchema.array().parse(rows.map(createConfigFromDatabaseData)) },
+    data: { configs: rows.map(createConfigFromDatabaseData) },
   }
 }

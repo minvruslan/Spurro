@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { User } from "@spurro/shared"
+import type { User } from "@spurro/api-contract"
 import { Plus } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
 import { ListLayout } from "@/modules/common/components"

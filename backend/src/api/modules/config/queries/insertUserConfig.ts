@@ -1,4 +1,4 @@
-import type { ConfigProtocolFields } from "@spurro/shared"
+import type { ConfigProtocolFields } from "@spurro/api-contract"
 import type { DbOrTx } from "@/core/database/index.js"
 import { config } from "@/core/database/schemas/domainSchema.js"
 

@@ -1,17 +1,12 @@
 import { Hono } from "hono"
-import type { AppVariables } from "@/core/types/index.js"
+import { ORPCError, onError } from "@orpc/server"
+import { OpenAPIHandler } from "@orpc/openapi/fetch"
 import { apiLogger } from "@/core/logger/index.js"
 import { authServer } from "@/core/auth-server/index.js"
-import { requireAuth, requireAdmin, requestLogger } from "@/core/middlewares/index.js"
-import { configRouter } from "@/api/modules/config/index.js"
-import { configLimitRouter } from "@/api/modules/config-limit/index.js"
-import { userRouter } from "@/api/modules/user/index.js"
-import { serverRouter } from "@/api/modules/server/index.js"
-import { protocolRouter } from "@/api/modules/protocol/index.js"
-import { endpointRouter } from "@/api/modules/endpoint/index.js"
-import { deviceTypeRouter } from "@/api/modules/device-type/index.js"
+import { requestLogger } from "@/core/logger/index.js"
+import { router } from "@/api/router.js"
 
-const app = new Hono<{ Variables: AppVariables }>()
+const app = new Hono()
 
 app.use("*", requestLogger)
 
@@ -22,45 +17,28 @@ app.onError((error, c) => {
 
 app.get("/health", (c) => c.json({ status: "ok" }))
 
-const api = new Hono<{ Variables: AppVariables }>()
+app.on(["POST", "GET"], "/api/auth/*", (c) => authServer.handler(c.req.raw))
 
-api.on(["POST", "GET"], "/auth/*", (c) => authServer.handler(c.req.raw))
+const apiHandler = new OpenAPIHandler(router, {
+  interceptors: [
+    onError((error) => {
+      const cause = error instanceof Error ? error.cause : undefined
+      if (error instanceof ORPCError && error.status < 500) {
+        apiLogger.warn({ error, cause }, "Request failed.")
+      } else {
+        apiLogger.error({ error, cause }, "Request failed.")
+      }
+    }),
+  ],
+})
 
-const configApi = new Hono<{ Variables: AppVariables }>()
-configApi.use("*", requireAuth)
-configApi.route("/", configRouter)
-api.route("/configs", configApi)
-
-const configLimitApi = new Hono<{ Variables: AppVariables }>()
-configLimitApi.use("*", requireAuth)
-configLimitApi.route("/", configLimitRouter)
-api.route("/config-limits", configLimitApi)
-
-const userApi = new Hono<{ Variables: AppVariables }>()
-userApi.use("*", requireAdmin)
-userApi.route("/", userRouter)
-api.route("/users", userApi)
-
-const serverApi = new Hono<{ Variables: AppVariables }>()
-serverApi.use("*", requireAdmin)
-serverApi.route("/", serverRouter)
-api.route("/servers", serverApi)
-
-const protocolApi = new Hono<{ Variables: AppVariables }>()
-protocolApi.use("*", requireAdmin)
-protocolApi.route("/", protocolRouter)
-api.route("/protocols", protocolApi)
-
-const endpointApi = new Hono<{ Variables: AppVariables }>()
-endpointApi.use("*", requireAuth)
-endpointApi.route("/", endpointRouter)
-api.route("/endpoints", endpointApi)
-
-const deviceTypeApi = new Hono<{ Variables: AppVariables }>()
-deviceTypeApi.use("*", requireAuth)
-deviceTypeApi.route("/", deviceTypeRouter)
-api.route("/device-types", deviceTypeApi)
-
-app.route("/api", api)
+app.use("/api/*", async (c, next) => {
+  const { matched, response } = await apiHandler.handle(c.req.raw, {
+    prefix: "/api",
+    context: { headers: c.req.raw.headers },
+  })
+  if (matched) return c.newResponse(response.body, response)
+  await next()
+})
 
 export default app

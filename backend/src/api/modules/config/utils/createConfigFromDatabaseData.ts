@@ -1,4 +1,4 @@
-import type { Config, DeviceType } from "@spurro/shared"
+import type { Config, DeviceType } from "@spurro/api-contract"
 import type { findUserConfigs } from "../queries/findUserConfigs.js"
 
 type ConfigRow = Awaited<ReturnType<typeof findUserConfigs>>[number]

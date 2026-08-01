@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { User } from "@spurro/shared"
+import type { User } from "@spurro/api-contract"
 import { Users } from "lucide-vue-next"
 import { computed } from "vue"
 import { ListEmptyState } from "@/modules/common/components"

@@ -1,5 +1,5 @@
-import type { ProtocolCode } from "@spurro/shared"
-import { ProtocolCodeSchema } from "@spurro/shared"
+import type { ProtocolCode } from "@spurro/api-contract"
+import { ProtocolCodeSchema } from "@spurro/api-contract"
 import type { EndpointActualState, ServerActualState } from "@spurro/infrastructure/types"
 import { EndpointActualStateSchema } from "@spurro/infrastructure/types"
 import type { ProtocolClient } from "@spurro/infrastructure"

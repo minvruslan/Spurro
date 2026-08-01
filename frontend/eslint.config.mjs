@@ -15,7 +15,7 @@ export default withNuxt(
           patterns: [
             {
               group: ["@spurro/backend*", "@spurro/infrastructure*"],
-              message: "Frontend may only import from @spurro/shared.",
+              message: "Frontend may only import from @spurro/api-contract.",
             },
           ],
         },

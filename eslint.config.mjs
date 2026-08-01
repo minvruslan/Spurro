@@ -65,7 +65,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ["@spurro/shared", "@spurro/shared/*", "@spurro/backend*"],
+              group: ["@spurro/api-contract", "@spurro/api-contract/*", "@spurro/backend*"],
               message: "Infrastructure must not depend on application packages.",
             },
           ],
@@ -81,7 +81,12 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ["node:*", "@spurro/shared", "@spurro/shared/*", "@spurro/backend*"],
+              group: [
+                "node:*",
+                "@spurro/api-contract",
+                "@spurro/api-contract/*",
+                "@spurro/backend*",
+              ],
               message:
                 "The types subpackage must stay runtime-free (zod only) so the frontend can import it.",
             },

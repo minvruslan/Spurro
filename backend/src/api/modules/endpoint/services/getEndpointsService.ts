@@ -1,5 +1,4 @@
-import type { Endpoint } from "@spurro/shared"
-import { EndpointSchema } from "@spurro/shared"
+import type { Endpoint } from "@spurro/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findActiveEndpoints } from "../queries/findActiveEndpoints.js"
@@ -9,6 +8,6 @@ export async function getEndpointsService(): Promise<ServiceResult<{ endpoints: 
   const rows = await findActiveEndpoints(db)
   return {
     ok: true,
-    data: { endpoints: EndpointSchema.array().parse(rows.map(createEndpointFromDatabaseData)) },
+    data: { endpoints: rows.map(createEndpointFromDatabaseData) },
   }
 }
