@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Config, DeviceType } from "@spurro/shared"
+import type { Config, DeviceType } from "@spurro/api-contract"
 import type { Component } from "vue"
 import { computed } from "vue"
 import { ChevronRight, Monitor, Smartphone } from "lucide-vue-next"

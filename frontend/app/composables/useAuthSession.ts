@@ -1,4 +1,4 @@
-import { UserSessionSchema, type UserSession } from "@spurro/shared"
+import { UserSessionSchema, type UserSession } from "@spurro/api-contract"
 
 export function useAuthSession() {
   const user = useState<UserSession | null>("auth.user", () => null)

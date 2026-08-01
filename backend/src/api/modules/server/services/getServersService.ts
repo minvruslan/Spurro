@@ -1,5 +1,4 @@
-import type { Server } from "@spurro/shared"
-import { ServerSchema } from "@spurro/shared"
+import type { Server } from "@spurro/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findServers } from "../queries/findServers.js"
@@ -9,6 +8,6 @@ export async function getServersService(): Promise<ServiceResult<{ servers: Serv
   const rows = await findServers(db)
   return {
     ok: true,
-    data: { servers: ServerSchema.array().parse(createServersFromDatabaseData(rows)) },
+    data: { servers: createServersFromDatabaseData(rows) },
   }
 }

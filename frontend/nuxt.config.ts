@@ -13,7 +13,7 @@ export default defineNuxtConfig({
     },
   },
   build: {
-    transpile: ["@spurro/shared"],
+    transpile: ["@spurro/api-contract"],
   },
   runtimeConfig: {
     public: {

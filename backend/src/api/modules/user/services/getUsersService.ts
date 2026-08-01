@@ -1,5 +1,4 @@
-import type { User } from "@spurro/shared"
-import { UserSchema } from "@spurro/shared"
+import type { User } from "@spurro/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { getUsersConfigLimitsService } from "@/api/modules/config-limit/index.js"
@@ -13,5 +12,5 @@ export async function getUsersService(): Promise<ServiceResult<{ users: User[] }
     ...createUserFromDatabaseData(row),
     limits: limitsResult.data.configLimitsByUserId.get(row.id) ?? [],
   }))
-  return { ok: true, data: { users: UserSchema.array().parse(users) } }
+  return { ok: true, data: { users } }
 }

@@ -1,7 +1,7 @@
 packages:
   - frontend
   - backend
-  - shared
+  - api-contract
   - infrastructure
 allowBuilds:
   unrs-resolver: true

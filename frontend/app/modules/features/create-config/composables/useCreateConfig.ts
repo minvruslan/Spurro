@@ -1,5 +1,5 @@
 import { ref } from "vue"
-import type { Config, UpsertConfig } from "@spurro/shared"
+import type { Config, UpsertConfig } from "@spurro/api-contract"
 import { createConfig } from "@/modules/entities/config"
 
 export function useCreateConfig() {

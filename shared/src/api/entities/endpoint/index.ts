@@ -1,6 +1,0 @@
-export { EndpointSchema } from "./EndpointSchema"
-export type { Endpoint } from "./Endpoint"
-export { EndpointServerSchema } from "./EndpointServerSchema"
-export type { EndpointServer } from "./EndpointServer"
-export { EndpointStatusSchema } from "./EndpointStatusSchema"
-export type { EndpointStatus } from "./EndpointStatus"

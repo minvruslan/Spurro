@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Config } from "@spurro/shared"
+import type { Config } from "@spurro/api-contract"
 import { Shield } from "lucide-vue-next"
 import { computed } from "vue"
 import { ListEmptyState } from "@/modules/common/components"

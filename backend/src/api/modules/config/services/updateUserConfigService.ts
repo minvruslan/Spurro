@@ -1,5 +1,4 @@
-import type { Config, UpdateConfig } from "@spurro/shared"
-import { ConfigSchema } from "@spurro/shared"
+import type { Config, UpdateConfig } from "@spurro/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findConfigById } from "../queries/findConfigById.js"
@@ -26,6 +25,6 @@ export async function updateUserConfigService(
     if (!row) return { ok: false, errorCode: "not_found" }
 
     const rows = await findConfigById(tx, row.id)
-    return { ok: true, data: { config: ConfigSchema.parse(createConfigFromDatabaseData(rows[0])) } }
+    return { ok: true, data: { config: createConfigFromDatabaseData(rows[0]) } }
   })
 }

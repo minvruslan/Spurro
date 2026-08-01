@@ -4,7 +4,7 @@ import { config } from "dotenv"
 config()
 
 import { z } from "zod"
-import { CountryCodeSchema, DomainNameSchema, IpSchema } from "@spurro/shared"
+import { CountryCodeSchema, DomainNameSchema, IpSchema } from "@spurro/api-contract"
 
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value)
 

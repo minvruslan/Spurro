@@ -23,6 +23,9 @@ export const authServer = betterAuth({
     enabled: false,
   },
   advanced: {
+    defaultCookieAttributes: {
+      sameSite: "lax",
+    },
     ipAddress: {
       // Real client IP comes from X-Forwarded-For. The proxy must overwrite it, not append,
       // or clients could spoof it and bypass rate limiting.

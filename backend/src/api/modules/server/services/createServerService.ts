@@ -1,5 +1,5 @@
-import type { UpsertServer, Server } from "@spurro/shared"
-import { ProtocolCodeSchema, ServerSchema } from "@spurro/shared"
+import type { UpsertServer, Server } from "@spurro/api-contract"
+import { ProtocolCodeSchema } from "@spurro/api-contract"
 import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
@@ -106,7 +106,7 @@ export async function createServerService(
 
       return {
         ok: true,
-        data: { server: ServerSchema.parse(createServersFromDatabaseData(rows)[0]) },
+        data: { server: createServersFromDatabaseData(rows)[0] },
       }
     },
   )

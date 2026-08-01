@@ -1,12 +1,9 @@
-import { Hono } from "hono"
-import type { AppVariables } from "@/core/types/index.js"
+import { authorized } from "@/api/orpc/index.js"
 import { getUserConfigsService } from "../services/getUserConfigsService.js"
 
-const getUserConfigsRoute = new Hono<{ Variables: AppVariables }>()
-
-getUserConfigsRoute.get("/", async (c) => {
-  const result = await getUserConfigsService(c.get("userId"))
-  return c.json({ data: result.data.configs })
+const getUserConfigsRoute = authorized.configs.getUserConfigs.handler(async ({ context }) => {
+  const result = await getUserConfigsService(context.userId)
+  return result.data.configs
 })
 
 export { getUserConfigsRoute }

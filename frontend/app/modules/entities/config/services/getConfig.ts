@@ -1,12 +1,5 @@
-import type { Config } from "@spurro/shared"
-import { ConfigSchema } from "@spurro/shared"
-import { z } from "zod"
-import { useApi } from "@/modules/common/services"
-
-const ResponseSchema = z.object({ data: ConfigSchema })
+import type { Config } from "@spurro/api-contract"
 
 export async function getConfig(id: string): Promise<Config> {
-  const api = useApi()
-  const response = await api(`/api/configs/${id}`)
-  return ResponseSchema.parse(response).data
+  return useApiClient().configs.getUserConfig({ id })
 }

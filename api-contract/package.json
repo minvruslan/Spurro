@@ -1,0 +1,19 @@
+{
+  "name": "@spurro/api-contract",
+  "type": "module",
+  "version": "0.0.1",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint:check": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "@orpc/contract": "^1.14.13",
+    "@orpc/openapi-client": "^1.14.13",
+    "@spurro/infrastructure": "workspace:*",
+    "zod": "^4.3.6"
+  }
+}

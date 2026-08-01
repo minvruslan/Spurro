@@ -1,4 +1,4 @@
-import type { User } from "@spurro/shared"
+import type { User } from "@spurro/api-contract"
 import type { findUsers } from "../queries/findUsers.js"
 
 type UserRow = Awaited<ReturnType<typeof findUsers>>[number]

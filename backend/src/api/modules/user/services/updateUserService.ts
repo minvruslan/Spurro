@@ -1,5 +1,4 @@
-import type { User, UpsertUser } from "@spurro/shared"
-import { UserSchema } from "@spurro/shared"
+import type { User, UpsertUser } from "@spurro/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import {
@@ -23,10 +22,10 @@ export async function updateUserService(
     return {
       ok: true,
       data: {
-        user: UserSchema.parse({
+        user: {
           ...createUserFromDatabaseData(updated),
           limits: limitsResult.data.configLimits,
-        }),
+        },
       },
     }
   })

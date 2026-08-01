@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Server } from "@spurro/shared"
+import type { Server } from "@spurro/api-contract"
 import { ListErrorState } from "@/modules/common/components"
 import ServerList from "./ServerList.vue"
 import { useServers } from "../composables/useServers"

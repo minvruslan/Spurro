@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm"
-import type { Config, UpsertConfig } from "@spurro/shared"
-import { ConfigSchema } from "@spurro/shared"
+import type { Config, UpsertConfig } from "@spurro/api-contract"
 import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { isUserConfigLimitReachedService } from "@/api/modules/config-limit/index.js"
 import { db } from "@/core/database/index.js"
@@ -114,10 +113,10 @@ export async function createUserConfigService(
   return {
     ok: true,
     data: {
-      config: ConfigSchema.parse({
+      config: {
         ...config,
         data: { ...created.configData, configuration: created.clientConfiguration },
-      }),
+      },
     },
   }
 }

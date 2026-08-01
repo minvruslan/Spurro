@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Config } from "@spurro/shared"
+import type { Config } from "@spurro/api-contract"
 import { ConfigList } from "@/modules/features/config-list"
 
 definePageMeta({ middleware: "admin", layout: "admin" })

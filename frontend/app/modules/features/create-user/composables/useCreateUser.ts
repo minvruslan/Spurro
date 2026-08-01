@@ -1,5 +1,5 @@
 import { ref } from "vue"
-import type { ProtocolFamilyCode, User, UpsertUser } from "@spurro/shared"
+import type { ProtocolFamilyCode, User, UpsertUser } from "@spurro/api-contract"
 import { createUser } from "@/modules/entities/user"
 import type { CreateUserFormValues } from "../types"
 

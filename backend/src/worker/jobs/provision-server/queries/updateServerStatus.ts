@@ -1,4 +1,4 @@
-import type { ServerStatus } from "@spurro/shared"
+import type { ServerStatus } from "@spurro/api-contract"
 import { and, eq, ne } from "drizzle-orm"
 import { db } from "@/core/database/index.js"
 import { server } from "@/core/database/schemas/domainSchema.js"

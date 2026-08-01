@@ -1,4 +1,4 @@
-import type { ProtocolFamilyCode } from "@spurro/shared"
+import type { ProtocolFamilyCode } from "@spurro/api-contract"
 
 export interface CreateUserFormValues {
   name: string

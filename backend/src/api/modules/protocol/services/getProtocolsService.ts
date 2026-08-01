@@ -1,5 +1,5 @@
-import type { Protocol } from "@spurro/shared"
-import { ProtocolSchema } from "@spurro/shared"
+import type { Protocol } from "@spurro/api-contract"
+import { ProtocolSchema } from "@spurro/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findActiveProtocols } from "../queries/findActiveProtocols.js"

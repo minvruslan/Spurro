@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm"
 import {
   pgTable,
   text,
+  varchar,
   uuid,
   integer,
   timestamp,
@@ -12,7 +13,7 @@ import {
   pgEnum,
   check,
 } from "drizzle-orm/pg-core"
-import type { ConfigData, ProtocolFamilyCode } from "@spurro/shared"
+import type { ConfigData, ProtocolFamilyCode } from "@spurro/api-contract"
 import type { EndpointData, ServerData } from "@spurro/infrastructure/types"
 import { encryptedJsonb, encryptedText } from "../columns/index.js"
 import { user } from "./authSchema"
@@ -89,7 +90,7 @@ export const server = pgTable(
   "server",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    name: text("name").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
     domainName: text("domain_name"),
     ip: encryptedText("ip").notNull(),
     country: text("country").notNull(),
@@ -155,7 +156,7 @@ export const config = pgTable(
     deviceTypeId: uuid("device_type_id")
       .notNull()
       .references(() => deviceType.id, { onDelete: "restrict" }),
-    name: text("name").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
     data: encryptedJsonb<ConfigData>("data").notNull(),
     clientIdentifier: text("client_identifier"),
     status: configStatus("status").default("pending").notNull(),

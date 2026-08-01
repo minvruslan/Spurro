@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Server } from "@spurro/shared"
+import type { Server } from "@spurro/api-contract"
 import { ServerList } from "@/modules/features/server-list"
 
 definePageMeta({ middleware: "admin", layout: "admin" })

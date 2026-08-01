@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Server } from "@spurro/shared"
+import type { Server } from "@spurro/api-contract"
 import { computed, onMounted, ref } from "vue"
 import { Save, Trash2 } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"

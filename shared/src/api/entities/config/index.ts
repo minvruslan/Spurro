@@ -1,8 +1,0 @@
-export { ConfigStatusSchema } from "./ConfigStatusSchema"
-export { ConfigSchema } from "./ConfigSchema"
-export { UpsertConfigSchema } from "./UpsertConfigSchema"
-export { UpdateConfigSchema } from "./UpdateConfigSchema"
-export type { ConfigStatus } from "./ConfigStatus"
-export type { Config } from "./Config"
-export type { UpsertConfig } from "./UpsertConfig"
-export type { UpdateConfig } from "./UpdateConfig"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Config } from "@spurro/shared"
+import type { Config } from "@spurro/api-contract"
 import { ListErrorState } from "@/modules/common/components"
 import ConfigList from "./ConfigList.vue"
 import { useConfigs } from "../composables/useConfigs"

@@ -1,5 +1,5 @@
 import { ref } from "vue"
-import type { Server, UpsertServer } from "@spurro/shared"
+import type { Server, UpsertServer } from "@spurro/api-contract"
 import { updateServer } from "@/modules/entities/server"
 import type { UpdateServerFormValues } from "../types"
 
