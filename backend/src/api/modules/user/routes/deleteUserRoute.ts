@@ -11,8 +11,6 @@ const deleteUserRoute = authorized.users.deleteUser.handler(async ({ input, erro
         throw errors.CONFIGS_APPEARED({ cause: result.error })
       case "not_found":
         throw errors.NOT_FOUND({ cause: result.error })
-      default:
-        return result.errorCode satisfies never
     }
   }
   return { id: input.id }

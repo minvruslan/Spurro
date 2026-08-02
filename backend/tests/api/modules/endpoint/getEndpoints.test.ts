@@ -7,7 +7,7 @@ import app from "@/api/app.js"
 import { endpointRouter } from "@/api/modules/endpoint/index.js"
 import { findActiveEndpoints } from "@/api/modules/endpoint/queries/findActiveEndpoints.js"
 import { db } from "@/core/database/index.js"
-import { endpoint, protocol, server } from "@/core/database/schemas/index.js"
+import { config, endpoint, protocol, server } from "@/core/database/schemas/index.js"
 import {
   insertTestEndpoint,
   insertTestProtocol,
@@ -32,6 +32,7 @@ async function authorizedHeaders(role?: string) {
 
 describe("GET /endpoints", () => {
   beforeEach(async () => {
+    await db.delete(config)
     await db.delete(endpoint)
     await db.delete(server)
     await db.delete(protocol)

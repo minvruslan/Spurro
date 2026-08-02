@@ -7,6 +7,7 @@ const modulesWithApprovedSpecifications: string[] = [
   "src/api/modules/device-type/**/*.ts",
   "src/api/modules/endpoint/**/*.ts",
   "src/api/modules/protocol/**/*.ts",
+  "src/api/modules/user/**/*.ts",
 ]
 
 const integrationTestGlobs = [

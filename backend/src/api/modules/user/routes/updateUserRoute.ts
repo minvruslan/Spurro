@@ -8,8 +8,8 @@ const updateUserRoute = authorized.users.updateUser.handler(async ({ input, erro
     switch (result.errorCode) {
       case "not_found":
         throw errors.NOT_FOUND({ cause: result.error })
-      default:
-        return result.errorCode satisfies never
+      case "email_taken":
+        throw errors.EMAIL_TAKEN({ cause: result.error })
     }
   }
   return result.data.user

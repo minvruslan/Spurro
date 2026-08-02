@@ -8,7 +8,7 @@ import { deviceTypeRouter } from "@/api/modules/device-type/index.js"
 import { findActiveDeviceTypes } from "@/api/modules/device-type/queries/findActiveDeviceTypes.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
-import { deviceType } from "@/core/database/schemas/index.js"
+import { config, deviceType } from "@/core/database/schemas/index.js"
 import { signInTestUser, insertTestUser } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/device-type/queries/findActiveDeviceTypes.js", async (importOriginal) => {
@@ -29,6 +29,7 @@ async function authorizedHeaders(role?: string) {
 
 describe("GET /device-types", () => {
   beforeEach(async () => {
+    await db.delete(config)
     await db.delete(deviceType)
   })
 

@@ -7,5 +7,5 @@ export async function countUserConfigsRequiringCleanup(executor: DbOrTx, userId:
     .select({ value: count() })
     .from(config)
     .where(and(eq(config.userId, userId), ne(config.status, "deleted")))
-  return row?.value ?? 0
+  return row.value
 }

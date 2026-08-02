@@ -8,6 +8,15 @@ import { deleteUserConfigsFromRemoteEndpointService } from "./deleteUserConfigsF
 
 export async function deleteUserConfigsService(
   userId: string,
+): Promise<ServiceResult<{ deletedConfigIds: string[]; deleteFailedConfigIds: string[] }>>
+export async function deleteUserConfigsService(
+  userId: string,
+  configIds: string[],
+): Promise<
+  ServiceResult<{ deletedConfigIds: string[]; deleteFailedConfigIds: string[] }, "not_found">
+>
+export async function deleteUserConfigsService(
+  userId: string,
   configIds?: string[],
 ): Promise<
   ServiceResult<{ deletedConfigIds: string[]; deleteFailedConfigIds: string[] }, "not_found">

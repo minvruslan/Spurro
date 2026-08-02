@@ -130,16 +130,22 @@ const singleExportRule = {
           .pop()
           .replace(/\.[^.]+$/, "")
 
-        if (valueExports.length > 1) {
+        const uniqueValueExports = valueExports.filter(
+          (entry, index) =>
+            entry.name === undefined ||
+            valueExports.findIndex((candidate) => candidate.name === entry.name) === index,
+        )
+
+        if (uniqueValueExports.length > 1) {
           context.report({
-            node: valueExports[1].node,
+            node: uniqueValueExports[1].node,
             messageId: "multipleValueExports",
-            data: { count: String(valueExports.length) },
+            data: { count: String(uniqueValueExports.length) },
           })
           return
         }
 
-        if (valueExports.length === 0 && typeExports.length > 1) {
+        if (uniqueValueExports.length === 0 && typeExports.length > 1) {
           context.report({
             node: typeExports[1].node,
             messageId: "multipleTypeExports",
@@ -148,7 +154,7 @@ const singleExportRule = {
           return
         }
 
-        const mainExport = valueExports[0] ?? typeExports[0]
+        const mainExport = uniqueValueExports[0] ?? typeExports[0]
         if (mainExport?.name && mainExport.name !== fileName) {
           context.report({
             node: mainExport.node,

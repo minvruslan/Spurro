@@ -1,3 +1,5 @@
+export { insertTestConfig } from "./insertTestConfig.js"
+export { insertTestConfigLimit } from "./insertTestConfigLimit.js"
 export { insertTestEndpoint } from "./insertTestEndpoint.js"
 export { insertTestProtocol } from "./insertTestProtocol.js"
 export { insertTestServer } from "./insertTestServer.js"

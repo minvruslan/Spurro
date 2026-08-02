@@ -7,7 +7,7 @@ import { protocolRouter } from "@/api/modules/protocol/index.js"
 import { findActiveProtocols } from "@/api/modules/protocol/queries/findActiveProtocols.js"
 import { bootstrapProtocols } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
-import { endpoint, protocol } from "@/core/database/schemas/index.js"
+import { config, endpoint, protocol } from "@/core/database/schemas/index.js"
 import {
   insertTestProtocol,
   insertTestServer,
@@ -31,6 +31,7 @@ async function adminHeaders() {
 
 describe("GET /protocols", () => {
   beforeEach(async () => {
+    await db.delete(config)
     await db.delete(endpoint)
     await db.delete(protocol)
   })

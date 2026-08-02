@@ -14,9 +14,6 @@ export async function deleteUserService(id: string): Promise<ServiceResult<null,
   if (!user) return { ok: false, errorCode: "not_found" }
 
   const deleteUserConfigsResult = await deleteUserConfigsService(id)
-  if (!deleteUserConfigsResult.ok) {
-    return { ok: false, errorCode: "config_delete_failed", error: deleteUserConfigsResult.error }
-  }
   if (deleteUserConfigsResult.data.deleteFailedConfigIds.length > 0) {
     return {
       ok: false,
