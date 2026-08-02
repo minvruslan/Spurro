@@ -1,5 +1,5 @@
 import { call, ORPCError } from "@orpc/server"
-import { DeviceTypeSchema } from "@spurro/api-contract"
+import { DeviceTypeSchema, type DeviceType } from "@spurro/api-contract"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
@@ -53,6 +53,23 @@ describe("GET /device-types", () => {
 
     for (const entry of deviceTypes) {
       expect(Object.keys(entry).sort()).toEqual(["code", "id", "name"])
+    }
+  })
+
+  it("returns each device type with the name matching its code", async () => {
+    const expectedNamesByCode: Record<DeviceType["code"], DeviceType["name"]> = {
+      ios: "iOS",
+      macos: "macOS",
+      windows: "Windows",
+      linux: "Linux",
+      android: "Android",
+    }
+    await bootstrapDeviceTypes()
+    const deviceTypes = await getDeviceTypes(await authorizedHeaders())
+
+    expect(deviceTypes).toHaveLength(5)
+    for (const entry of deviceTypes) {
+      expect(entry.name).toBe(expectedNamesByCode[entry.code])
     }
   })
 

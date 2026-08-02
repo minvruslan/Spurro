@@ -18,9 +18,9 @@ Everything else under `backend/src/**` and `infrastructure/src/**` (services, qu
 # Design rubric — work through every category for every route
 
 1. Happy path: behavior implied by the contract output schema.
-2. Contract shape: the response carries exactly the contract fields, nothing extra leaks.
+2. Contract shape: one case per route where the response parses against the contract schema; the response carries exactly the contract fields, nothing extra leaks; cross-field value pairings the schema cannot express (independent enums that must correspond) get their own case.
 3. Input garbage: missing/extra fields, wrong types, empty strings, zero and negative numbers, boundary lengths, malformed identifiers. Every input field gets hostile values.
-4. Data-state edges: empty sets, disabled/deleted entities, states unreachable through the API (to be crafted directly in the database), numeric boundaries (limit reached at exactly N, N-1, N+1), records owned by another user.
+4. Data-state edges: empty sets, disabled/deleted entities, states unreachable through the API (to be crafted directly in the database), numeric boundaries (limit reached at exactly N, N-1, N+1), records owned by another user. List routes get an explicit ordering case: the default expectation for catalog data is a fixed sort by the human-readable field; when the contract does not define order, keep the case and list it under open questions.
 5. Authorization: anonymous, ordinary user, admin where the contract distinguishes access, ownership checks.
 6. Technical failures: infrastructure errors (query throws) under a `describe("technical")` block — response must be HTTP 500.
 7. Five exit doors of a mutating route: response, database state afterwards, external calls, queued jobs, logs. A mutation case that only checks the response is incomplete — assert the state too.
