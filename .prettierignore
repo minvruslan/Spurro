@@ -4,3 +4,4 @@ pnpm-lock.yaml
 .output
 node_modules
 dist
+coverage

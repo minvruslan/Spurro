@@ -53,7 +53,14 @@ const camelCaseAcronymsRule = {
 
 export default tseslint.config(
   {
-    ignores: ["**/node_modules/**", "**/.nuxt/**", "**/.output/**", "**/dist/**", "frontend/"],
+    ignores: [
+      "**/node_modules/**",
+      "**/.nuxt/**",
+      "**/.output/**",
+      "**/dist/**",
+      "**/coverage/**",
+      "frontend/",
+    ],
   },
   ...tseslint.configs.recommended,
   eslintConfigPrettier,
