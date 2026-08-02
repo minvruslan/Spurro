@@ -1,0 +1,2 @@
+ALTER TABLE "protocol" ADD CONSTRAINT "protocol_code_check" CHECK ("protocol"."code" in ('amneziawg2'));--> statement-breakpoint
+ALTER TABLE "protocol" ADD CONSTRAINT "protocol_family_check" CHECK ("protocol"."family" in ('amneziawg'));

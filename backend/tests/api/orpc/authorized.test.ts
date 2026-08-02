@@ -4,6 +4,7 @@ import { makeSignature } from "better-auth/crypto"
 import { eq } from "drizzle-orm"
 import { describe, expect, it } from "vitest"
 import { deviceTypeRouter } from "@/api/modules/device-type/index.js"
+import { protocolRouter } from "@/api/modules/protocol/index.js"
 import { authServer } from "@/core/auth-server/index.js"
 import { db } from "@/core/database/index.js"
 import { session, user } from "@/core/database/schemas/index.js"
@@ -98,5 +99,12 @@ describe("authorized", () => {
     const headers = await signInTestUser(sessionUser)
     await expect(callCarrierRoute(headers)).resolves.toBeDefined()
   })
-  it.todo("forbids a non-admin user on an admin route with FORBIDDEN")
+
+  it("forbids a non-admin user on an admin route with FORBIDDEN", async () => {
+    const sessionUser = await insertTestUser()
+    const headers = await signInTestUser(sessionUser)
+    await expect(
+      call(protocolRouter.getProtocols, undefined, { context: { headers } }),
+    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "FORBIDDEN")
+  })
 })

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto"
 import type { DbOrTx } from "@/core/database/index.js"
 import { db } from "@/core/database/index.js"
 import { protocol } from "@/core/database/schemas/index.js"
@@ -10,9 +9,9 @@ export async function insertTestProtocol(
   const [insertedProtocol] = await executor
     .insert(protocol)
     .values({
-      code: `test-protocol-${randomUUID()}`,
+      code: "amneziawg2",
       family: "amneziawg",
-      name: "Test Protocol",
+      name: "AmneziaWG 2",
       ...overrides,
     })
     .returning()

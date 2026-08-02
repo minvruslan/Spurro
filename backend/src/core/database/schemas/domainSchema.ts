@@ -26,18 +26,25 @@ export const configStatus = pgEnum("config_status", ["active", "pending", "delet
 
 // Catalog
 
-export const protocol = pgTable("protocol", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  code: text("code").notNull().unique(),
-  family: text("family").$type<ProtocolFamilyCode>().notNull(),
-  name: text("name").notNull(),
-  isEnabled: boolean("is_enabled").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-})
+export const protocol = pgTable(
+  "protocol",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: text("code").notNull().unique(),
+    family: text("family").$type<ProtocolFamilyCode>().notNull(),
+    name: text("name").notNull(),
+    isEnabled: boolean("is_enabled").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    check("protocol_code_check", sql`${t.code} in ('amneziawg2')`),
+    check("protocol_family_check", sql`${t.family} in ('amneziawg')`),
+  ],
+)
 
 export const deviceType = pgTable(
   "device_type",

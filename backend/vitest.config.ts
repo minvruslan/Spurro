@@ -3,7 +3,10 @@ import { configDefaults, defineConfig } from "vitest/config"
 
 const FullCoverageThresholds = { statements: 100, branches: 100, functions: 100, lines: 100 }
 
-const modulesWithApprovedSpecifications: string[] = ["src/api/modules/device-type/**/*.ts"]
+const modulesWithApprovedSpecifications: string[] = [
+  "src/api/modules/device-type/**/*.ts",
+  "src/api/modules/protocol/**/*.ts",
+]
 
 const integrationTestGlobs = [
   "tests/api/**/*.test.ts",
@@ -34,6 +37,7 @@ export default defineConfig({
         test: {
           name: "integration",
           include: integrationTestGlobs,
+          fileParallelism: false,
           setupFiles: ["tests/setup/setupTestEnvironment.ts"],
           globalSetup: ["tests/setup/prepareTestDatabase.ts"],
         },
