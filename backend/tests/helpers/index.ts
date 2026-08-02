@@ -1,3 +1,4 @@
+export { insertTestEndpoint } from "./insertTestEndpoint.js"
 export { insertTestProtocol } from "./insertTestProtocol.js"
 export { insertTestServer } from "./insertTestServer.js"
 export { signInTestUser } from "./signInTestUser.js"

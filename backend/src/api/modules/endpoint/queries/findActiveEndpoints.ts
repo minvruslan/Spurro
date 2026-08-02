@@ -10,5 +10,5 @@ export async function findActiveEndpoints(executor: DbOrTx) {
     .innerJoin(protocol, eq(endpoint.protocolId, protocol.id))
     .innerJoin(server, eq(endpoint.serverId, server.id))
     .where(and(eq(endpoint.status, "active"), eq(server.status, "active")))
-    .orderBy(asc(server.country), asc(endpoint.port))
+    .orderBy(asc(server.name), asc(endpoint.port))
 }
