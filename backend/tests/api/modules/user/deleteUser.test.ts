@@ -70,7 +70,6 @@ async function insertConfigInfrastructure() {
 
 describe("DELETE /users/{id}", () => {
   beforeEach(async () => {
-    vi.resetAllMocks()
     await db.delete(config)
     await db.delete(endpoint)
     await db.delete(server)
@@ -156,6 +155,59 @@ describe("DELETE /users/{id}", () => {
     expect(userRowsDuringNodeCall).toHaveLength(1)
     const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
     expect(userRows).toHaveLength(0)
+  })
+
+  it("invokes the remote endpoint deletion once with both configs when the user has two configs on the same endpoint", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const targetUser = await insertTestUser()
+    const firstConfig = await insertTestConfig({
+      userId: targetUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+    const secondConfig = await insertTestConfig({
+      userId: targetUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
+      ok: true,
+      data: null,
+    })
+
+    await callDeleteUser(targetUser.id, await adminHeaders())
+
+    expect(deleteUserConfigsFromRemoteEndpointService).toHaveBeenCalledTimes(1)
+    const [calledEndpointId, calledConfigs] = vi.mocked(deleteUserConfigsFromRemoteEndpointService)
+      .mock.calls[0]
+    expect(calledEndpointId).toBe(configEndpoint.id)
+    expect(calledConfigs.map((calledConfig) => calledConfig.id).sort()).toEqual(
+      [firstConfig.id, secondConfig.id].sort(),
+    )
+  })
+
+  it("removes both config rows when the user has two configs on the same endpoint", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const targetUser = await insertTestUser()
+    await insertTestConfig({
+      userId: targetUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+    await insertTestConfig({
+      userId: targetUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
+      ok: true,
+      data: null,
+    })
+
+    await callDeleteUser(targetUser.id, await adminHeaders())
+
+    const configRows = await db.select().from(config).where(eq(config.userId, targetUser.id))
+    expect(configRows).toHaveLength(0)
   })
 
   it("makes no node calls when the user has no configs", async () => {

@@ -18,7 +18,9 @@ export async function findEndpointProtocolClientData(executor: DbOrTx, endpointI
     .where(eq(endpoint.id, endpointId))
     .limit(1)
 
+  /* v8 ignore start */
   if (!row) return undefined
+  /* v8 ignore stop */
 
   const parsedServerData = ServerDataSchema.safeParse(row.serverData)
   const parsedEndpointData = EndpointDataSchema.safeParse(row.endpointData)

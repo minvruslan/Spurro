@@ -53,7 +53,6 @@ async function insertConfigInfrastructure() {
 
 describe("PUT /configs/{id}", () => {
   beforeEach(async () => {
-    vi.mocked(getEndpointProtocolClientService).mockReset()
     await db.delete(config)
     await db.delete(endpoint)
     await db.delete(server)

@@ -11,7 +11,13 @@ export async function insertTestEndpoint(
     .insert(endpoint)
     .values({
       port: 51820,
-      data: {},
+      data: {
+        actualState: {
+          protocolCode: "amneziawg2",
+          port: 51820,
+          appliedAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
       ...overrides,
     })
     .returning()

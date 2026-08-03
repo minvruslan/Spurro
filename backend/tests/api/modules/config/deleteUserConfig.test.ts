@@ -91,7 +91,6 @@ async function insertConfigInfrastructure() {
 describe("DELETE /configs/{id}", () => {
   beforeEach(async () => {
     fakeProtocolClient = createFakeProtocolClient()
-    vi.mocked(getEndpointProtocolClientService).mockReset()
     vi.mocked(getEndpointProtocolClientService).mockImplementation(async () => ({
       ok: true,
       data: {

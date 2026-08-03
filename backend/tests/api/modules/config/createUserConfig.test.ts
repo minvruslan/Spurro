@@ -1,13 +1,18 @@
 import { randomUUID } from "node:crypto"
 import { call, ORPCError } from "@orpc/server"
 import { ConfigSchema, type UpsertConfig } from "@spurro/api-contract"
-import type { ProtocolClient } from "@spurro/infrastructure"
+import { RemoteServer, type ProtocolClient } from "@spurro/infrastructure"
+import {
+  Amneziawg2ClientIdentifierSchema,
+  type EndpointData,
+  type ServerData,
+} from "@spurro/infrastructure/types"
 import { eq } from "drizzle-orm"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
 import app from "@/api/app.js"
 import { configRouter } from "@/api/modules/config/index.js"
+import { findEndpointProtocolClientData } from "@/api/modules/config/queries/findEndpointProtocolClientData.js"
 import { insertUserConfig } from "@/api/modules/config/queries/insertUserConfig.js"
-import { getEndpointProtocolClientService } from "@/api/modules/config/services/getEndpointProtocolClientService.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
 import {
@@ -28,9 +33,16 @@ import {
   signInTestUser,
 } from "../../../helpers/index.js"
 
-vi.mock("@/api/modules/config/services/getEndpointProtocolClientService.js", () => ({
-  getEndpointProtocolClientService: vi.fn(),
-}))
+vi.mock(
+  "@/api/modules/config/queries/findEndpointProtocolClientData.js",
+  async (importOriginal) => {
+    const original =
+      await importOriginal<
+        typeof import("@/api/modules/config/queries/findEndpointProtocolClientData.js")
+      >()
+    return { findEndpointProtocolClientData: vi.fn(original.findEndpointProtocolClientData) }
+  },
+)
 
 vi.mock("@/api/modules/config/queries/insertUserConfig.js", async (importOriginal) => {
   const original =
@@ -40,28 +52,63 @@ vi.mock("@/api/modules/config/queries/insertUserConfig.js", async (importOrigina
 
 const allocatedClientIp = "10.8.1.2"
 const fakeClientConfiguration = "fake-client-configuration"
+const appliedAt = "2026-01-01T00:00:00.000Z"
+const serverSshHostKey = "ssh-ed25519 AAAATestServerHostKey"
+
+const validServerData: ServerData = {
+  facts: { sshHostKeys: [serverSshHostKey] },
+  actualState: {
+    ssh: { type: "privateKey", username: "spurro", port: 22 },
+    dns: "1.1.1.1",
+    baseDirectory: "/opt/spurro",
+    appliedAt,
+  },
+}
+
+const validEndpointData: EndpointData = {
+  actualState: { protocolCode: "amneziawg2", port: 51820, appliedAt },
+}
+
+const createRealProtocolClient = RemoteServer.prototype.getProtocolClient.bind(
+  new RemoteServer({
+    ip: "192.0.2.1",
+    port: 22,
+    username: "spurro",
+    privateKey: "fake-ssh-private-key",
+    sshHostKeys: [serverSshHostKey],
+  }),
+)
 
 function createFakeProtocolClient() {
+  const client: ProtocolClient = createRealProtocolClient("amneziawg2")
   return {
-    allocateClientIdentifier: vi.fn().mockReturnValue(allocatedClientIp),
-    createInitialConfigData: vi.fn().mockImplementation((clientIdentifier: string) => ({
-      protocolCode: "amneziawg2" as const,
-      ip: clientIdentifier,
-    })),
-    createAccess: vi.fn().mockResolvedValue({
+    client,
+    allocateClientIdentifier: vi
+      .spyOn(client, "allocateClientIdentifier")
+      .mockReturnValue(Amneziawg2ClientIdentifierSchema.parse(allocatedClientIp)),
+    createInitialConfigData: vi
+      .spyOn(client, "createInitialConfigData")
+      .mockImplementation((clientIdentifier) => ({
+        protocolCode: "amneziawg2",
+        ip: clientIdentifier,
+      })),
+    createAccess: vi.spyOn(client, "createAccess").mockResolvedValue({
       configData: {
-        protocolCode: "amneziawg2" as const,
+        protocolCode: "amneziawg2",
         ip: allocatedClientIp,
         publicKey: "fake-public-key",
         presharedKey: "fake-preshared-key",
       },
       clientConfiguration: fakeClientConfiguration,
     }),
-    deleteAccessByClientIdentifier: vi.fn().mockResolvedValue(undefined),
+    deleteAccessByClientIdentifier: vi
+      .spyOn(client, "deleteAccessByClientIdentifier")
+      .mockResolvedValue(undefined),
   }
 }
 
 let fakeProtocolClient: ReturnType<typeof createFakeProtocolClient>
+let getProtocolClientSpy: MockInstance<RemoteServer["getProtocolClient"]>
 
 const createUserConfig = (input: unknown, headers: Headers) =>
   call(configRouter.createUserConfig, input as UpsertConfig, { context: { headers } })
@@ -87,34 +134,15 @@ async function insertConfigInfrastructure(
     ...overrides.endpoint,
   })
   const [configDeviceType] = await db.select().from(deviceType).limit(1)
-  return { configEndpoint, configDeviceType }
+  return { configServer, configEndpoint, configDeviceType }
 }
 
 describe("POST /configs", () => {
   beforeEach(async () => {
     fakeProtocolClient = createFakeProtocolClient()
-    vi.mocked(getEndpointProtocolClientService).mockReset()
-    vi.mocked(getEndpointProtocolClientService).mockImplementation(async () => ({
-      ok: true,
-      data: {
-        client: fakeProtocolClient as unknown as ProtocolClient,
-        server: {
-          ip: "192.0.2.10",
-          domainName: null,
-          actualState: {
-            ssh: { type: "privateKey", username: "spurro", port: 22 },
-            dns: "1.1.1.1",
-            appliedAt: new Date().toISOString(),
-          },
-        },
-        endpointActualState: {
-          protocolCode: "amneziawg2",
-          port: 51820,
-          appliedAt: new Date().toISOString(),
-        },
-        protocolCode: "amneziawg2",
-      },
-    }))
+    getProtocolClientSpy = vi
+      .spyOn(RemoteServer.prototype, "getProtocolClient")
+      .mockReturnValue(fakeProtocolClient.client)
     await db.delete(config)
     await db.delete(configLimit)
     await db.delete(endpoint)
@@ -230,7 +258,15 @@ describe("POST /configs", () => {
   })
 
   it("adds the peer to the node for the target endpoint", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const targetServerIp = "198.51.100.7"
+    const targetServerDomainName = "target-endpoint.example.test"
+    const targetEndpointPort = 51999
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+      server: { ip: targetServerIp, domainName: targetServerDomainName },
+      endpoint: {
+        data: { actualState: { protocolCode: "amneziawg2", port: targetEndpointPort, appliedAt } },
+      },
+    })
     const requestUser = await insertTestUser()
     const headers = await signInTestUser(requestUser)
 
@@ -239,10 +275,10 @@ describe("POST /configs", () => {
       headers,
     )
 
-    expect(vi.mocked(getEndpointProtocolClientService)).toHaveBeenCalledWith(configEndpoint.id)
+    expect(getProtocolClientSpy).toHaveBeenCalledWith("amneziawg2")
     expect(fakeProtocolClient.createAccess).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
+      expect.objectContaining({ ip: targetServerIp, domainName: targetServerDomainName }),
+      expect.objectContaining({ port: targetEndpointPort }),
       allocatedClientIp,
     )
   })
@@ -775,16 +811,31 @@ describe("POST /configs", () => {
       expect(configRows).toHaveLength(1)
       expect(configRows[0].status).toBe("pending")
     })
+  })
 
-    it("returns FAILED when the endpoint protocol client cannot be resolved", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+  describe("endpoint resolution failure", () => {
+    const serverDataWithoutSshHostKeys: ServerData = {
+      ...validServerData,
+      facts: { sshHostKeys: [] },
+    }
+
+    const serverDataWithoutDns: ServerData = {
+      facts: { sshHostKeys: [serverSshHostKey] },
+      actualState: {
+        ssh: { type: "privateKey", username: "spurro", port: 22 },
+        baseDirectory: "/opt/spurro",
+        appliedAt,
+      },
+    }
+
+    const unparsableEndpointData = "not-endpoint-data" as unknown as EndpointData
+
+    it("returns FAILED when the endpoint's server has no data", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+        server: { data: null },
+      })
       const requestUser = await insertTestUser()
       const headers = await signInTestUser(requestUser)
-      vi.mocked(getEndpointProtocolClientService).mockResolvedValueOnce({
-        ok: false,
-        errorCode: "unavailable",
-        error: new Error("Protocol client unavailable"),
-      })
 
       await expectCreateUserConfigError(
         {
@@ -795,6 +846,95 @@ describe("POST /configs", () => {
         headers,
         "FAILED",
       )
+    })
+
+    it("returns FAILED when the server facts contain no ssh host keys", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+        server: { data: serverDataWithoutSshHostKeys },
+      })
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+
+      await expectCreateUserConfigError(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+        "FAILED",
+      )
+    })
+
+    it("returns FAILED when the server actual state has no dns", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+        server: { data: serverDataWithoutDns },
+      })
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+
+      await expectCreateUserConfigError(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+        "FAILED",
+      )
+    })
+
+    it("returns FAILED when the endpoint data has no valid actual state", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+        endpoint: { data: {} },
+      })
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+
+      await expectCreateUserConfigError(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+        "FAILED",
+      )
+    })
+
+    it("returns FAILED when the endpoint data does not parse as valid endpoint data", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+        endpoint: { data: unparsableEndpointData },
+      })
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+
+      await expectCreateUserConfigError(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+        "FAILED",
+      )
+    })
+
+    it("does not persist a config when the endpoint resolution fails", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+        server: { data: null },
+      })
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+
+      await createUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      ).catch(() => undefined)
 
       const configRows = await db.select().from(config).where(eq(config.userId, requestUser.id))
       expect(configRows).toHaveLength(0)
@@ -919,6 +1059,73 @@ describe("POST /configs", () => {
         }),
       })
       expect(response.status).toBe(500)
+    })
+
+    it("returns FAILED when the endpoint is deleted between validation and protocol client resolution", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+      vi.mocked(findEndpointProtocolClientData).mockResolvedValueOnce(undefined)
+
+      await expectCreateUserConfigError(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+        "FAILED",
+      )
+    })
+
+    describe("unsupported protocol", () => {
+      const unsupportedProtocolClientData = {
+        serverIp: "192.0.2.1",
+        serverDomainName: null,
+        protocolCode: "bogus",
+        serverData: validServerData,
+        endpointData: validEndpointData,
+      }
+
+      it("rejects the creation with UNSUPPORTED_PROTOCOL when the endpoint protocol client resolution reports unsupported_protocol", async () => {
+        const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+        const requestUser = await insertTestUser()
+        const headers = await signInTestUser(requestUser)
+        vi.mocked(findEndpointProtocolClientData).mockResolvedValueOnce(
+          unsupportedProtocolClientData,
+        )
+
+        await expectCreateUserConfigError(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+          "UNSUPPORTED_PROTOCOL",
+        )
+      })
+
+      it("does not persist a config when the endpoint protocol is unsupported", async () => {
+        const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+        const requestUser = await insertTestUser()
+        const headers = await signInTestUser(requestUser)
+        vi.mocked(findEndpointProtocolClientData).mockResolvedValueOnce(
+          unsupportedProtocolClientData,
+        )
+
+        await createUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ).catch(() => undefined)
+
+        const configRows = await db.select().from(config).where(eq(config.userId, requestUser.id))
+        expect(configRows).toHaveLength(0)
+      })
     })
   })
 })

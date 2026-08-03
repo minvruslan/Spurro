@@ -11,6 +11,7 @@ const updateUserConfigRoute = authorized.configs.updateUserConfig.handler(
           throw errors.DEVICE_TYPE_INVALID({ cause: result.error })
         case "not_found":
           throw errors.NOT_FOUND({ cause: result.error })
+        /* v8 ignore next 2 */
         default:
           return result.errorCode satisfies never
       }

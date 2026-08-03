@@ -18,6 +18,7 @@ const createUserConfigRoute = authorized.configs.createUserConfig.handler(
           throw errors.ENDPOINT_INVALID({ cause: result.error })
         case "device_type_invalid":
           throw errors.DEVICE_TYPE_INVALID({ cause: result.error })
+        /* v8 ignore next 2 */
         default:
           return result.errorCode satisfies never
       }

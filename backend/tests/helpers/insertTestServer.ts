@@ -13,6 +13,15 @@ export async function insertTestServer(
       name: `Test Server ${randomUUID()}`,
       ip: "192.0.2.1",
       country: "NL",
+      data: {
+        facts: { sshHostKeys: ["ssh-ed25519 AAAATestServerHostKey"] },
+        actualState: {
+          ssh: { type: "privateKey", username: "spurro", port: 22 },
+          dns: "1.1.1.1",
+          baseDirectory: "/opt/spurro",
+          appliedAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
       ...overrides,
     })
     .returning()
