@@ -9,6 +9,7 @@ const deleteServerRoute = authorized.servers.deleteServer.handler(async ({ input
         throw errors.CURRENT_SERVER({ cause: result.error })
       case "not_found":
         throw errors.NOT_FOUND({ cause: result.error })
+      /* v8 ignore next 2 */
       default:
         return result.errorCode satisfies never
     }

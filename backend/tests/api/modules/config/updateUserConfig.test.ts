@@ -203,6 +203,35 @@ describe("PUT /configs/{id}", () => {
     expect(configRows[0].data).toEqual(insertedConfig.data)
   })
 
+  it("leaves the user's other config untouched on update", async () => {
+    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
+    const requestUser = await insertTestUser()
+    const headers = await signInTestUser(requestUser)
+    const updatedConfigRow = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: firstDeviceType.id,
+      status: "active",
+    })
+    const siblingConfig = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: firstDeviceType.id,
+      status: "active",
+    })
+
+    await updateUserConfig(
+      { id: updatedConfigRow.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
+      headers,
+    )
+
+    const configRows = await db.select().from(config).where(eq(config.id, siblingConfig.id))
+    expect(configRows).toHaveLength(1)
+    expect(configRows[0].name).toBe(siblingConfig.name)
+    expect(configRows[0].deviceTypeId).toBe(firstDeviceType.id)
+    expect(configRows[0].updatedAt.getTime()).toBe(siblingConfig.updatedAt.getTime())
+  })
+
   it("does not touch the node on update", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
@@ -386,6 +415,27 @@ describe("PUT /configs/{id}", () => {
       headers,
       "DEVICE_TYPE_INVALID",
     )
+  })
+
+  it("responds with HTTP 400 when the deviceTypeId is unknown", async () => {
+    const { configEndpoint, firstDeviceType } = await insertConfigInfrastructure()
+    const requestUser = await insertTestUser()
+    const headers = await signInTestUser(requestUser)
+    const insertedConfig = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: firstDeviceType.id,
+      status: "active",
+    })
+    headers.set("content-type", "application/json")
+
+    const response = await app.request(`/api/configs/${insertedConfig.id}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ name: "Updated Config", deviceTypeId: randomUUID() }),
+    })
+
+    expect(response.status).toBe(400)
   })
 
   it("rejects an unknown id with NOT_FOUND", async () => {

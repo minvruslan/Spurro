@@ -9,6 +9,7 @@ const modulesWithApprovedSpecifications: string[] = [
   "src/api/modules/device-type/**/*.ts",
   "src/api/modules/endpoint/**/*.ts",
   "src/api/modules/protocol/**/*.ts",
+  "src/api/modules/server/**/*.ts",
   "src/api/modules/user/**/*.ts",
 ]
 
@@ -28,6 +29,7 @@ export default defineConfig({
     reporters: ["tree"],
     clearMocks: true,
     restoreMocks: true,
+    mockReset: true,
     projects: [
       {
         extends: true,

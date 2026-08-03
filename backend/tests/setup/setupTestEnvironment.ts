@@ -1,9 +1,10 @@
 import { TEST_DATABASE_URL } from "../constants/TEST_DATABASE_URL.js"
+import { TEST_QUEUE_URL } from "../constants/TEST_QUEUE_URL.js"
 
 process.env.LOG_LEVEL = "silent"
 process.env.DOTENV_CONFIG_QUIET = "true"
 process.env.DATABASE_URL = TEST_DATABASE_URL
-process.env.QUEUE_URL = "redis://localhost:6379/1"
+process.env.QUEUE_URL = TEST_QUEUE_URL
 process.env.BETTER_AUTH_SECRET = "test-better-auth-secret"
 process.env.BETTER_AUTH_URL = "http://localhost:4000"
 process.env.ADMIN_EMAIL = "admin@test.local"

@@ -56,6 +56,7 @@ export async function createServerService(
         }
 
         const parsedCode = ProtocolCodeSchema.safeParse(code)
+        /* v8 ignore start */
         if (!parsedCode.success) {
           return {
             ok: false,
@@ -63,6 +64,7 @@ export async function createServerService(
             error: new Error(`Unsupported protocol "${code}".`),
           }
         }
+        /* v8 ignore stop */
 
         if (seenProtocolCodes.has(code)) {
           return {

@@ -210,6 +210,49 @@ describe("DELETE /users/{id}", () => {
     expect(configRows).toHaveLength(0)
   })
 
+  it("leaves another user, their session, config limit and config untouched", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const targetUser = await insertTestUser()
+    const targetConfig = await insertTestConfig({
+      userId: targetUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+    const bystanderUser = await insertTestUser()
+    await signInTestUser(bystanderUser)
+    const bystanderConfigLimit = await insertTestConfigLimit({ userId: bystanderUser.id })
+    const bystanderConfig = await insertTestConfig({
+      userId: bystanderUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
+      ok: true,
+      data: null,
+    })
+
+    await callDeleteUser(targetUser.id, await adminHeaders())
+
+    const userRows = await db.select().from(user).where(eq(user.id, bystanderUser.id))
+    expect(userRows).toHaveLength(1)
+    const sessionRows = await db.select().from(session).where(eq(session.userId, bystanderUser.id))
+    expect(sessionRows).toHaveLength(1)
+    const configLimitRows = await db
+      .select()
+      .from(configLimit)
+      .where(eq(configLimit.userId, bystanderUser.id))
+    expect(configLimitRows).toEqual([bystanderConfigLimit])
+    const configRows = await db.select().from(config).where(eq(config.userId, bystanderUser.id))
+    expect(configRows).toHaveLength(1)
+    expect(configRows[0].id).toBe(bystanderConfig.id)
+    expect(configRows[0].status).toBe("active")
+    expect(deleteUserConfigsFromRemoteEndpointService).toHaveBeenCalledTimes(1)
+    const [calledEndpointId, calledConfigs] = vi.mocked(deleteUserConfigsFromRemoteEndpointService)
+      .mock.calls[0]
+    expect(calledEndpointId).toBe(configEndpoint.id)
+    expect(calledConfigs.map((calledConfig) => calledConfig.id)).toEqual([targetConfig.id])
+  })
+
   it("makes no node calls when the user has no configs", async () => {
     const targetUser = await insertTestUser()
     await callDeleteUser(targetUser.id, await adminHeaders())
@@ -327,7 +370,29 @@ describe("DELETE /users/{id}", () => {
     expect(configLimitRows).toHaveLength(1)
     const configRows = await db.select().from(config).where(eq(config.userId, targetUser.id))
     expect(configRows).toHaveLength(1)
-    expect(configRows[0].status).not.toBe("deleted")
+    expect(configRows[0].status).toBe("deleting")
+  })
+
+  it("responds with HTTP 502 when node config deletion fails", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const targetUser = await insertTestUser()
+    await insertTestConfig({
+      userId: targetUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
+      ok: false,
+      errorCode: "unavailable",
+      error: new Error("Node unreachable"),
+    })
+
+    const response = await app.request(`/api/users/${targetUser.id}`, {
+      method: "DELETE",
+      headers: await adminHeaders(),
+    })
+
+    expect(response.status).toBe(502)
   })
 
   it("deletes configs on the reachable node and returns CONFIG_DELETE_FAILED when another node fails", async () => {
@@ -376,7 +441,7 @@ describe("DELETE /users/{id}", () => {
       .from(config)
       .where(eq(config.id, unreachableConfig.id))
     expect(unreachableConfigRows).toHaveLength(1)
-    expect(unreachableConfigRows[0].status).not.toBe("deleted")
+    expect(unreachableConfigRows[0].status).toBe("deleting")
   })
 
   it("returns CONFIGS_APPEARED when a new config is created for the user during deletion", async () => {
@@ -422,6 +487,31 @@ describe("DELETE /users/{id}", () => {
 
     const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
     expect(userRows).toHaveLength(1)
+  })
+
+  it("responds with HTTP 409 when configs appeared during deletion", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const targetUser = await insertTestUser()
+    await insertTestConfig({
+      userId: targetUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockImplementationOnce(async () => {
+      await insertTestConfig({
+        userId: targetUser.id,
+        endpointId: configEndpoint.id,
+        deviceTypeId: configDeviceType.id,
+      })
+      return { ok: true, data: null }
+    })
+
+    const response = await app.request(`/api/users/${targetUser.id}`, {
+      method: "DELETE",
+      headers: await adminHeaders(),
+    })
+
+    expect(response.status).toBe(409)
   })
 
   it("rejects deleting a user with role admin with NOT_FOUND", async () => {

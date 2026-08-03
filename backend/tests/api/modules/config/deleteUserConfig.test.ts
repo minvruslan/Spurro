@@ -192,6 +192,35 @@ describe("DELETE /configs/{id}", () => {
     ])
   })
 
+  it("leaves the user's other config active and off the node-side deletion", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const requestUser = await insertTestUser()
+    const headers = await signInTestUser(requestUser)
+    const deletedConfigRow = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "active",
+      data: { protocolCode: "amneziawg2", ip: "10.8.0.11" },
+    })
+    const siblingConfig = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "active",
+      data: { protocolCode: "amneziawg2", ip: "10.8.0.12" },
+    })
+
+    await deleteUserConfig(headers, deletedConfigRow.id)
+
+    const configRows = await db.select().from(config).where(eq(config.id, siblingConfig.id))
+    expect(configRows).toHaveLength(1)
+    expect(configRows[0].status).toBe("active")
+    expect(fakeProtocolClient.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+      deletedConfigRow.data,
+    ])
+  })
+
   it("frees the user's limit slot immediately after a successful delete", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
@@ -355,6 +384,26 @@ describe("DELETE /configs/{id}", () => {
 
       const configRows = await db.select().from(config).where(eq(config.id, insertedConfig.id))
       expect(configRows[0].status).toBe("deleting")
+    })
+
+    it("responds with HTTP 502 when the node-side delete fails", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+      const insertedConfig = await insertTestConfig({
+        userId: requestUser.id,
+        endpointId: configEndpoint.id,
+        deviceTypeId: configDeviceType.id,
+        status: "active",
+      })
+      fakeProtocolClient.deleteAccesses.mockRejectedValueOnce(new Error("Node-side failure"))
+
+      const response = await app.request(`/api/configs/${insertedConfig.id}`, {
+        method: "DELETE",
+        headers,
+      })
+
+      expect(response.status).toBe(502)
     })
 
     it("returns DELETE_FAILED and keeps the config deleting when the endpoint protocol client cannot be resolved", async () => {

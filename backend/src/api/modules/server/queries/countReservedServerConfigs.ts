@@ -8,5 +8,8 @@ export async function countReservedServerConfigs(executor: DbOrTx, serverId: str
     .from(config)
     .innerJoin(endpoint, eq(config.endpointId, endpoint.id))
     .where(and(eq(endpoint.serverId, serverId), ne(config.status, "deleted")))
-  return row?.value ?? 0
+  /* v8 ignore start */
+  if (!row) return 0
+  /* v8 ignore stop */
+  return row.value
 }

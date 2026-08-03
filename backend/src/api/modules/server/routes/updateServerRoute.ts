@@ -8,6 +8,7 @@ const updateServerRoute = authorized.servers.updateServer.handler(async ({ input
     switch (result.errorCode) {
       case "not_found":
         throw errors.NOT_FOUND({ cause: result.error })
+      /* v8 ignore next 2 */
       default:
         return result.errorCode satisfies never
     }

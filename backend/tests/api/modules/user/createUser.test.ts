@@ -8,7 +8,7 @@ import { userRouter } from "@/api/modules/user/index.js"
 import { insertUser } from "@/api/modules/user/queries/insertUser.js"
 import { db } from "@/core/database/index.js"
 import { configLimit, user } from "@/core/database/schemas/index.js"
-import { insertTestUser, signInTestUser } from "../../../helpers/index.js"
+import { insertTestConfigLimit, insertTestUser, signInTestUser } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/user/queries/insertUser.js", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/api/modules/user/queries/insertUser.js")>()
@@ -98,6 +98,7 @@ describe("POST /users", () => {
     expect(userRows).toHaveLength(1)
     expect(userRows[0].name).toBe("Created User")
     expect(userRows[0].email).toBe(email)
+    expect(userRows[0].emailVerified).toBe(true)
   })
 
   it("returns the created user with no role and not banned", async () => {
@@ -147,6 +148,29 @@ describe("POST /users", () => {
     expect(configLimitRows).toHaveLength(1)
     expect(configLimitRows[0].protocolFamily).toBe("amneziawg")
     expect(configLimitRows[0].maxCount).toBe(4)
+  })
+
+  it("leaves another user's config limit untouched", async () => {
+    const bystanderUser = await insertTestUser()
+    const bystanderConfigLimit = await insertTestConfigLimit({
+      userId: bystanderUser.id,
+      maxCount: 6,
+    })
+
+    await createUser(
+      {
+        name: "Created User",
+        email: uniqueEmail(),
+        limits: [{ protocolFamily: "amneziawg", maxCount: 4 }],
+      },
+      await adminHeaders(),
+    )
+
+    const configLimitRows = await db
+      .select()
+      .from(configLimit)
+      .where(eq(configLimit.userId, bystanderUser.id))
+    expect(configLimitRows).toEqual([bystanderConfigLimit])
   })
 
   it("creates the user with an empty limits array when limits is omitted", async () => {
@@ -316,6 +340,20 @@ describe("POST /users", () => {
     const userRows = await db.select().from(user).where(eq(user.email, existingUser.email))
     expect(userRows).toHaveLength(1)
     expect(userRows[0].id).toBe(existingUser.id)
+  })
+
+  it("responds with HTTP 409 when the email is taken", async () => {
+    const existingUser = await insertTestUser()
+    const headers = await adminHeaders()
+    headers.set("content-type", "application/json")
+
+    const response = await app.request("/api/users", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ name: "Created User", email: existingUser.email }),
+    })
+
+    expect(response.status).toBe(409)
   })
 
   it("does not insert user or config limit rows when input validation fails", async () => {

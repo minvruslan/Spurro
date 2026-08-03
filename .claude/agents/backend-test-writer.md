@@ -41,7 +41,7 @@ Run and make pass (discrepancy tests exempt — they stay red and reported):
 1. `pnpm test` and `pnpm test:integration` (the latter starts `postgres-test` itself).
 2. `pnpm typecheck`, `pnpm lint:check`, and `pnpm format:check` from the repo root.
 3. `pnpm test:coverage`: every file of the target module at 100% statements/branches/functions/lines. If the module is fully implemented and green, add its glob to `modulesWithApprovedSpecifications` in `backend/vitest.config.ts`; if any case is red or todo, do not add it.
-4. `docker compose stop postgres-test` from the repo root when finished.
+4. `docker compose stop postgres-test redis-test` from the repo root when finished.
 
 # Report format
 

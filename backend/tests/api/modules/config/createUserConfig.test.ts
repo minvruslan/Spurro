@@ -4,10 +4,11 @@ import { ConfigSchema, type UpsertConfig } from "@spurro/api-contract"
 import { RemoteServer, type ProtocolClient } from "@spurro/infrastructure"
 import {
   Amneziawg2ClientIdentifierSchema,
+  type Amneziawg2ConfigData,
   type EndpointData,
   type ServerData,
 } from "@spurro/infrastructure/types"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
 import app from "@/api/app.js"
 import { configRouter } from "@/api/modules/config/index.js"
@@ -52,8 +53,17 @@ vi.mock("@/api/modules/config/queries/insertUserConfig.js", async (importOrigina
 
 const allocatedClientIp = "10.8.1.2"
 const fakeClientConfiguration = "fake-client-configuration"
+const fakePublicKey = "fake-public-key"
+const fakePresharedKey = "fake-preshared-key"
 const appliedAt = "2026-01-01T00:00:00.000Z"
 const serverSshHostKey = "ssh-ed25519 AAAATestServerHostKey"
+
+const fakeNodeConfigData: Amneziawg2ConfigData = {
+  protocolCode: "amneziawg2",
+  ip: allocatedClientIp,
+  publicKey: fakePublicKey,
+  presharedKey: fakePresharedKey,
+}
 
 const validServerData: ServerData = {
   facts: { sshHostKeys: [serverSshHostKey] },
@@ -67,6 +77,14 @@ const validServerData: ServerData = {
 
 const validEndpointData: EndpointData = {
   actualState: { protocolCode: "amneziawg2", port: 51820, appliedAt },
+}
+
+const unsupportedProtocolClientData = {
+  serverIp: "192.0.2.1",
+  serverDomainName: null,
+  protocolCode: "bogus",
+  serverData: validServerData,
+  endpointData: validEndpointData,
 }
 
 const createRealProtocolClient = RemoteServer.prototype.getProtocolClient.bind(
@@ -93,12 +111,7 @@ function createFakeProtocolClient() {
         ip: clientIdentifier,
       })),
     createAccess: vi.spyOn(client, "createAccess").mockResolvedValue({
-      configData: {
-        protocolCode: "amneziawg2",
-        ip: allocatedClientIp,
-        publicKey: "fake-public-key",
-        presharedKey: "fake-preshared-key",
-      },
+      configData: { ...fakeNodeConfigData },
       clientConfiguration: fakeClientConfiguration,
     }),
     deleteAccessByClientIdentifier: vi
@@ -112,6 +125,11 @@ let getProtocolClientSpy: MockInstance<RemoteServer["getProtocolClient"]>
 
 const createUserConfig = (input: unknown, headers: Headers) =>
   call(configRouter.createUserConfig, input as UpsertConfig, { context: { headers } })
+
+const requestCreateUserConfig = (input: Record<string, unknown>, headers: Headers) => {
+  headers.set("content-type", "application/json")
+  return app.request("/api/configs", { method: "POST", headers, body: JSON.stringify(input) })
+}
 
 const expectCreateUserConfigError = async (input: unknown, headers: Headers, errorCode: string) => {
   await expect(createUserConfig(input, headers)).rejects.toSatisfy(
@@ -255,6 +273,56 @@ describe("POST /configs", () => {
     expect(configRows).toHaveLength(1)
     expect(configRows[0].status).toBe("active")
     expect(configRows[0].userId).toBe(requestUser.id)
+    expect(configRows[0].clientIdentifier).toBe(allocatedClientIp)
+    expect(configRows[0].data).toEqual(fakeNodeConfigData)
+    expect(configRows[0].data.publicKey).toBe(fakePublicKey)
+    expect(configRows[0].data.presharedKey).toBe(fakePresharedKey)
+  })
+
+  it("stores the data column encrypted at rest", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const requestUser = await insertTestUser()
+    const headers = await signInTestUser(requestUser)
+
+    const createdConfig = await createUserConfig(
+      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
+      headers,
+    )
+
+    const rawConfigRows = await db.execute<{ data: string }>(
+      sql`select data::text as data from config where id = ${createdConfig.id}::uuid`,
+    )
+    expect(rawConfigRows).toHaveLength(1)
+    expect(rawConfigRows[0]?.data.startsWith("v1:")).toBe(true)
+    expect(rawConfigRows[0]?.data).not.toContain(fakePublicKey)
+    expect(rawConfigRows[0]?.data).not.toContain(fakePresharedKey)
+  })
+
+  it("leaves another user's pending config untouched on a successful creation", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const requestUser = await insertTestUser()
+    const headers = await signInTestUser(requestUser)
+    const otherUser = await insertTestUser()
+    const otherUserPendingConfig = await insertTestConfig({
+      userId: otherUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "pending",
+      data: { protocolCode: "amneziawg2", ip: "10.8.0.50" },
+    })
+
+    await createUserConfig(
+      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
+      headers,
+    )
+
+    const configRows = await db
+      .select()
+      .from(config)
+      .where(eq(config.id, otherUserPendingConfig.id))
+    expect(configRows).toHaveLength(1)
+    expect(configRows[0].status).toBe("pending")
+    expect(configRows[0].data).toEqual(otherUserPendingConfig.data)
   })
 
   it("adds the peer to the node for the target endpoint", async () => {
@@ -280,6 +348,36 @@ describe("POST /configs", () => {
       expect.objectContaining({ ip: targetServerIp, domainName: targetServerDomainName }),
       expect.objectContaining({ port: targetEndpointPort }),
       allocatedClientIp,
+    )
+  })
+
+  it("reserves the client identifiers of the existing configs on the same server", async () => {
+    const { configServer, configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const otherEndpoint = await insertTestEndpoint({
+      serverId: configServer.id,
+      protocolId: configEndpoint.protocolId,
+      port: configEndpoint.port + 1,
+      status: "deleted",
+    })
+    const requestUser = await insertTestUser()
+    const headers = await signInTestUser(requestUser)
+    const existingClientIdentifier = "10.8.0.77"
+    await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: otherEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "active",
+      clientIdentifier: existingClientIdentifier,
+    })
+
+    await createUserConfig(
+      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
+      headers,
+    )
+
+    expect(fakeProtocolClient.allocateClientIdentifier.mock.calls).toHaveLength(1)
+    expect(fakeProtocolClient.allocateClientIdentifier.mock.calls[0][1]).toContain(
+      existingClientIdentifier,
     )
   })
 
@@ -788,6 +886,33 @@ describe("POST /configs", () => {
       )
     })
 
+    it("leaves the user's other pending config untouched when the node-side creation fails", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+      const otherPendingConfig = await insertTestConfig({
+        userId: requestUser.id,
+        endpointId: configEndpoint.id,
+        deviceTypeId: configDeviceType.id,
+        status: "pending",
+        data: { protocolCode: "amneziawg2", ip: "10.8.0.50" },
+      })
+      fakeProtocolClient.createAccess.mockRejectedValueOnce(new Error("Node-side failure"))
+
+      await createUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      ).catch(() => undefined)
+
+      const configRows = await db.select().from(config).where(eq(config.id, otherPendingConfig.id))
+      expect(configRows).toHaveLength(1)
+      expect(configRows[0].status).toBe("pending")
+    })
+
     it("keeps the config pending when both the node-side creation and the rollback delete fail", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
@@ -946,12 +1071,7 @@ describe("POST /configs", () => {
       fakeProtocolClient.createAccess.mockImplementationOnce(async () => {
         await db.update(config).set({ status: "deleting" }).where(eq(config.userId, userId))
         return {
-          configData: {
-            protocolCode: "amneziawg2" as const,
-            ip: allocatedClientIp,
-            publicKey: "fake-public-key",
-            presharedKey: "fake-preshared-key",
-          },
+          configData: { ...fakeNodeConfigData },
           clientConfiguration: fakeClientConfiguration,
         }
       })
@@ -1013,6 +1133,88 @@ describe("POST /configs", () => {
         expect.anything(),
         allocatedClientIp,
       )
+    })
+  })
+
+  describe("http error statuses", () => {
+    it("responds with HTTP 502 when the node-side creation fails", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+      fakeProtocolClient.createAccess.mockRejectedValueOnce(new Error("Node-side failure"))
+
+      const response = await requestCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      )
+
+      expect(response.status).toBe(502)
+    })
+
+    it("responds with HTTP 503 when the endpoint has no free client IP", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+      fakeProtocolClient.allocateClientIdentifier.mockReturnValueOnce(null)
+
+      const response = await requestCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      )
+
+      expect(response.status).toBe(503)
+    })
+
+    it("responds with HTTP 409 when the config limit is reached", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 0 })
+
+      const response = await requestCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      )
+
+      expect(response.status).toBe(409)
+    })
+
+    it("responds with HTTP 400 when the endpointId is unknown", async () => {
+      const { configDeviceType } = await insertConfigInfrastructure()
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+
+      const response = await requestCreateUserConfig(
+        { name: "Created Config", endpointId: randomUUID(), deviceTypeId: configDeviceType.id },
+        headers,
+      )
+
+      expect(response.status).toBe(400)
+    })
+
+    it("responds with HTTP 400 when the deviceTypeId is unknown", async () => {
+      const { configEndpoint } = await insertConfigInfrastructure()
+      const requestUser = await insertTestUser()
+      const headers = await signInTestUser(requestUser)
+
+      const response = await requestCreateUserConfig(
+        { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: randomUUID() },
+        headers,
+      )
+
+      expect(response.status).toBe(400)
     })
   })
 
@@ -1079,14 +1281,6 @@ describe("POST /configs", () => {
     })
 
     describe("unsupported protocol", () => {
-      const unsupportedProtocolClientData = {
-        serverIp: "192.0.2.1",
-        serverDomainName: null,
-        protocolCode: "bogus",
-        serverData: validServerData,
-        endpointData: validEndpointData,
-      }
-
       it("rejects the creation with UNSUPPORTED_PROTOCOL when the endpoint protocol client resolution reports unsupported_protocol", async () => {
         const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
         const requestUser = await insertTestUser()
@@ -1125,6 +1319,26 @@ describe("POST /configs", () => {
 
         const configRows = await db.select().from(config).where(eq(config.userId, requestUser.id))
         expect(configRows).toHaveLength(0)
+      })
+
+      it("responds with HTTP 400 when the endpoint protocol is unsupported", async () => {
+        const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+        const requestUser = await insertTestUser()
+        const headers = await signInTestUser(requestUser)
+        vi.mocked(findEndpointProtocolClientData).mockResolvedValueOnce(
+          unsupportedProtocolClientData,
+        )
+
+        const response = await requestCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        )
+
+        expect(response.status).toBe(400)
       })
     })
   })

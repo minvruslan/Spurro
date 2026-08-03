@@ -24,6 +24,11 @@ Everything else under `backend/src/**` and `infrastructure/src/**` (services, qu
 5. Authorization: anonymous, ordinary user, admin where the contract distinguishes access, ownership checks.
 6. Technical failures: infrastructure errors (query throws) under a `describe("technical")` block — response must be HTTP 500.
 7. Five exit doors of a mutating route: response, database state afterwards, external calls, queued jobs, logs. A mutation case that only checks the response is incomplete — assert the state too.
+8. Field destinations: every input field of a mutating route gets a case asserting its persisted value read back from the database — or an explicit "is silently ignored" case when that is the approved behavior. A case that only checks the response does not close this category: a dropped write must turn a test red.
+9. Encrypted columns: every write into an encrypted column (declared via `encryptedText`/`encryptedJsonb` in the database schema) gets a case asserting through raw SQL that the stored column text does not contain the plaintext secret.
+10. Cascade end states: when a mutation transitions related entities, the case wording must name the expected end state of every affected entity type ("keeps the config rows with status deleted"), never a bare "keeps the rows" — an underspecified case produces an underspecified assertion.
+11. Blast radius: every mutation scoped by an identifier gets a case asserting that sibling entities outside the scope survive unchanged (another user's, another server's rows) — with assertions on the siblings, not merely their presence in the setup.
+12. Wire statuses: every contract error declared with an explicit HTTP status gets exactly one case asserting that status over a raw HTTP request; all other cases stay on the direct procedure call, matching existing test structure.
 
 # Format rules
 

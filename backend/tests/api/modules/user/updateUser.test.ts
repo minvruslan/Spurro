@@ -235,6 +235,32 @@ describe("PUT /users/{id}", () => {
     expect(configLimitRows[0].maxCount).toBe(9)
   })
 
+  it("leaves another user's config limit untouched", async () => {
+    const targetUser = await insertTestUser()
+    await insertTestConfigLimit({ userId: targetUser.id, maxCount: 2 })
+    const bystanderUser = await insertTestUser()
+    const bystanderConfigLimit = await insertTestConfigLimit({
+      userId: bystanderUser.id,
+      maxCount: 6,
+    })
+
+    await callUpdateUser(
+      {
+        id: targetUser.id,
+        name: targetUser.name,
+        email: targetUser.email,
+        limits: [{ protocolFamily: "amneziawg", maxCount: 9 }],
+      },
+      await adminHeaders(),
+    )
+
+    const configLimitRows = await db
+      .select()
+      .from(configLimit)
+      .where(eq(configLimit.userId, bystanderUser.id))
+    expect(configLimitRows).toEqual([bystanderConfigLimit])
+  })
+
   it("returns limits with used counting the user's non-deleted configs of the matching protocol family", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const targetUser = await insertTestUser()
@@ -437,6 +463,21 @@ describe("PUT /users/{id}", () => {
       .where(eq(configLimit.userId, targetUser.id))
     expect(configLimitRows).toHaveLength(1)
     expect(configLimitRows[0].maxCount).toBe(2)
+  })
+
+  it("responds with HTTP 409 when the email is taken", async () => {
+    const targetUser = await insertTestUser()
+    const otherUser = await insertTestUser()
+    const headers = await adminHeaders()
+    headers.set("content-type", "application/json")
+
+    const response = await app.request(`/api/users/${targetUser.id}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ name: "Updated Name", email: otherUser.email }),
+    })
+
+    expect(response.status).toBe(409)
   })
 
   it("rejects an unknown id with NOT_FOUND", async () => {
