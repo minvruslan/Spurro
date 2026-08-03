@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { ConfigSchema, type UpdateConfig } from "@spurro/api-contract"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -9,14 +9,15 @@ import { updateUserConfig as updateUserConfigQuery } from "@/api/modules/config/
 import { getEndpointProtocolClientService } from "@/api/modules/config/services/getEndpointProtocolClientService.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
-import { config, deviceType, endpoint, protocol, server } from "@/core/database/schemas/index.js"
+import { config, deviceType } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
 import {
   insertTestConfig,
   insertTestEndpoint,
   insertTestProtocol,
   insertTestServer,
+  insertTestSession,
   insertTestUser,
-  signInTestUser,
 } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/config/services/getEndpointProtocolClientService.js", () => ({
@@ -29,15 +30,10 @@ vi.mock("@/api/modules/config/queries/updateUserConfig.js", async (importOrigina
   return { updateUserConfig: vi.fn(original.updateUserConfig) }
 })
 
-const updateUserConfig = (input: unknown, headers: Headers) =>
-  call(configRouter.updateUserConfig, input as UpdateConfig & { id: string }, {
+function callUpdateUserConfig(input: unknown, headers: Headers) {
+  return call(configRouter.updateUserConfig, input as UpdateConfig & { id: string }, {
     context: { headers },
   })
-
-const expectUpdateUserConfigError = async (input: unknown, headers: Headers, errorCode: string) => {
-  await expect(updateUserConfig(input, headers)).rejects.toSatisfy(
-    (error) => error instanceof ORPCError && error.code === errorCode,
-  )
 }
 
 async function insertConfigInfrastructure() {
@@ -52,19 +48,12 @@ async function insertConfigInfrastructure() {
 }
 
 describe("PUT /configs/{id}", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(server)
-    await db.delete(protocol)
-    await db.delete(deviceType)
-    await bootstrapDeviceTypes()
-  })
+  beforeEach(bootstrapDeviceTypes)
 
   it("updates the name and device type and returns the config matching the contract schema", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -72,7 +61,7 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    const updatedConfig = await updateUserConfig(
+    const updatedConfig = await callUpdateUserConfig(
       { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
       headers,
     )
@@ -86,7 +75,7 @@ describe("PUT /configs/{id}", () => {
   it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -100,7 +89,7 @@ describe("PUT /configs/{id}", () => {
       },
     })
 
-    const updatedConfig = await updateUserConfig(
+    const updatedConfig = await callUpdateUserConfig(
       { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
       headers,
     )
@@ -137,7 +126,7 @@ describe("PUT /configs/{id}", () => {
   it("persists the new name and device type in the database", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -145,7 +134,7 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    await updateUserConfig(
+    await callUpdateUserConfig(
       { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
       headers,
     )
@@ -159,7 +148,7 @@ describe("PUT /configs/{id}", () => {
   it("refreshes updatedAt on a successful update", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -172,7 +161,7 @@ describe("PUT /configs/{id}", () => {
       .set({ updatedAt: pastUpdatedAt })
       .where(eq(config.id, insertedConfig.id))
 
-    await updateUserConfig(
+    await callUpdateUserConfig(
       { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
       headers,
     )
@@ -184,7 +173,7 @@ describe("PUT /configs/{id}", () => {
   it("does not change status, endpoint, or data on update", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -192,7 +181,7 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    await updateUserConfig(
+    await callUpdateUserConfig(
       { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
       headers,
     )
@@ -206,7 +195,7 @@ describe("PUT /configs/{id}", () => {
   it("leaves the user's other config untouched on update", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const updatedConfigRow = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -220,7 +209,7 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    await updateUserConfig(
+    await callUpdateUserConfig(
       { id: updatedConfigRow.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
       headers,
     )
@@ -235,7 +224,7 @@ describe("PUT /configs/{id}", () => {
   it("does not touch the node on update", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -243,7 +232,7 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    await updateUserConfig(
+    await callUpdateUserConfig(
       { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
       headers,
     )
@@ -254,7 +243,7 @@ describe("PUT /configs/{id}", () => {
   it("updates a pending config younger than the reservation window", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const pendingConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -262,7 +251,7 @@ describe("PUT /configs/{id}", () => {
       status: "pending",
     })
 
-    const updatedConfig = await updateUserConfig(
+    const updatedConfig = await callUpdateUserConfig(
       { id: pendingConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
       headers,
     )
@@ -275,7 +264,7 @@ describe("PUT /configs/{id}", () => {
   it("accepts a name of exactly 255 characters", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -284,7 +273,7 @@ describe("PUT /configs/{id}", () => {
     })
     const name = "a".repeat(255)
 
-    const updatedConfig = await updateUserConfig(
+    const updatedConfig = await callUpdateUserConfig(
       { id: insertedConfig.id, name, deviceTypeId: secondDeviceType.id },
       headers,
     )
@@ -296,7 +285,7 @@ describe("PUT /configs/{id}", () => {
   it("rejects a missing name with BAD_REQUEST", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -304,9 +293,8 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    await expectUpdateUserConfigError(
-      { id: insertedConfig.id, deviceTypeId: secondDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig({ id: insertedConfig.id, deviceTypeId: secondDeviceType.id }, headers),
       "BAD_REQUEST",
     )
   })
@@ -314,7 +302,7 @@ describe("PUT /configs/{id}", () => {
   it("rejects an empty name with BAD_REQUEST", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -322,9 +310,11 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    await expectUpdateUserConfigError(
-      { id: insertedConfig.id, name: "", deviceTypeId: secondDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: insertedConfig.id, name: "", deviceTypeId: secondDeviceType.id },
+        headers,
+      ),
       "BAD_REQUEST",
     )
   })
@@ -332,7 +322,7 @@ describe("PUT /configs/{id}", () => {
   it("rejects a name longer than 255 characters with BAD_REQUEST", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -340,9 +330,11 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    await expectUpdateUserConfigError(
-      { id: insertedConfig.id, name: "a".repeat(256), deviceTypeId: secondDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: insertedConfig.id, name: "a".repeat(256), deviceTypeId: secondDeviceType.id },
+        headers,
+      ),
       "BAD_REQUEST",
     )
   })
@@ -350,7 +342,7 @@ describe("PUT /configs/{id}", () => {
   it("rejects a non-uuid deviceTypeId with BAD_REQUEST", async () => {
     const { configEndpoint, firstDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -358,9 +350,11 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    await expectUpdateUserConfigError(
-      { id: insertedConfig.id, name: "Updated Config", deviceTypeId: "not-a-uuid" },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: insertedConfig.id, name: "Updated Config", deviceTypeId: "not-a-uuid" },
+        headers,
+      ),
       "BAD_REQUEST",
     )
   })
@@ -368,11 +362,13 @@ describe("PUT /configs/{id}", () => {
   it("rejects a non-uuid id with BAD_REQUEST", async () => {
     const { secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectUpdateUserConfigError(
-      { id: "not-a-uuid", name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: "not-a-uuid", name: "Updated Config", deviceTypeId: secondDeviceType.id },
+        headers,
+      ),
       "BAD_REQUEST",
     )
   })
@@ -380,7 +376,7 @@ describe("PUT /configs/{id}", () => {
   it("rejects an unknown deviceTypeId with DEVICE_TYPE_INVALID", async () => {
     const { configEndpoint, firstDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -388,9 +384,11 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    await expectUpdateUserConfigError(
-      { id: insertedConfig.id, name: "Updated Config", deviceTypeId: randomUUID() },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: insertedConfig.id, name: "Updated Config", deviceTypeId: randomUUID() },
+        headers,
+      ),
       "DEVICE_TYPE_INVALID",
     )
   })
@@ -398,7 +396,7 @@ describe("PUT /configs/{id}", () => {
   it("rejects a disabled device type with DEVICE_TYPE_INVALID", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -410,9 +408,11 @@ describe("PUT /configs/{id}", () => {
       .set({ isEnabled: false })
       .where(eq(deviceType.id, secondDeviceType.id))
 
-    await expectUpdateUserConfigError(
-      { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
+        headers,
+      ),
       "DEVICE_TYPE_INVALID",
     )
   })
@@ -420,7 +420,7 @@ describe("PUT /configs/{id}", () => {
   it("responds with HTTP 400 when the deviceTypeId is unknown", async () => {
     const { configEndpoint, firstDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -441,11 +441,13 @@ describe("PUT /configs/{id}", () => {
   it("rejects an unknown id with NOT_FOUND", async () => {
     const { secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectUpdateUserConfigError(
-      { id: randomUUID(), name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: randomUUID(), name: "Updated Config", deviceTypeId: secondDeviceType.id },
+        headers,
+      ),
       "NOT_FOUND",
     )
   })
@@ -453,7 +455,7 @@ describe("PUT /configs/{id}", () => {
   it("rejects another user's config with NOT_FOUND", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const otherUser = await insertTestUser()
     const otherUserConfig = await insertTestConfig({
       userId: otherUser.id,
@@ -462,9 +464,11 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    await expectUpdateUserConfigError(
-      { id: otherUserConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: otherUserConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
+        headers,
+      ),
       "NOT_FOUND",
     )
   })
@@ -472,7 +476,7 @@ describe("PUT /configs/{id}", () => {
   it("rejects a pending config older than the reservation window with NOT_FOUND", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const stalePendingConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -484,9 +488,11 @@ describe("PUT /configs/{id}", () => {
       .set({ createdAt: new Date(Date.now() - 7 * 60 * 1000) })
       .where(eq(config.id, stalePendingConfig.id))
 
-    await expectUpdateUserConfigError(
-      { id: stalePendingConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: stalePendingConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
+        headers,
+      ),
       "NOT_FOUND",
     )
   })
@@ -494,7 +500,7 @@ describe("PUT /configs/{id}", () => {
   it("rejects a deleting config with NOT_FOUND", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const deletingConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -502,9 +508,11 @@ describe("PUT /configs/{id}", () => {
       status: "deleting",
     })
 
-    await expectUpdateUserConfigError(
-      { id: deletingConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: deletingConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
+        headers,
+      ),
       "NOT_FOUND",
     )
   })
@@ -512,7 +520,7 @@ describe("PUT /configs/{id}", () => {
   it("rejects a deleted config with NOT_FOUND", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const deletedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -520,9 +528,11 @@ describe("PUT /configs/{id}", () => {
       status: "deleted",
     })
 
-    await expectUpdateUserConfigError(
-      { id: deletedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: deletedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
+        headers,
+      ),
       "NOT_FOUND",
     )
   })
@@ -530,7 +540,7 @@ describe("PUT /configs/{id}", () => {
   it("allows an admin user as well", async () => {
     const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
     const adminUser = await insertTestUser({ role: "admin" })
-    const headers = await signInTestUser(adminUser)
+    const headers = await insertTestSession(adminUser)
     const adminConfig = await insertTestConfig({
       userId: adminUser.id,
       endpointId: configEndpoint.id,
@@ -538,7 +548,7 @@ describe("PUT /configs/{id}", () => {
       status: "active",
     })
 
-    const updatedConfig = await updateUserConfig(
+    const updatedConfig = await callUpdateUserConfig(
       { id: adminConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
       headers,
     )
@@ -550,9 +560,11 @@ describe("PUT /configs/{id}", () => {
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
     const { secondDeviceType } = await insertConfigInfrastructure()
 
-    await expectUpdateUserConfigError(
-      { id: randomUUID(), name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      new Headers(),
+    await expectOrpcError(
+      callUpdateUserConfig(
+        { id: randomUUID(), name: "Updated Config", deviceTypeId: secondDeviceType.id },
+        new Headers(),
+      ),
       "UNAUTHORIZED",
     )
   })
@@ -564,7 +576,7 @@ describe("PUT /configs/{id}", () => {
       const { configEndpoint, firstDeviceType, secondDeviceType } =
         await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       const insertedConfig = await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,

@@ -1,15 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest"
-import { db } from "@/core/database/index.js"
-import { config, endpoint, protocol } from "@/core/database/schemas/index.js"
+import { describe, expect, it } from "vitest"
 import { insertTestProtocol } from "./insertTestProtocol.js"
 
 describe("insertTestProtocol", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(protocol)
-  })
-
   it("creates a persisted protocol with registry defaults", async () => {
     const insertedProtocol = await insertTestProtocol()
     expect(insertedProtocol.id).toBeDefined()

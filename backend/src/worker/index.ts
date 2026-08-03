@@ -24,7 +24,7 @@ try {
 const worker = new Worker<ProvisionServerJob>(
   PROVISION_SERVER_QUEUE_NAME,
   (job) => provisionServerJob(job.data),
-  { connection: queueConnection, concurrency: 5 },
+  { connection: queueConnection, concurrency: 3 },
 )
 
 worker.on("failed", async (job, err) => {

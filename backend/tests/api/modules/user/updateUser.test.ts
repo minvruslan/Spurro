@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { UserSchema, type UpsertUser } from "@spurro/api-contract"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -8,23 +8,18 @@ import { userRouter } from "@/api/modules/user/index.js"
 import { updateUser } from "@/api/modules/user/queries/updateUser.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
+import { config, configLimit, deviceType, user } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
 import {
-  config,
-  configLimit,
-  deviceType,
-  endpoint,
-  protocol,
-  server,
-  user,
-} from "@/core/database/schemas/index.js"
-import {
+  createTestEmail,
   insertTestConfig,
   insertTestConfigLimit,
   insertTestEndpoint,
   insertTestProtocol,
   insertTestServer,
+  insertTestSession,
   insertTestUser,
-  signInTestUser,
+  signInTestAdmin,
 } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/user/queries/updateUser.js", async (importOriginal) => {
@@ -32,16 +27,8 @@ vi.mock("@/api/modules/user/queries/updateUser.js", async (importOriginal) => {
   return { updateUser: vi.fn(original.updateUser) }
 })
 
-const callUpdateUser = (input: unknown, headers: Headers) =>
-  call(userRouter.updateUser, input as UpsertUser & { id: string }, { context: { headers } })
-
-async function adminHeaders() {
-  const requestUser = await insertTestUser({ role: "admin" })
-  return signInTestUser(requestUser)
-}
-
-function uniqueEmail() {
-  return `updated-user-${randomUUID()}@test.local`
+function callUpdateUser(input: unknown, headers: Headers) {
+  return call(userRouter.updateUser, input as UpsertUser & { id: string }, { context: { headers } })
 }
 
 async function insertConfigInfrastructure() {
@@ -55,28 +42,15 @@ async function insertConfigInfrastructure() {
   return { configEndpoint, configDeviceType }
 }
 
-const expectBadRequest = async (input: unknown, headers: Headers) => {
-  await expect(callUpdateUser(input, headers)).rejects.toSatisfy(
-    (error) => error instanceof ORPCError && error.code === "BAD_REQUEST",
-  )
-}
-
 describe("PUT /users/{id}", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(server)
-    await db.delete(protocol)
-    await db.delete(deviceType)
-    await bootstrapDeviceTypes()
-  })
+  beforeEach(bootstrapDeviceTypes)
 
   it("updates the name and email and returns the user matching the contract schema", async () => {
     const targetUser = await insertTestUser()
-    const newEmail = uniqueEmail()
+    const newEmail = createTestEmail()
     const updatedUser = await callUpdateUser(
       { id: targetUser.id, name: "Updated Name", email: newEmail },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const parsed = UserSchema.parse(updatedUser)
@@ -94,7 +68,7 @@ describe("PUT /users/{id}", () => {
         email: targetUser.email,
         limits: [{ protocolFamily: "amneziawg", maxCount: 2 }],
       },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     expect(Object.keys(updatedUser).sort()).toEqual([
@@ -122,10 +96,10 @@ describe("PUT /users/{id}", () => {
 
   it("persists the updated name and email in the database", async () => {
     const targetUser = await insertTestUser()
-    const newEmail = uniqueEmail()
+    const newEmail = createTestEmail()
     await callUpdateUser(
       { id: targetUser.id, name: "Updated Name", email: newEmail },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
@@ -142,7 +116,7 @@ describe("PUT /users/{id}", () => {
     })
     const updatedUser = await callUpdateUser(
       { id: targetUser.id, name: "Updated Name", email: targetUser.email },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const parsed = UserSchema.parse(updatedUser)
@@ -161,7 +135,7 @@ describe("PUT /users/{id}", () => {
         email: targetUser.email,
         limits: [{ protocolFamily: "amneziawg", maxCount: 7 }],
       },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     expect(updatedUser.limits).toHaveLength(1)
@@ -180,7 +154,7 @@ describe("PUT /users/{id}", () => {
         email: targetUser.email,
         limits: [{ protocolFamily: "amneziawg", maxCount: 3 }],
       },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     expect(updatedUser.limits).toHaveLength(1)
@@ -196,7 +170,7 @@ describe("PUT /users/{id}", () => {
     await insertTestConfigLimit({ userId: targetUser.id, maxCount: 2 })
     const updatedUser = await callUpdateUser(
       { id: targetUser.id, name: targetUser.name, email: targetUser.email },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     expect(updatedUser.limits).toEqual([])
@@ -207,7 +181,7 @@ describe("PUT /users/{id}", () => {
     await insertTestConfigLimit({ userId: targetUser.id, maxCount: 2 })
     const updatedUser = await callUpdateUser(
       { id: targetUser.id, name: targetUser.name, email: targetUser.email, limits: [] },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     expect(updatedUser.limits).toEqual([])
@@ -223,7 +197,7 @@ describe("PUT /users/{id}", () => {
         email: targetUser.email,
         limits: [{ protocolFamily: "amneziawg", maxCount: 9 }],
       },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const configLimitRows = await db
@@ -251,7 +225,7 @@ describe("PUT /users/{id}", () => {
         email: targetUser.email,
         limits: [{ protocolFamily: "amneziawg", maxCount: 9 }],
       },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const configLimitRows = await db
@@ -279,7 +253,7 @@ describe("PUT /users/{id}", () => {
         email: targetUser.email,
         limits: [{ protocolFamily: "amneziawg", maxCount: 5 }],
       },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     expect(updatedUser.limits).toHaveLength(1)
@@ -309,7 +283,7 @@ describe("PUT /users/{id}", () => {
         email: targetUser.email,
         limits: [{ protocolFamily: "amneziawg", maxCount: 1 }],
       },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const configLimitRows = await db
@@ -341,7 +315,7 @@ describe("PUT /users/{id}", () => {
         email: targetUser.email,
         limits: [{ protocolFamily: "amneziawg", maxCount: 1 }],
       },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const parsed = UserSchema.parse(updatedUser)
@@ -368,7 +342,7 @@ describe("PUT /users/{id}", () => {
     })
     await callUpdateUser(
       { id: targetUser.id, name: targetUser.name, email: targetUser.email, limits: [] },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const configRows = await db.select().from(config).where(eq(config.userId, targetUser.id))
@@ -381,19 +355,20 @@ describe("PUT /users/{id}", () => {
   it("rejects updating a user with role admin with NOT_FOUND", async () => {
     const adminUser = await insertTestUser({ role: "admin" })
 
-    await expect(
+    await expectOrpcError(
       callUpdateUser(
         { id: adminUser.id, name: "Updated Name", email: adminUser.email },
-        await adminHeaders(),
+        await signInTestAdmin(),
       ),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "NOT_FOUND")
+      "NOT_FOUND",
+    )
   })
 
   it("accepts updating the email to its current value", async () => {
     const targetUser = await insertTestUser()
     const updatedUser = await callUpdateUser(
       { id: targetUser.id, name: "Updated Name", email: targetUser.email },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const parsed = UserSchema.parse(updatedUser)
@@ -406,7 +381,7 @@ describe("PUT /users/{id}", () => {
     const caseVariantEmail = targetUser.email.toUpperCase()
     const updatedUser = await callUpdateUser(
       { id: targetUser.id, name: "Updated Name", email: caseVariantEmail },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const parsed = UserSchema.parse(updatedUser)
@@ -418,24 +393,26 @@ describe("PUT /users/{id}", () => {
     const targetUser = await insertTestUser()
     const otherUser = await insertTestUser()
 
-    await expect(
+    await expectOrpcError(
       callUpdateUser(
         { id: targetUser.id, name: targetUser.name, email: otherUser.email },
-        await adminHeaders(),
+        await signInTestAdmin(),
       ),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "EMAIL_TAKEN")
+      "EMAIL_TAKEN",
+    )
   })
 
   it("rejects updating the email to another user's email differing only in case with EMAIL_TAKEN", async () => {
     const targetUser = await insertTestUser()
     const otherUser = await insertTestUser()
 
-    await expect(
+    await expectOrpcError(
       callUpdateUser(
         { id: targetUser.id, name: targetUser.name, email: otherUser.email.toUpperCase() },
-        await adminHeaders(),
+        await signInTestAdmin(),
       ),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "EMAIL_TAKEN")
+      "EMAIL_TAKEN",
+    )
   })
 
   it("persists neither user nor limit changes when the email is taken", async () => {
@@ -450,7 +427,7 @@ describe("PUT /users/{id}", () => {
         email: otherUser.email,
         limits: [{ protocolFamily: "amneziawg", maxCount: 9 }],
       },
-      await adminHeaders(),
+      await signInTestAdmin(),
     ).catch(() => undefined)
 
     const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
@@ -468,7 +445,7 @@ describe("PUT /users/{id}", () => {
   it("responds with HTTP 409 when the email is taken", async () => {
     const targetUser = await insertTestUser()
     const otherUser = await insertTestUser()
-    const headers = await adminHeaders()
+    const headers = await signInTestAdmin()
     headers.set("content-type", "application/json")
 
     const response = await app.request(`/api/users/${targetUser.id}`, {
@@ -481,36 +458,44 @@ describe("PUT /users/{id}", () => {
   })
 
   it("rejects an unknown id with NOT_FOUND", async () => {
-    await expect(
+    await expectOrpcError(
       callUpdateUser(
-        { id: `unknown-user-${randomUUID()}`, name: "Updated Name", email: uniqueEmail() },
-        await adminHeaders(),
+        { id: `unknown-user-${randomUUID()}`, name: "Updated Name", email: createTestEmail() },
+        await signInTestAdmin(),
       ),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "NOT_FOUND")
+      "NOT_FOUND",
+    )
   })
 
   it("rejects a malformed identifier with NOT_FOUND", async () => {
-    await expect(
+    await expectOrpcError(
       callUpdateUser(
-        { id: "%%%not-a-user-id%%%", name: "Updated Name", email: uniqueEmail() },
-        await adminHeaders(),
+        { id: "%%%not-a-user-id%%%", name: "Updated Name", email: createTestEmail() },
+        await signInTestAdmin(),
       ),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "NOT_FOUND")
+      "NOT_FOUND",
+    )
   })
 
   it("rejects an empty name", async () => {
     const targetUser = await insertTestUser()
-    await expectBadRequest(
-      { id: targetUser.id, name: "", email: targetUser.email },
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateUser(
+        { id: targetUser.id, name: "", email: targetUser.email },
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects a name longer than 255 characters", async () => {
     const targetUser = await insertTestUser()
-    await expectBadRequest(
-      { id: targetUser.id, name: "a".repeat(256), email: targetUser.email },
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateUser(
+        { id: targetUser.id, name: "a".repeat(256), email: targetUser.email },
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
@@ -519,7 +504,7 @@ describe("PUT /users/{id}", () => {
     const name = "a".repeat(255)
     const updatedUser = await callUpdateUser(
       { id: targetUser.id, name, email: targetUser.email },
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     expect(updatedUser.name).toBe(name)
@@ -527,77 +512,98 @@ describe("PUT /users/{id}", () => {
 
   it("rejects a missing name", async () => {
     const targetUser = await insertTestUser()
-    await expectBadRequest({ id: targetUser.id, email: targetUser.email }, await adminHeaders())
+    await expectOrpcError(
+      callUpdateUser({ id: targetUser.id, email: targetUser.email }, await signInTestAdmin()),
+      "BAD_REQUEST",
+    )
   })
 
   it("rejects a malformed email", async () => {
     const targetUser = await insertTestUser()
-    await expectBadRequest(
-      { id: targetUser.id, name: targetUser.name, email: "not-an-email" },
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateUser(
+        { id: targetUser.id, name: targetUser.name, email: "not-an-email" },
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects an email longer than 255 characters", async () => {
     const targetUser = await insertTestUser()
-    await expectBadRequest(
-      { id: targetUser.id, name: targetUser.name, email: `${"a".repeat(250)}@test.local` },
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateUser(
+        { id: targetUser.id, name: targetUser.name, email: `${"a".repeat(250)}@test.local` },
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects limits containing a duplicate protocol family", async () => {
     const targetUser = await insertTestUser()
-    await expectBadRequest(
-      {
-        id: targetUser.id,
-        name: targetUser.name,
-        email: targetUser.email,
-        limits: [
-          { protocolFamily: "amneziawg", maxCount: 1 },
-          { protocolFamily: "amneziawg", maxCount: 2 },
-        ],
-      },
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateUser(
+        {
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+          limits: [
+            { protocolFamily: "amneziawg", maxCount: 1 },
+            { protocolFamily: "amneziawg", maxCount: 2 },
+          ],
+        },
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects a limit with a negative maxCount", async () => {
     const targetUser = await insertTestUser()
-    await expectBadRequest(
-      {
-        id: targetUser.id,
-        name: targetUser.name,
-        email: targetUser.email,
-        limits: [{ protocolFamily: "amneziawg", maxCount: -1 }],
-      },
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateUser(
+        {
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+          limits: [{ protocolFamily: "amneziawg", maxCount: -1 }],
+        },
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects a limit with a non-integer maxCount", async () => {
     const targetUser = await insertTestUser()
-    await expectBadRequest(
-      {
-        id: targetUser.id,
-        name: targetUser.name,
-        email: targetUser.email,
-        limits: [{ protocolFamily: "amneziawg", maxCount: 1.5 }],
-      },
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateUser(
+        {
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+          limits: [{ protocolFamily: "amneziawg", maxCount: 1.5 }],
+        },
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects a limit with an unknown protocol family", async () => {
     const targetUser = await insertTestUser()
-    await expectBadRequest(
-      {
-        id: targetUser.id,
-        name: targetUser.name,
-        email: targetUser.email,
-        limits: [{ protocolFamily: "wireguard", maxCount: 1 }],
-      },
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateUser(
+        {
+          id: targetUser.id,
+          name: targetUser.name,
+          email: targetUser.email,
+          limits: [{ protocolFamily: "wireguard", maxCount: 1 }],
+        },
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
@@ -605,14 +611,17 @@ describe("PUT /users/{id}", () => {
     const targetUser = await insertTestUser()
     await insertTestConfigLimit({ userId: targetUser.id, maxCount: 2 })
 
-    await expectBadRequest(
-      {
-        id: targetUser.id,
-        name: "",
-        email: uniqueEmail(),
-        limits: [{ protocolFamily: "amneziawg", maxCount: 9 }],
-      },
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateUser(
+        {
+          id: targetUser.id,
+          name: "",
+          email: createTestEmail(),
+          limits: [{ protocolFamily: "amneziawg", maxCount: 9 }],
+        },
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
 
     const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
@@ -629,42 +638,45 @@ describe("PUT /users/{id}", () => {
 
   it("rejects an ordinary user updating another user's record with FORBIDDEN", async () => {
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const targetUser = await insertTestUser()
 
-    await expect(
+    await expectOrpcError(
       callUpdateUser({ id: targetUser.id, name: "Updated Name", email: targetUser.email }, headers),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "FORBIDDEN")
+      "FORBIDDEN",
+    )
   })
 
   it("rejects an ordinary user updating their own record with FORBIDDEN", async () => {
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(
+    await expectOrpcError(
       callUpdateUser(
         { id: requestUser.id, name: "Updated Name", email: requestUser.email },
         headers,
       ),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "FORBIDDEN")
+      "FORBIDDEN",
+    )
   })
 
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
     const targetUser = await insertTestUser()
 
-    await expect(
+    await expectOrpcError(
       callUpdateUser(
         { id: targetUser.id, name: "Updated Name", email: targetUser.email },
         new Headers(),
       ),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "UNAUTHORIZED")
+      "UNAUTHORIZED",
+    )
   })
 
   describe("technical", () => {
     it("responds with HTTP 500 when the user update throws", async () => {
       const targetUser = await insertTestUser()
       vi.mocked(updateUser).mockRejectedValueOnce(new Error("Update failure"))
-      const headers = await adminHeaders()
+      const headers = await signInTestAdmin()
       headers.set("content-type", "application/json")
 
       const response = await app.request(`/api/users/${targetUser.id}`, {

@@ -11,12 +11,14 @@ const modulesWithApprovedSpecifications: string[] = [
   "src/api/modules/protocol/**/*.ts",
   "src/api/modules/server/**/*.ts",
   "src/api/modules/user/**/*.ts",
+  "src/core/crypto/**/*.ts",
 ]
 
 const integrationTestGlobs = [
   "tests/api/**/*.test.ts",
   "tests/worker/**/*.test.ts",
   "tests/helpers/**/*.test.ts",
+  "tests/core/bootstraps/**/*.test.ts",
 ]
 
 export default defineConfig({
@@ -46,7 +48,10 @@ export default defineConfig({
           name: "integration",
           include: integrationTestGlobs,
           fileParallelism: false,
-          setupFiles: ["tests/setup/setupTestEnvironment.ts"],
+          setupFiles: [
+            "tests/setup/setupTestEnvironment.ts",
+            "tests/setup/resetDatabaseBetweenTests.ts",
+          ],
           globalSetup: ["tests/setup/prepareTestDatabase.ts"],
         },
       },

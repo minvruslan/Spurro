@@ -1,18 +1,17 @@
 import { randomUUID } from "node:crypto"
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { EndpointSchema, type Protocol } from "@spurro/api-contract"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
 import { endpointRouter } from "@/api/modules/endpoint/index.js"
 import { findActiveEndpoints } from "@/api/modules/endpoint/queries/findActiveEndpoints.js"
-import { db } from "@/core/database/index.js"
-import { config, endpoint, protocol, server } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
 import {
   insertTestEndpoint,
   insertTestProtocol,
   insertTestServer,
-  insertTestUser,
+  signInTestAdmin,
   signInTestUser,
 } from "../../../helpers/index.js"
 
@@ -22,22 +21,11 @@ vi.mock("@/api/modules/endpoint/queries/findActiveEndpoints.js", async (importOr
   return { findActiveEndpoints: vi.fn(original.findActiveEndpoints) }
 })
 
-const getEndpoints = (headers: Headers) =>
-  call(endpointRouter.getEndpoints, undefined, { context: { headers } })
-
-async function authorizedHeaders(role?: string) {
-  const requestUser = await insertTestUser(role ? { role } : {})
-  return signInTestUser(requestUser)
+function callGetEndpoints(headers: Headers) {
+  return call(endpointRouter.getEndpoints, undefined, { context: { headers } })
 }
 
 describe("GET /endpoints", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(server)
-    await db.delete(protocol)
-  })
-
   it("returns active endpoints of active servers matching the contract schema", async () => {
     const endpointProtocol = await insertTestProtocol()
     const endpointServer = await insertTestServer()
@@ -45,7 +33,7 @@ describe("GET /endpoints", () => {
       serverId: endpointServer.id,
       protocolId: endpointProtocol.id,
     })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     const parsed = z.array(EndpointSchema).parse(endpoints)
     expect(parsed).toHaveLength(1)
@@ -61,7 +49,7 @@ describe("GET /endpoints", () => {
     const endpointProtocol = await insertTestProtocol()
     const endpointServer = await insertTestServer()
     await insertTestEndpoint({ serverId: endpointServer.id, protocolId: endpointProtocol.id })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints).toHaveLength(1)
     for (const entry of endpoints) {
@@ -78,7 +66,7 @@ describe("GET /endpoints", () => {
     const endpointProtocol = await insertTestProtocol()
     const endpointServer = await insertTestServer()
     await insertTestEndpoint({ serverId: endpointServer.id, protocolId: endpointProtocol.id })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints).toHaveLength(1)
     for (const entry of endpoints) {
@@ -102,7 +90,7 @@ describe("GET /endpoints", () => {
       protocolId: endpointProtocol.id,
       port: 51821,
     })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.id)).toEqual([activeEndpoint.id])
   })
@@ -115,7 +103,7 @@ describe("GET /endpoints", () => {
       protocolId: endpointProtocol.id,
       status: "deleted",
     })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.id)).not.toContain(deletedEndpoint.id)
   })
@@ -127,7 +115,7 @@ describe("GET /endpoints", () => {
       serverId: deletedServer.id,
       protocolId: endpointProtocol.id,
     })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.id)).not.toContain(deletedServerEndpoint.id)
   })
@@ -139,7 +127,7 @@ describe("GET /endpoints", () => {
       serverId: provisioningServer.id,
       protocolId: endpointProtocol.id,
     })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.id)).not.toContain(provisioningServerEndpoint.id)
   })
@@ -151,7 +139,7 @@ describe("GET /endpoints", () => {
       serverId: failedServer.id,
       protocolId: endpointProtocol.id,
     })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.id)).not.toContain(failedServerEndpoint.id)
   })
@@ -163,7 +151,7 @@ describe("GET /endpoints", () => {
       serverId: endpointServer.id,
       protocolId: disabledProtocol.id,
     })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     const parsed = z.array(EndpointSchema).parse(endpoints)
     expect(parsed.map((entry) => entry.id)).toContain(disabledProtocolEndpoint.id)
@@ -186,7 +174,7 @@ describe("GET /endpoints", () => {
     await insertTestEndpoint({ serverId: bravoServer.id, protocolId: endpointProtocol.id })
     await insertTestEndpoint({ serverId: charlieServer.id, protocolId: endpointProtocol.id })
     await insertTestEndpoint({ serverId: alphaServer.id, protocolId: endpointProtocol.id })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.server.name)).toEqual([
       alphaServer.name,
@@ -210,7 +198,7 @@ describe("GET /endpoints", () => {
       protocolId: endpointProtocol.id,
       port: 51820,
     })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.id)).toEqual([
       lowerPortEndpoint.id,
@@ -232,13 +220,13 @@ describe("GET /endpoints", () => {
       protocolId: endpointProtocol.id,
       status: "deleted",
     })
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints).toEqual([])
   })
 
   it("returns an empty array when no endpoints exist", async () => {
-    const endpoints = await getEndpoints(await authorizedHeaders())
+    const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints).toEqual([])
   })
@@ -250,15 +238,13 @@ describe("GET /endpoints", () => {
       serverId: endpointServer.id,
       protocolId: endpointProtocol.id,
     })
-    const endpoints = await getEndpoints(await authorizedHeaders("admin"))
+    const endpoints = await callGetEndpoints(await signInTestAdmin())
 
     expect(endpoints.map((entry) => entry.id)).toEqual([activeEndpoint.id])
   })
 
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expect(getEndpoints(new Headers())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "UNAUTHORIZED",
-    )
+    await expectOrpcError(callGetEndpoints(new Headers()), "UNAUTHORIZED")
   })
 
   describe("technical", () => {
@@ -266,7 +252,7 @@ describe("GET /endpoints", () => {
       vi.mocked(findActiveEndpoints).mockRejectedValueOnce(new Error("Query failure"))
 
       const response = await app.request("/api/endpoints", {
-        headers: await authorizedHeaders(),
+        headers: await signInTestUser(),
       })
       expect(response.status).toBe(500)
     })

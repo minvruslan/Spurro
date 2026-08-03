@@ -1,18 +1,20 @@
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { ProtocolSchema, type Protocol } from "@spurro/api-contract"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
 import { protocolRouter } from "@/api/modules/protocol/index.js"
 import { findActiveProtocols } from "@/api/modules/protocol/queries/findActiveProtocols.js"
 import { bootstrapProtocols } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
-import { config, endpoint, protocol } from "@/core/database/schemas/index.js"
+import { endpoint } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
 import {
   insertTestProtocol,
   insertTestServer,
+  insertTestSession,
   insertTestUser,
-  signInTestUser,
+  signInTestAdmin,
 } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/protocol/queries/findActiveProtocols.js", async (importOriginal) => {
@@ -21,24 +23,14 @@ vi.mock("@/api/modules/protocol/queries/findActiveProtocols.js", async (importOr
   return { findActiveProtocols: vi.fn(original.findActiveProtocols) }
 })
 
-const getProtocols = (headers: Headers) =>
-  call(protocolRouter.getProtocols, undefined, { context: { headers } })
-
-async function adminHeaders() {
-  const requestUser = await insertTestUser({ role: "admin" })
-  return signInTestUser(requestUser)
+function callGetProtocols(headers: Headers) {
+  return call(protocolRouter.getProtocols, undefined, { context: { headers } })
 }
 
 describe("GET /protocols", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(protocol)
-  })
-
   it("returns the enabled protocol catalog matching the contract schema", async () => {
     await bootstrapProtocols()
-    const protocols = await getProtocols(await adminHeaders())
+    const protocols = await callGetProtocols(await signInTestAdmin())
 
     const parsed = z.array(ProtocolSchema).parse(protocols)
     expect(parsed).toHaveLength(1)
@@ -47,7 +39,7 @@ describe("GET /protocols", () => {
 
   it("exposes exactly the contract fields and nothing more", async () => {
     await bootstrapProtocols()
-    const protocols = await getProtocols(await adminHeaders())
+    const protocols = await callGetProtocols(await signInTestAdmin())
 
     expect(protocols).toHaveLength(1)
     for (const entry of protocols) {
@@ -60,7 +52,7 @@ describe("GET /protocols", () => {
       amneziawg2: "amneziawg",
     }
     await bootstrapProtocols()
-    const protocols = await getProtocols(await adminHeaders())
+    const protocols = await callGetProtocols(await signInTestAdmin())
 
     expect(protocols).toHaveLength(1)
     for (const entry of protocols) {
@@ -70,7 +62,7 @@ describe("GET /protocols", () => {
 
   it("omits disabled protocols", async () => {
     const disabledProtocol = await insertTestProtocol({ isEnabled: false })
-    const protocols = await getProtocols(await adminHeaders())
+    const protocols = await callGetProtocols(await signInTestAdmin())
 
     expect(protocols.map((entry) => entry.code)).not.toContain(disabledProtocol.code)
   })
@@ -85,37 +77,33 @@ describe("GET /protocols", () => {
       data: {},
       status: "active",
     })
-    const protocols = await getProtocols(await adminHeaders())
+    const protocols = await callGetProtocols(await signInTestAdmin())
 
     expect(protocols.map((entry) => entry.code)).not.toContain(disabledProtocol.code)
   })
 
   it("returns an empty array when all protocols are disabled", async () => {
     await insertTestProtocol({ isEnabled: false })
-    const protocols = await getProtocols(await adminHeaders())
+    const protocols = await callGetProtocols(await signInTestAdmin())
 
     expect(protocols).toEqual([])
   })
 
   it("returns an empty array when no protocols exist", async () => {
-    const protocols = await getProtocols(await adminHeaders())
+    const protocols = await callGetProtocols(await signInTestAdmin())
 
     expect(protocols).toEqual([])
   })
 
   it("rejects an ordinary user with FORBIDDEN", async () => {
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(getProtocols(headers)).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "FORBIDDEN",
-    )
+    await expectOrpcError(callGetProtocols(headers), "FORBIDDEN")
   })
 
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expect(getProtocols(new Headers())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "UNAUTHORIZED",
-    )
+    await expectOrpcError(callGetProtocols(new Headers()), "UNAUTHORIZED")
   })
 
   describe("technical", () => {
@@ -123,7 +111,7 @@ describe("GET /protocols", () => {
       vi.mocked(findActiveProtocols).mockRejectedValueOnce(new Error("Query failure"))
 
       const response = await app.request("/api/protocols", {
-        headers: await adminHeaders(),
+        headers: await signInTestAdmin(),
       })
       expect(response.status).toBe(500)
     })

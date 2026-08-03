@@ -4,7 +4,7 @@ import postgres from "postgres"
 import { TEST_DATABASE_URL } from "../constants/TEST_DATABASE_URL.js"
 
 export default async function prepareTestDatabase() {
-  const connection = postgres(TEST_DATABASE_URL, { max: 1 })
+  const connection = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} })
   try {
     await migrate(drizzle(connection), { migrationsFolder: "./drizzle" })
     const tables = await connection<

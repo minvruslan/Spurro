@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { ConfigSchema } from "@spurro/api-contract"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -8,14 +8,15 @@ import { configRouter } from "@/api/modules/config/index.js"
 import { findUserConfig } from "@/api/modules/config/queries/findUserConfig.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
-import { config, deviceType, endpoint, protocol, server } from "@/core/database/schemas/index.js"
+import { config, deviceType, protocol, server } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
 import {
   insertTestConfig,
   insertTestEndpoint,
   insertTestProtocol,
   insertTestServer,
+  insertTestSession,
   insertTestUser,
-  signInTestUser,
 } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/config/queries/findUserConfig.js", async (importOriginal) => {
@@ -24,8 +25,9 @@ vi.mock("@/api/modules/config/queries/findUserConfig.js", async (importOriginal)
   return { findUserConfig: vi.fn(original.findUserConfig) }
 })
 
-const getUserConfig = (headers: Headers, id: string) =>
-  call(configRouter.getUserConfig, { id }, { context: { headers } })
+function callGetUserConfig(headers: Headers, id: string) {
+  return call(configRouter.getUserConfig, { id }, { context: { headers } })
+}
 
 async function insertConfigInfrastructure(
   overrides: {
@@ -44,26 +46,19 @@ async function insertConfigInfrastructure(
 }
 
 describe("GET /configs/{id}", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(server)
-    await db.delete(protocol)
-    await db.delete(deviceType)
-    await bootstrapDeviceTypes()
-  })
+  beforeEach(bootstrapDeviceTypes)
 
   it("returns the requested config matching the contract schema", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
-    const requestedConfig = await getUserConfig(headers, insertedConfig.id)
+    const requestedConfig = await callGetUserConfig(headers, insertedConfig.id)
 
     const parsed = ConfigSchema.parse(requestedConfig)
     expect(parsed.id).toBe(insertedConfig.id)
@@ -76,7 +71,7 @@ describe("GET /configs/{id}", () => {
   it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -89,7 +84,7 @@ describe("GET /configs/{id}", () => {
         presharedKey: "test-preshared-key",
       },
     })
-    const requestedConfig = await getUserConfig(headers, insertedConfig.id)
+    const requestedConfig = await callGetUserConfig(headers, insertedConfig.id)
 
     ConfigSchema.parse(requestedConfig)
     expect(Object.keys(requestedConfig).sort()).toEqual([
@@ -128,14 +123,14 @@ describe("GET /configs/{id}", () => {
   it("returns a pending config younger than the reservation window", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const pendingConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "pending",
     })
-    const requestedConfig = await getUserConfig(headers, pendingConfig.id)
+    const requestedConfig = await callGetUserConfig(headers, pendingConfig.id)
 
     const parsed = ConfigSchema.parse(requestedConfig)
     expect(parsed.id).toBe(pendingConfig.id)
@@ -147,14 +142,14 @@ describe("GET /configs/{id}", () => {
       protocol: { isEnabled: false },
     })
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const disabledProtocolConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
-    const requestedConfig = await getUserConfig(headers, disabledProtocolConfig.id)
+    const requestedConfig = await callGetUserConfig(headers, disabledProtocolConfig.id)
 
     const parsed = ConfigSchema.parse(requestedConfig)
     expect(parsed.id).toBe(disabledProtocolConfig.id)
@@ -165,14 +160,14 @@ describe("GET /configs/{id}", () => {
       server: { status: "deleted" },
     })
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const deletedServerConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
-    const requestedConfig = await getUserConfig(headers, deletedServerConfig.id)
+    const requestedConfig = await callGetUserConfig(headers, deletedServerConfig.id)
 
     const parsed = ConfigSchema.parse(requestedConfig)
     expect(parsed.id).toBe(deletedServerConfig.id)
@@ -181,7 +176,7 @@ describe("GET /configs/{id}", () => {
   it("rejects a pending config older than the reservation window with NOT_FOUND", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const stalePendingConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -193,15 +188,13 @@ describe("GET /configs/{id}", () => {
       .set({ createdAt: new Date(Date.now() - 7 * 60 * 1000) })
       .where(eq(config.id, stalePendingConfig.id))
 
-    await expect(getUserConfig(headers, stalePendingConfig.id)).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
-    )
+    await expectOrpcError(callGetUserConfig(headers, stalePendingConfig.id), "NOT_FOUND")
   })
 
   it("rejects a deleting config with NOT_FOUND", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const deletingConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -209,15 +202,13 @@ describe("GET /configs/{id}", () => {
       status: "deleting",
     })
 
-    await expect(getUserConfig(headers, deletingConfig.id)).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
-    )
+    await expectOrpcError(callGetUserConfig(headers, deletingConfig.id), "NOT_FOUND")
   })
 
   it("rejects a deleted config with NOT_FOUND", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const deletedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -225,15 +216,13 @@ describe("GET /configs/{id}", () => {
       status: "deleted",
     })
 
-    await expect(getUserConfig(headers, deletedConfig.id)).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
-    )
+    await expectOrpcError(callGetUserConfig(headers, deletedConfig.id), "NOT_FOUND")
   })
 
   it("rejects another user's config with NOT_FOUND", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const otherUser = await insertTestUser()
     const otherUserConfig = await insertTestConfig({
       userId: otherUser.id,
@@ -242,58 +231,48 @@ describe("GET /configs/{id}", () => {
       status: "active",
     })
 
-    await expect(getUserConfig(headers, otherUserConfig.id)).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
-    )
+    await expectOrpcError(callGetUserConfig(headers, otherUserConfig.id), "NOT_FOUND")
   })
 
   it("rejects an unknown id with NOT_FOUND", async () => {
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(getUserConfig(headers, randomUUID())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
-    )
+    await expectOrpcError(callGetUserConfig(headers, randomUUID()), "NOT_FOUND")
   })
 
   it("rejects a non-uuid id with BAD_REQUEST", async () => {
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(getUserConfig(headers, "not-a-uuid")).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "BAD_REQUEST",
-    )
+    await expectOrpcError(callGetUserConfig(headers, "not-a-uuid"), "BAD_REQUEST")
   })
 
   it("rejects an empty string id with BAD_REQUEST", async () => {
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(getUserConfig(headers, "")).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "BAD_REQUEST",
-    )
+    await expectOrpcError(callGetUserConfig(headers, ""), "BAD_REQUEST")
   })
 
   it("allows an admin user as well", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const adminUser = await insertTestUser({ role: "admin" })
-    const headers = await signInTestUser(adminUser)
+    const headers = await insertTestSession(adminUser)
     const adminConfig = await insertTestConfig({
       userId: adminUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
-    const requestedConfig = await getUserConfig(headers, adminConfig.id)
+    const requestedConfig = await callGetUserConfig(headers, adminConfig.id)
 
     const parsed = ConfigSchema.parse(requestedConfig)
     expect(parsed.id).toBe(adminConfig.id)
   })
 
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expect(getUserConfig(new Headers(), randomUUID())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "UNAUTHORIZED",
-    )
+    await expectOrpcError(callGetUserConfig(new Headers(), randomUUID()), "UNAUTHORIZED")
   })
 
   describe("technical", () => {
@@ -302,7 +281,7 @@ describe("GET /configs/{id}", () => {
 
       const requestUser = await insertTestUser()
       const response = await app.request(`/api/configs/${randomUUID()}`, {
-        headers: await signInTestUser(requestUser),
+        headers: await insertTestSession(requestUser),
       })
       expect(response.status).toBe(500)
     })

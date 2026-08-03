@@ -170,6 +170,12 @@ const singleExportRule = {
 export default [
   ...rootEslintConfig,
   {
+    files: ["tests/**/*.ts"],
+    rules: {
+      "func-style": ["error", "declaration", { allowArrowFunctions: false }],
+    },
+  },
+  {
     files: ["src/**/*.ts"],
     ignores: ["**/index.ts", "src/core/database/schemas/**", "src/core/logger/**"],
     plugins: {

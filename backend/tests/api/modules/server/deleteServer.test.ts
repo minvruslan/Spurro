@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
@@ -10,13 +10,15 @@ import { findServerById } from "@/api/modules/server/queries/findServerById.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
 import { config, deviceType, endpoint, protocol, server } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
 import {
   insertTestConfig,
   insertTestEndpoint,
   insertTestProtocol,
   insertTestServer,
+  insertTestSession,
   insertTestUser,
-  signInTestUser,
+  signInTestAdmin,
 } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/server/queries/findServerById.js", async (importOriginal) => {
@@ -33,12 +35,8 @@ vi.mock("@/api/modules/server/queries/deleteServer.js", async (importOriginal) =
 
 type ConfigStatus = NonNullable<(typeof config.$inferInsert)["status"]>
 
-const callDeleteServer = (id: string, headers: Headers) =>
-  call(serverRouter.deleteServer, { id }, { context: { headers } })
-
-async function adminHeaders() {
-  const requestUser = await insertTestUser({ role: "admin" })
-  return signInTestUser(requestUser)
+function callDeleteServer(id: string, headers: Headers) {
+  return call(serverRouter.deleteServer, { id }, { context: { headers } })
 }
 
 async function insertServerWithEndpoint(
@@ -57,11 +55,6 @@ async function insertServerWithEndpoint(
 async function insertConfigOnEndpoint(endpointId: string, status: ConfigStatus) {
   const configUser = await insertTestUser()
   const [configDeviceType] = await db.select().from(deviceType).limit(1)
-  if (!configDeviceType) {
-    throw new Error(
-      "Device type catalog is empty — is another test process truncating the database?",
-    )
-  }
   return insertTestConfig({
     userId: configUser.id,
     endpointId,
@@ -71,18 +64,11 @@ async function insertConfigOnEndpoint(endpointId: string, status: ConfigStatus) 
 }
 
 describe("DELETE /servers/{id}", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(server)
-    await db.delete(protocol)
-    await db.delete(deviceType)
-    await bootstrapDeviceTypes()
-  })
+  beforeEach(bootstrapDeviceTypes)
 
   it("deletes a server without configs and returns its id matching the contract output", async () => {
     const deletedServer = await insertTestServer()
-    const deleteServerResult = await callDeleteServer(deletedServer.id, await adminHeaders())
+    const deleteServerResult = await callDeleteServer(deletedServer.id, await signInTestAdmin())
 
     const parsed = z.object({ id: z.uuid() }).parse(deleteServerResult)
     expect(parsed).toEqual({ id: deletedServer.id })
@@ -90,14 +76,14 @@ describe("DELETE /servers/{id}", () => {
 
   it("exposes exactly the contract fields and nothing more", async () => {
     const deletedServer = await insertTestServer()
-    const deleteServerResult = await callDeleteServer(deletedServer.id, await adminHeaders())
+    const deleteServerResult = await callDeleteServer(deletedServer.id, await signInTestAdmin())
 
     expect(Object.keys(deleteServerResult)).toEqual(["id"])
   })
 
   it("hard-deletes the server row when no configs are reserved for it", async () => {
     const { deletedServer } = await insertServerWithEndpoint()
-    await callDeleteServer(deletedServer.id, await adminHeaders())
+    await callDeleteServer(deletedServer.id, await signInTestAdmin())
 
     const serverRows = await db.select().from(server).where(eq(server.id, deletedServer.id))
     expect(serverRows).toHaveLength(0)
@@ -105,7 +91,7 @@ describe("DELETE /servers/{id}", () => {
 
   it("hard-deletes the server's endpoint rows along with the server", async () => {
     const { deletedServer } = await insertServerWithEndpoint()
-    await callDeleteServer(deletedServer.id, await adminHeaders())
+    await callDeleteServer(deletedServer.id, await signInTestAdmin())
 
     const endpointRows = await db
       .select()
@@ -119,7 +105,7 @@ describe("DELETE /servers/{id}", () => {
     const { deletedServer: otherServer, deletedEndpoint: otherServerEndpoint } =
       await insertServerWithEndpoint({}, endpointProtocol)
     const otherServerConfig = await insertConfigOnEndpoint(otherServerEndpoint.id, "active")
-    await callDeleteServer(deletedServer.id, await adminHeaders())
+    await callDeleteServer(deletedServer.id, await signInTestAdmin())
 
     const serverRows = await db.select().from(server).where(eq(server.id, deletedServer.id))
     expect(serverRows).toHaveLength(0)
@@ -143,7 +129,7 @@ describe("DELETE /servers/{id}", () => {
   it("soft-deletes the server keeping the row with status deleted when an active config is issued on its endpoints", async () => {
     const { deletedServer, deletedEndpoint } = await insertServerWithEndpoint()
     await insertConfigOnEndpoint(deletedEndpoint.id, "active")
-    await callDeleteServer(deletedServer.id, await adminHeaders())
+    await callDeleteServer(deletedServer.id, await signInTestAdmin())
 
     const serverRows = await db.select().from(server).where(eq(server.id, deletedServer.id))
     expect(serverRows).toHaveLength(1)
@@ -153,7 +139,7 @@ describe("DELETE /servers/{id}", () => {
   it("soft-deletes the server when a pending config is reserved on its endpoints", async () => {
     const { deletedServer, deletedEndpoint } = await insertServerWithEndpoint()
     await insertConfigOnEndpoint(deletedEndpoint.id, "pending")
-    await callDeleteServer(deletedServer.id, await adminHeaders())
+    await callDeleteServer(deletedServer.id, await signInTestAdmin())
 
     const serverRows = await db.select().from(server).where(eq(server.id, deletedServer.id))
     expect(serverRows).toHaveLength(1)
@@ -163,7 +149,7 @@ describe("DELETE /servers/{id}", () => {
   it("hard-deletes a server and its config rows when its configs are all in status deleted", async () => {
     const { deletedServer, deletedEndpoint } = await insertServerWithEndpoint()
     const deletedConfig = await insertConfigOnEndpoint(deletedEndpoint.id, "deleted")
-    await callDeleteServer(deletedServer.id, await adminHeaders())
+    await callDeleteServer(deletedServer.id, await signInTestAdmin())
 
     const serverRows = await db.select().from(server).where(eq(server.id, deletedServer.id))
     expect(serverRows).toHaveLength(0)
@@ -174,7 +160,7 @@ describe("DELETE /servers/{id}", () => {
   it("keeps the endpoint rows when the server is soft-deleted", async () => {
     const { deletedServer, deletedEndpoint } = await insertServerWithEndpoint()
     await insertConfigOnEndpoint(deletedEndpoint.id, "active")
-    await callDeleteServer(deletedServer.id, await adminHeaders())
+    await callDeleteServer(deletedServer.id, await signInTestAdmin())
 
     const endpointRows = await db
       .select()
@@ -188,7 +174,7 @@ describe("DELETE /servers/{id}", () => {
   it("keeps the config rows when the server is soft-deleted", async () => {
     const { deletedServer, deletedEndpoint } = await insertServerWithEndpoint()
     const reservedConfig = await insertConfigOnEndpoint(deletedEndpoint.id, "active")
-    await callDeleteServer(deletedServer.id, await adminHeaders())
+    await callDeleteServer(deletedServer.id, await signInTestAdmin())
 
     const configRows = await db.select().from(config).where(eq(config.id, reservedConfig.id))
     expect(configRows).toHaveLength(1)
@@ -200,7 +186,7 @@ describe("DELETE /servers/{id}", () => {
 
     const response = await app.request(`/api/servers/${currentServer.id}`, {
       method: "DELETE",
-      headers: await adminHeaders(),
+      headers: await signInTestAdmin(),
     })
 
     expect(response.status).toBe(409)
@@ -210,8 +196,9 @@ describe("DELETE /servers/{id}", () => {
   it("keeps the current server row untouched when the delete is rejected", async () => {
     const currentServer = await insertTestServer({ isCurrent: true })
 
-    await expect(callDeleteServer(currentServer.id, await adminHeaders())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "CURRENT_SERVER",
+    await expectOrpcError(
+      callDeleteServer(currentServer.id, await signInTestAdmin()),
+      "CURRENT_SERVER",
     )
 
     const serverRows = await db.select().from(server).where(eq(server.id, currentServer.id))
@@ -221,51 +208,42 @@ describe("DELETE /servers/{id}", () => {
   })
 
   it("rejects an unknown id with NOT_FOUND", async () => {
-    await expect(callDeleteServer(randomUUID(), await adminHeaders())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
-    )
+    await expectOrpcError(callDeleteServer(randomUUID(), await signInTestAdmin()), "NOT_FOUND")
   })
 
   it("rejects an already soft-deleted server with NOT_FOUND", async () => {
     const alreadyDeletedServer = await insertTestServer({ status: "deleted" })
 
-    await expect(callDeleteServer(alreadyDeletedServer.id, await adminHeaders())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
+    await expectOrpcError(
+      callDeleteServer(alreadyDeletedServer.id, await signInTestAdmin()),
+      "NOT_FOUND",
     )
   })
 
   it("rejects a non-uuid id with BAD_REQUEST", async () => {
-    await expect(callDeleteServer("not-a-uuid", await adminHeaders())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "BAD_REQUEST",
-    )
+    await expectOrpcError(callDeleteServer("not-a-uuid", await signInTestAdmin()), "BAD_REQUEST")
   })
 
   it("rejects an ordinary user with FORBIDDEN", async () => {
     const deletedServer = await insertTestServer()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(callDeleteServer(deletedServer.id, headers)).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "FORBIDDEN",
-    )
+    await expectOrpcError(callDeleteServer(deletedServer.id, headers), "FORBIDDEN")
   })
 
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
     const deletedServer = await insertTestServer()
 
-    await expect(callDeleteServer(deletedServer.id, new Headers())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "UNAUTHORIZED",
-    )
+    await expectOrpcError(callDeleteServer(deletedServer.id, new Headers()), "UNAUTHORIZED")
   })
 
   it("keeps the server row when the requester is not an admin", async () => {
     const deletedServer = await insertTestServer()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(callDeleteServer(deletedServer.id, headers)).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "FORBIDDEN",
-    )
+    await expectOrpcError(callDeleteServer(deletedServer.id, headers), "FORBIDDEN")
 
     const serverRows = await db.select().from(server).where(eq(server.id, deletedServer.id))
     expect(serverRows).toHaveLength(1)
@@ -279,7 +257,7 @@ describe("DELETE /servers/{id}", () => {
 
       const response = await app.request(`/api/servers/${deletedServer.id}`, {
         method: "DELETE",
-        headers: await adminHeaders(),
+        headers: await signInTestAdmin(),
       })
 
       expect(response.status).toBe(500)
@@ -289,7 +267,7 @@ describe("DELETE /servers/{id}", () => {
       const { deletedServer, deletedEndpoint } = await insertServerWithEndpoint()
       vi.mocked(deleteServer).mockRejectedValueOnce(new Error("Delete failure"))
 
-      await expect(callDeleteServer(deletedServer.id, await adminHeaders())).rejects.toThrow()
+      await expect(callDeleteServer(deletedServer.id, await signInTestAdmin())).rejects.toThrow()
 
       const serverRows = await db.select().from(server).where(eq(server.id, deletedServer.id))
       expect(serverRows).toHaveLength(1)

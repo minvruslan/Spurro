@@ -1,19 +1,21 @@
 import { randomUUID } from "node:crypto"
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { ServerSchema, type UpsertServer } from "@spurro/api-contract"
 import { eq } from "drizzle-orm"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
 import { serverRouter } from "@/api/modules/server/index.js"
 import { updateServer } from "@/api/modules/server/queries/updateServer.js"
 import { db } from "@/core/database/index.js"
-import { config, endpoint, protocol, server } from "@/core/database/schemas/index.js"
+import { endpoint, server } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
 import {
   insertTestEndpoint,
   insertTestProtocol,
   insertTestServer,
+  insertTestSession,
   insertTestUser,
-  signInTestUser,
+  signInTestAdmin,
 } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/server/queries/updateServer.js", async (importOriginal) => {
@@ -22,16 +24,14 @@ vi.mock("@/api/modules/server/queries/updateServer.js", async (importOriginal) =
   return { updateServer: vi.fn(original.updateServer) }
 })
 
-const callUpdateServer = (input: unknown, headers: Headers) =>
-  call(serverRouter.updateServer, input as UpsertServer & { id: string }, { context: { headers } })
-
-async function adminHeaders() {
-  const requestUser = await insertTestUser({ role: "admin" })
-  return signInTestUser(requestUser)
+function callUpdateServer(input: unknown, headers: Headers) {
+  return call(serverRouter.updateServer, input as UpsertServer & { id: string }, {
+    context: { headers },
+  })
 }
 
 async function adminJsonHeaders() {
-  const headers = await adminHeaders()
+  const headers = await signInTestAdmin()
   headers.set("content-type", "application/json")
   return headers
 }
@@ -55,24 +55,11 @@ function createUpdateServerInputWithout(
   return input
 }
 
-const expectBadRequest = async (input: unknown, headers: Headers) => {
-  await expect(callUpdateServer(input, headers)).rejects.toSatisfy(
-    (error) => error instanceof ORPCError && error.code === "BAD_REQUEST",
-  )
-}
-
 describe("PUT /servers/{id}", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(server)
-    await db.delete(protocol)
-  })
-
   it("updates the name and country and returns the server matching the contract schema", async () => {
     const updatedServer = await insertTestServer()
     const input = createUpdateServerInput(updatedServer.id)
-    const updateServerResult = await callUpdateServer(input, await adminHeaders())
+    const updateServerResult = await callUpdateServer(input, await signInTestAdmin())
 
     const parsed = ServerSchema.parse(updateServerResult)
     expect(parsed.id).toBe(updatedServer.id)
@@ -86,7 +73,7 @@ describe("PUT /servers/{id}", () => {
     await insertTestEndpoint({ serverId: updatedServer.id, protocolId: serverProtocol.id })
     const updateServerResult = await callUpdateServer(
       createUpdateServerInput(updatedServer.id),
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     expect(Object.keys(updateServerResult).sort()).toEqual([
@@ -111,7 +98,7 @@ describe("PUT /servers/{id}", () => {
   it("persists the updated name and country in the database", async () => {
     const updatedServer = await insertTestServer()
     const input = createUpdateServerInput(updatedServer.id)
-    await callUpdateServer(input, await adminHeaders())
+    await callUpdateServer(input, await signInTestAdmin())
 
     const serverRows = await db.select().from(server).where(eq(server.id, updatedServer.id))
     expect(serverRows).toHaveLength(1)
@@ -123,7 +110,7 @@ describe("PUT /servers/{id}", () => {
     const updatedServer = await insertTestServer({ status: "provisioning" })
     const updateServerResult = await callUpdateServer(
       createUpdateServerInput(updatedServer.id),
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const parsed = ServerSchema.parse(updateServerResult)
@@ -147,7 +134,7 @@ describe("PUT /servers/{id}", () => {
         endpoints: [{ protocolId: serverProtocol.id, port: 51999 }],
         credentials: { username: "spurro", password: "server-password" },
       }),
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     ServerSchema.parse(updateServerResult)
@@ -169,7 +156,7 @@ describe("PUT /servers/{id}", () => {
     const password = `password-${randomUUID()}`
     const updateServerResult = await callUpdateServer(
       createUpdateServerInput(updatedServer.id, { credentials: { username, password } }),
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     ServerSchema.parse(updateServerResult)
@@ -180,47 +167,61 @@ describe("PUT /servers/{id}", () => {
   })
 
   it("rejects an unknown id with NOT_FOUND", async () => {
-    await expect(
-      callUpdateServer(createUpdateServerInput(randomUUID()), await adminHeaders()),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "NOT_FOUND")
+    await expectOrpcError(
+      callUpdateServer(createUpdateServerInput(randomUUID()), await signInTestAdmin()),
+      "NOT_FOUND",
+    )
   })
 
   it("rejects a soft-deleted server with NOT_FOUND", async () => {
     const deletedServer = await insertTestServer({ status: "deleted" })
 
-    await expect(
-      callUpdateServer(createUpdateServerInput(deletedServer.id), await adminHeaders()),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "NOT_FOUND")
+    await expectOrpcError(
+      callUpdateServer(createUpdateServerInput(deletedServer.id), await signInTestAdmin()),
+      "NOT_FOUND",
+    )
   })
 
   it("rejects a non-uuid id with BAD_REQUEST", async () => {
-    await expectBadRequest(createUpdateServerInput("not-a-uuid"), await adminHeaders())
+    await expectOrpcError(
+      callUpdateServer(createUpdateServerInput("not-a-uuid"), await signInTestAdmin()),
+      "BAD_REQUEST",
+    )
   })
 
   it("rejects a missing name", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInputWithout(updatedServer.id, "name"),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInputWithout(updatedServer.id, "name"),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects an empty name", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInput(updatedServer.id, { name: "" }),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInput(updatedServer.id, { name: "" }),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects a name longer than 255 characters", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInput(updatedServer.id, { name: "n".repeat(256) }),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInput(updatedServer.id, { name: "n".repeat(256) }),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
@@ -229,7 +230,7 @@ describe("PUT /servers/{id}", () => {
     const name = "n".repeat(255)
     const updateServerResult = await callUpdateServer(
       createUpdateServerInput(updatedServer.id, { name }),
-      await adminHeaders(),
+      await signInTestAdmin(),
     )
 
     const parsed = ServerSchema.parse(updateServerResult)
@@ -239,65 +240,86 @@ describe("PUT /servers/{id}", () => {
   it("rejects a name of a wrong type", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInput(updatedServer.id, { name: 123 }),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInput(updatedServer.id, { name: 123 }),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects a missing ip", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInputWithout(updatedServer.id, "ip"),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInputWithout(updatedServer.id, "ip"),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects a malformed ip", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInput(updatedServer.id, { ip: "999.999.999.999" }),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInput(updatedServer.id, { ip: "999.999.999.999" }),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects a missing country", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInputWithout(updatedServer.id, "country"),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInputWithout(updatedServer.id, "country"),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects a lowercase country code", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInput(updatedServer.id, { country: "de" }),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInput(updatedServer.id, { country: "de" }),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects a malformed domainName", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInput(updatedServer.id, { domainName: "not a domain" }),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInput(updatedServer.id, { domainName: "not a domain" }),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects an endpoint with a non-uuid protocolId", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInput(updatedServer.id, {
-        endpoints: [{ protocolId: "not-a-uuid", port: 51820 }],
-      }),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInput(updatedServer.id, {
+          endpoints: [{ protocolId: "not-a-uuid", port: 51820 }],
+        }),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
@@ -305,29 +327,35 @@ describe("PUT /servers/{id}", () => {
     const serverProtocol = await insertTestProtocol()
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInput(updatedServer.id, {
-        endpoints: [{ protocolId: serverProtocol.id, port: 0 }],
-      }),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInput(updatedServer.id, {
+          endpoints: [{ protocolId: serverProtocol.id, port: 0 }],
+        }),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("rejects credentials with an empty password", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInput(updatedServer.id, {
-        credentials: { username: "spurro", password: "" },
-      }),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInput(updatedServer.id, {
+          credentials: { username: "spurro", password: "" },
+        }),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
   })
 
   it("ignores unknown extra fields in the payload", async () => {
     const updatedServer = await insertTestServer()
     const input = createUpdateServerInput(updatedServer.id, { unknownField: "unknown value" })
-    const updateServerResult = await callUpdateServer(input, await adminHeaders())
+    const updateServerResult = await callUpdateServer(input, await signInTestAdmin())
 
     const parsed = ServerSchema.parse(updateServerResult)
     expect(parsed.name).toBe(input.name)
@@ -337,9 +365,12 @@ describe("PUT /servers/{id}", () => {
   it("does not modify the server row when input validation fails", async () => {
     const updatedServer = await insertTestServer()
 
-    await expectBadRequest(
-      createUpdateServerInput(updatedServer.id, { ip: "not-an-ip" }),
-      await adminHeaders(),
+    await expectOrpcError(
+      callUpdateServer(
+        createUpdateServerInput(updatedServer.id, { ip: "not-an-ip" }),
+        await signInTestAdmin(),
+      ),
+      "BAD_REQUEST",
     )
 
     const serverRows = await db.select().from(server).where(eq(server.id, updatedServer.id))
@@ -350,29 +381,32 @@ describe("PUT /servers/{id}", () => {
   it("rejects an ordinary user with FORBIDDEN", async () => {
     const updatedServer = await insertTestServer()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(
+    await expectOrpcError(
       callUpdateServer(createUpdateServerInput(updatedServer.id), headers),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "FORBIDDEN")
+      "FORBIDDEN",
+    )
   })
 
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
     const updatedServer = await insertTestServer()
 
-    await expect(
+    await expectOrpcError(
       callUpdateServer(createUpdateServerInput(updatedServer.id), new Headers()),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "UNAUTHORIZED")
+      "UNAUTHORIZED",
+    )
   })
 
   it("does not modify the server row when the requester is not an admin", async () => {
     const updatedServer = await insertTestServer()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(
+    await expectOrpcError(
       callUpdateServer(createUpdateServerInput(updatedServer.id), headers),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "FORBIDDEN")
+      "FORBIDDEN",
+    )
 
     const serverRows = await db.select().from(server).where(eq(server.id, updatedServer.id))
     expect(serverRows[0]?.name).toBe(updatedServer.name)

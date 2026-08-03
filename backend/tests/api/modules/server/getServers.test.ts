@@ -1,18 +1,18 @@
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { type Protocol, ServerSchema } from "@spurro/api-contract"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
 import { serverRouter } from "@/api/modules/server/index.js"
 import { findServers } from "@/api/modules/server/queries/findServers.js"
-import { db } from "@/core/database/index.js"
-import { config, endpoint, protocol, server } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
 import {
   insertTestEndpoint,
   insertTestProtocol,
   insertTestServer,
+  insertTestSession,
   insertTestUser,
-  signInTestUser,
+  signInTestAdmin,
 } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/server/queries/findServers.js", async (importOriginal) => {
@@ -21,28 +21,17 @@ vi.mock("@/api/modules/server/queries/findServers.js", async (importOriginal) =>
   return { findServers: vi.fn(original.findServers) }
 })
 
-const getServers = (headers: Headers) =>
-  call(serverRouter.getServers, undefined, { context: { headers } })
-
-async function adminHeaders() {
-  const requestUser = await insertTestUser({ role: "admin" })
-  return signInTestUser(requestUser)
+function callGetServers(headers: Headers) {
+  return call(serverRouter.getServers, undefined, { context: { headers } })
 }
 
 describe("GET /servers", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(server)
-    await db.delete(protocol)
-  })
-
   it("returns all servers matching the contract schema", async () => {
     const serverProtocol = await insertTestProtocol()
     const firstServer = await insertTestServer()
     const secondServer = await insertTestServer()
     await insertTestEndpoint({ serverId: firstServer.id, protocolId: serverProtocol.id })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     const parsed = z.array(ServerSchema).parse(servers)
     expect(parsed).toHaveLength(2)
@@ -58,7 +47,7 @@ describe("GET /servers", () => {
     const serverProtocol = await insertTestProtocol()
     const listedServer = await insertTestServer()
     await insertTestEndpoint({ serverId: listedServer.id, protocolId: serverProtocol.id })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     expect(servers).toHaveLength(1)
     for (const entry of servers) {
@@ -94,7 +83,7 @@ describe("GET /servers", () => {
     const serverProtocol = await insertTestProtocol()
     const listedServer = await insertTestServer()
     await insertTestEndpoint({ serverId: listedServer.id, protocolId: serverProtocol.id })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     expect(servers).toHaveLength(1)
     for (const entry of servers) {
@@ -121,7 +110,7 @@ describe("GET /servers", () => {
       protocolId: serverProtocol.id,
       port: 51821,
     })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     const parsed = z.array(ServerSchema).parse(servers)
     expect(
@@ -138,7 +127,7 @@ describe("GET /servers", () => {
 
   it("returns the current server with isCurrent true", async () => {
     const currentServer = await insertTestServer({ isCurrent: true })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     const parsed = z.array(ServerSchema).parse(servers)
     expect(parsed.find((entry) => entry.id === currentServer.id)?.isCurrent).toBe(true)
@@ -146,7 +135,7 @@ describe("GET /servers", () => {
 
   it("returns servers with status provisioning", async () => {
     const provisioningServer = await insertTestServer({ status: "provisioning" })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     const parsed = z.array(ServerSchema).parse(servers)
     expect(parsed.map((entry) => entry.id)).toContain(provisioningServer.id)
@@ -155,7 +144,7 @@ describe("GET /servers", () => {
 
   it("returns servers with status failed", async () => {
     const failedServer = await insertTestServer({ status: "failed" })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     const parsed = z.array(ServerSchema).parse(servers)
     expect(parsed.map((entry) => entry.id)).toContain(failedServer.id)
@@ -165,14 +154,14 @@ describe("GET /servers", () => {
   it("omits servers with status deleted", async () => {
     const activeServer = await insertTestServer()
     await insertTestServer({ status: "deleted" })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     expect(servers.map((entry) => entry.id)).toEqual([activeServer.id])
   })
 
   it("returns a server with an empty endpoints array when it has no endpoints", async () => {
     const listedServer = await insertTestServer()
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     const parsed = z.array(ServerSchema).parse(servers)
     expect(parsed.find((entry) => entry.id === listedServer.id)?.endpoints).toEqual([])
@@ -192,7 +181,7 @@ describe("GET /servers", () => {
       protocolId: serverProtocol.id,
       port: 51820,
     })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     const parsed = z.array(ServerSchema).parse(servers)
     const listedServerEndpoints = parsed.find((entry) => entry.id === listedServer.id)?.endpoints
@@ -221,7 +210,7 @@ describe("GET /servers", () => {
       protocolId: serverProtocol.id,
       port: 51820,
     })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     const parsed = z.array(ServerSchema).parse(servers)
     const listedServerEndpoints = parsed.find((entry) => entry.id === listedServer.id)?.endpoints
@@ -240,7 +229,7 @@ describe("GET /servers", () => {
     const middleServer = await insertTestServer({
       createdAt: new Date("2026-01-02T00:00:00.000Z"),
     })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     expect(servers.map((entry) => entry.id)).toEqual([
       newestServer.id,
@@ -250,7 +239,7 @@ describe("GET /servers", () => {
   })
 
   it("returns an empty array when no servers exist", async () => {
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     expect(servers).toEqual([])
   })
@@ -258,24 +247,20 @@ describe("GET /servers", () => {
   it("returns an empty array when every server is deleted", async () => {
     await insertTestServer({ status: "deleted" })
     await insertTestServer({ status: "deleted" })
-    const servers = await getServers(await adminHeaders())
+    const servers = await callGetServers(await signInTestAdmin())
 
     expect(servers).toEqual([])
   })
 
   it("rejects an ordinary user with FORBIDDEN", async () => {
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(getServers(headers)).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "FORBIDDEN",
-    )
+    await expectOrpcError(callGetServers(headers), "FORBIDDEN")
   })
 
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expect(getServers(new Headers())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "UNAUTHORIZED",
-    )
+    await expectOrpcError(callGetServers(new Headers()), "UNAUTHORIZED")
   })
 
   describe("technical", () => {
@@ -283,7 +268,7 @@ describe("GET /servers", () => {
       vi.mocked(findServers).mockRejectedValueOnce(new Error("Query failure"))
 
       const response = await app.request("/api/servers", {
-        headers: await adminHeaders(),
+        headers: await signInTestAdmin(),
       })
       expect(response.status).toBe(500)
     })

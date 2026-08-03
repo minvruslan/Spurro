@@ -1,13 +1,8 @@
 import { randomUUID } from "node:crypto"
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { ConfigSchema, type UpsertConfig } from "@spurro/api-contract"
-import { RemoteServer, type ProtocolClient } from "@spurro/infrastructure"
-import {
-  Amneziawg2ClientIdentifierSchema,
-  type Amneziawg2ConfigData,
-  type EndpointData,
-  type ServerData,
-} from "@spurro/infrastructure/types"
+import { RemoteServer } from "@spurro/infrastructure"
+import { type EndpointData, type ServerData } from "@spurro/infrastructure/types"
 import { eq, sql } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
 import app from "@/api/app.js"
@@ -16,22 +11,19 @@ import { findEndpointProtocolClientData } from "@/api/modules/config/queries/fin
 import { insertUserConfig } from "@/api/modules/config/queries/insertUserConfig.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
+import { config, deviceType, endpoint, protocol, server } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
 import {
-  config,
-  configLimit,
-  deviceType,
-  endpoint,
-  protocol,
-  server,
-} from "@/core/database/schemas/index.js"
-import {
+  createFakeProtocolClient,
+  FakeProtocolClientData,
+  FAKE_SERVER_SSH_HOST_KEY,
   insertTestConfig,
   insertTestConfigLimit,
   insertTestEndpoint,
   insertTestProtocol,
   insertTestServer,
+  insertTestSession,
   insertTestUser,
-  signInTestUser,
 } from "../../../helpers/index.js"
 
 vi.mock(
@@ -51,19 +43,14 @@ vi.mock("@/api/modules/config/queries/insertUserConfig.js", async (importOrigina
   return { insertUserConfig: vi.fn(original.insertUserConfig) }
 })
 
-const allocatedClientIp = "10.8.1.2"
-const fakeClientConfiguration = "fake-client-configuration"
-const fakePublicKey = "fake-public-key"
-const fakePresharedKey = "fake-preshared-key"
+const allocatedClientIp = FakeProtocolClientData.clientIdentifier
+const fakeClientConfiguration = FakeProtocolClientData.clientConfiguration
+const fakePublicKey = FakeProtocolClientData.publicKey
+const fakePresharedKey = FakeProtocolClientData.presharedKey
 const appliedAt = "2026-01-01T00:00:00.000Z"
-const serverSshHostKey = "ssh-ed25519 AAAATestServerHostKey"
+const serverSshHostKey = FAKE_SERVER_SSH_HOST_KEY
 
-const fakeNodeConfigData: Amneziawg2ConfigData = {
-  protocolCode: "amneziawg2",
-  ip: allocatedClientIp,
-  publicKey: fakePublicKey,
-  presharedKey: fakePresharedKey,
-}
+const fakeNodeConfigData = FakeProtocolClientData.configData
 
 const validServerData: ServerData = {
   facts: { sshHostKeys: [serverSshHostKey] },
@@ -87,54 +74,16 @@ const unsupportedProtocolClientData = {
   endpointData: validEndpointData,
 }
 
-const createRealProtocolClient = RemoteServer.prototype.getProtocolClient.bind(
-  new RemoteServer({
-    ip: "192.0.2.1",
-    port: 22,
-    username: "spurro",
-    privateKey: "fake-ssh-private-key",
-    sshHostKeys: [serverSshHostKey],
-  }),
-)
-
-function createFakeProtocolClient() {
-  const client: ProtocolClient = createRealProtocolClient("amneziawg2")
-  return {
-    client,
-    allocateClientIdentifier: vi
-      .spyOn(client, "allocateClientIdentifier")
-      .mockReturnValue(Amneziawg2ClientIdentifierSchema.parse(allocatedClientIp)),
-    createInitialConfigData: vi
-      .spyOn(client, "createInitialConfigData")
-      .mockImplementation((clientIdentifier) => ({
-        protocolCode: "amneziawg2",
-        ip: clientIdentifier,
-      })),
-    createAccess: vi.spyOn(client, "createAccess").mockResolvedValue({
-      configData: { ...fakeNodeConfigData },
-      clientConfiguration: fakeClientConfiguration,
-    }),
-    deleteAccessByClientIdentifier: vi
-      .spyOn(client, "deleteAccessByClientIdentifier")
-      .mockResolvedValue(undefined),
-  }
-}
-
 let fakeProtocolClient: ReturnType<typeof createFakeProtocolClient>
 let getProtocolClientSpy: MockInstance<RemoteServer["getProtocolClient"]>
 
-const createUserConfig = (input: unknown, headers: Headers) =>
-  call(configRouter.createUserConfig, input as UpsertConfig, { context: { headers } })
-
-const requestCreateUserConfig = (input: Record<string, unknown>, headers: Headers) => {
-  headers.set("content-type", "application/json")
-  return app.request("/api/configs", { method: "POST", headers, body: JSON.stringify(input) })
+function callCreateUserConfig(input: unknown, headers: Headers) {
+  return call(configRouter.createUserConfig, input as UpsertConfig, { context: { headers } })
 }
 
-const expectCreateUserConfigError = async (input: unknown, headers: Headers, errorCode: string) => {
-  await expect(createUserConfig(input, headers)).rejects.toSatisfy(
-    (error) => error instanceof ORPCError && error.code === errorCode,
-  )
+function requestCreateUserConfig(input: Record<string, unknown>, headers: Headers) {
+  headers.set("content-type", "application/json")
+  return app.request("/api/configs", { method: "POST", headers, body: JSON.stringify(input) })
 }
 
 async function insertConfigInfrastructure(
@@ -161,21 +110,15 @@ describe("POST /configs", () => {
     getProtocolClientSpy = vi
       .spyOn(RemoteServer.prototype, "getProtocolClient")
       .mockReturnValue(fakeProtocolClient.client)
-    await db.delete(config)
-    await db.delete(configLimit)
-    await db.delete(endpoint)
-    await db.delete(server)
-    await db.delete(protocol)
-    await db.delete(deviceType)
     await bootstrapDeviceTypes()
   })
 
   it("creates a config and returns it matching the contract schema", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    const createdConfig = await createUserConfig(
+    const createdConfig = await callCreateUserConfig(
       { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -189,9 +132,9 @@ describe("POST /configs", () => {
   it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    const createdConfig = await createUserConfig(
+    const createdConfig = await callCreateUserConfig(
       { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -228,7 +171,7 @@ describe("POST /configs", () => {
   it("responds with HTTP 201 on success", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     headers.set("content-type", "application/json")
 
     const response = await app.request("/api/configs", {
@@ -247,9 +190,9 @@ describe("POST /configs", () => {
   it("returns the created config with the requested name and device type", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    const createdConfig = await createUserConfig(
+    const createdConfig = await callCreateUserConfig(
       { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -262,9 +205,9 @@ describe("POST /configs", () => {
   it("persists the created config as active in the database", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    const createdConfig = await createUserConfig(
+    const createdConfig = await callCreateUserConfig(
       { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -282,9 +225,9 @@ describe("POST /configs", () => {
   it("stores the data column encrypted at rest", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    const createdConfig = await createUserConfig(
+    const createdConfig = await callCreateUserConfig(
       { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -301,7 +244,7 @@ describe("POST /configs", () => {
   it("leaves another user's pending config untouched on a successful creation", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const otherUser = await insertTestUser()
     const otherUserPendingConfig = await insertTestConfig({
       userId: otherUser.id,
@@ -311,7 +254,7 @@ describe("POST /configs", () => {
       data: { protocolCode: "amneziawg2", ip: "10.8.0.50" },
     })
 
-    await createUserConfig(
+    await callCreateUserConfig(
       { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -336,9 +279,9 @@ describe("POST /configs", () => {
       },
     })
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await createUserConfig(
+    await callCreateUserConfig(
       { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -360,7 +303,7 @@ describe("POST /configs", () => {
       status: "deleted",
     })
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const existingClientIdentifier = "10.8.0.77"
     await insertTestConfig({
       userId: requestUser.id,
@@ -370,7 +313,7 @@ describe("POST /configs", () => {
       clientIdentifier: existingClientIdentifier,
     })
 
-    await createUserConfig(
+    await callCreateUserConfig(
       { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -386,9 +329,9 @@ describe("POST /configs", () => {
       protocol: { isEnabled: false },
     })
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    const createdConfig = await createUserConfig(
+    const createdConfig = await callCreateUserConfig(
       { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -400,10 +343,10 @@ describe("POST /configs", () => {
   it("accepts a name of exactly 255 characters", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const name = "a".repeat(255)
 
-    const createdConfig = await createUserConfig(
+    const createdConfig = await callCreateUserConfig(
       { name, endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -415,9 +358,9 @@ describe("POST /configs", () => {
   it("ignores unexpected extra fields in the body", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    const createdConfig = await createUserConfig(
+    const createdConfig = await callCreateUserConfig(
       {
         name: "Created Config",
         endpointId: configEndpoint.id,
@@ -435,11 +378,13 @@ describe("POST /configs", () => {
   it("rejects a missing name with BAD_REQUEST", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectCreateUserConfigError(
-      { endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        { endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
+        headers,
+      ),
       "BAD_REQUEST",
     )
   })
@@ -447,11 +392,13 @@ describe("POST /configs", () => {
   it("rejects an empty name with BAD_REQUEST", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectCreateUserConfigError(
-      { name: "", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        { name: "", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
+        headers,
+      ),
       "BAD_REQUEST",
     )
   })
@@ -459,11 +406,13 @@ describe("POST /configs", () => {
   it("rejects a name longer than 255 characters with BAD_REQUEST", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectCreateUserConfigError(
-      { name: "a".repeat(256), endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        { name: "a".repeat(256), endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
+        headers,
+      ),
       "BAD_REQUEST",
     )
   })
@@ -471,11 +420,13 @@ describe("POST /configs", () => {
   it("rejects a non-uuid endpointId with BAD_REQUEST", async () => {
     const { configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectCreateUserConfigError(
-      { name: "Created Config", endpointId: "not-a-uuid", deviceTypeId: configDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        { name: "Created Config", endpointId: "not-a-uuid", deviceTypeId: configDeviceType.id },
+        headers,
+      ),
       "BAD_REQUEST",
     )
   })
@@ -483,11 +434,13 @@ describe("POST /configs", () => {
   it("rejects a non-uuid deviceTypeId with BAD_REQUEST", async () => {
     const { configEndpoint } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectCreateUserConfigError(
-      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: "not-a-uuid" },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: "not-a-uuid" },
+        headers,
+      ),
       "BAD_REQUEST",
     )
   })
@@ -495,11 +448,13 @@ describe("POST /configs", () => {
   it("rejects an unknown endpointId with ENDPOINT_INVALID", async () => {
     const { configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectCreateUserConfigError(
-      { name: "Created Config", endpointId: randomUUID(), deviceTypeId: configDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        { name: "Created Config", endpointId: randomUUID(), deviceTypeId: configDeviceType.id },
+        headers,
+      ),
       "ENDPOINT_INVALID",
     )
   })
@@ -509,11 +464,17 @@ describe("POST /configs", () => {
       endpoint: { status: "deleted" },
     })
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectCreateUserConfigError(
-      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      ),
       "ENDPOINT_INVALID",
     )
   })
@@ -523,11 +484,17 @@ describe("POST /configs", () => {
       server: { status: "provisioning" },
     })
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectCreateUserConfigError(
-      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      ),
       "ENDPOINT_INVALID",
     )
   })
@@ -535,11 +502,13 @@ describe("POST /configs", () => {
   it("rejects an unknown deviceTypeId with DEVICE_TYPE_INVALID", async () => {
     const { configEndpoint } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expectCreateUserConfigError(
-      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: randomUUID() },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: randomUUID() },
+        headers,
+      ),
       "DEVICE_TYPE_INVALID",
     )
   })
@@ -547,15 +516,21 @@ describe("POST /configs", () => {
   it("rejects a disabled device type with DEVICE_TYPE_INVALID", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     await db
       .update(deviceType)
       .set({ isEnabled: false })
       .where(eq(deviceType.id, configDeviceType.id))
 
-    await expectCreateUserConfigError(
-      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      ),
       "DEVICE_TYPE_INVALID",
     )
   })
@@ -563,12 +538,18 @@ describe("POST /configs", () => {
   it("rejects the creation with NO_AVAILABLE_IP when the endpoint has no free client IP", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     fakeProtocolClient.allocateClientIdentifier.mockReturnValueOnce(null)
 
-    await expectCreateUserConfigError(
-      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-      headers,
+    await expectOrpcError(
+      callCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      ),
       "NO_AVAILABLE_IP",
     )
   })
@@ -577,7 +558,7 @@ describe("POST /configs", () => {
     it("rejects the creation with LIMIT_REACHED when slot-reserving configs equal maxCount", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       await insertTestConfigLimit({ userId: requestUser.id, maxCount: 2 })
       await insertTestConfig({
         userId: requestUser.id,
@@ -592,13 +573,15 @@ describe("POST /configs", () => {
         status: "pending",
       })
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "LIMIT_REACHED",
       )
     })
@@ -606,7 +589,7 @@ describe("POST /configs", () => {
     it("creates a config when slot-reserving configs are one below maxCount", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       await insertTestConfigLimit({ userId: requestUser.id, maxCount: 2 })
       await insertTestConfig({
         userId: requestUser.id,
@@ -615,7 +598,7 @@ describe("POST /configs", () => {
         status: "active",
       })
 
-      const createdConfig = await createUserConfig(
+      const createdConfig = await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -631,16 +614,18 @@ describe("POST /configs", () => {
     it("rejects the creation with LIMIT_REACHED when maxCount is zero", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       await insertTestConfigLimit({ userId: requestUser.id, maxCount: 0 })
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "LIMIT_REACHED",
       )
     })
@@ -648,7 +633,7 @@ describe("POST /configs", () => {
     it("creates a config when the user has no config limit row for the protocol family", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,
@@ -662,7 +647,7 @@ describe("POST /configs", () => {
         status: "active",
       })
 
-      const createdConfig = await createUserConfig(
+      const createdConfig = await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -678,7 +663,7 @@ describe("POST /configs", () => {
     it("does not count a pending config older than the reservation window toward the limit", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
       const stalePendingConfig = await insertTestConfig({
         userId: requestUser.id,
@@ -691,7 +676,7 @@ describe("POST /configs", () => {
         .set({ createdAt: new Date(Date.now() - 7 * 60 * 1000) })
         .where(eq(config.id, stalePendingConfig.id))
 
-      const createdConfig = await createUserConfig(
+      const createdConfig = await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -707,7 +692,7 @@ describe("POST /configs", () => {
     it("does not count a deleting config toward the limit", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
       await insertTestConfig({
         userId: requestUser.id,
@@ -716,7 +701,7 @@ describe("POST /configs", () => {
         status: "deleting",
       })
 
-      const createdConfig = await createUserConfig(
+      const createdConfig = await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -732,7 +717,7 @@ describe("POST /configs", () => {
     it("does not count deleted configs toward the limit", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
       await insertTestConfig({
         userId: requestUser.id,
@@ -741,7 +726,7 @@ describe("POST /configs", () => {
         status: "deleted",
       })
 
-      const createdConfig = await createUserConfig(
+      const createdConfig = await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -757,7 +742,7 @@ describe("POST /configs", () => {
     it("does not count another user's configs toward the limit", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       const otherUser = await insertTestUser()
       await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
       await insertTestConfig({
@@ -767,7 +752,7 @@ describe("POST /configs", () => {
         status: "active",
       })
 
-      const createdConfig = await createUserConfig(
+      const createdConfig = await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -783,11 +768,11 @@ describe("POST /configs", () => {
     it("ignores another user's config limit row", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       const otherUser = await insertTestUser()
       await insertTestConfigLimit({ userId: otherUser.id, maxCount: 0 })
 
-      const createdConfig = await createUserConfig(
+      const createdConfig = await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -803,7 +788,7 @@ describe("POST /configs", () => {
     it("does not persist a config when the limit is reached", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
       const existingConfig = await insertTestConfig({
         userId: requestUser.id,
@@ -812,7 +797,7 @@ describe("POST /configs", () => {
         status: "active",
       })
 
-      await createUserConfig(
+      await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -831,16 +816,18 @@ describe("POST /configs", () => {
     it("returns FAILED when the node-side creation fails", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       fakeProtocolClient.createAccess.mockRejectedValueOnce(new Error("Node-side failure"))
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "FAILED",
       )
     })
@@ -848,10 +835,10 @@ describe("POST /configs", () => {
     it("marks the config row deleted when the node-side creation fails", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       fakeProtocolClient.createAccess.mockRejectedValueOnce(new Error("Node-side failure"))
 
-      await createUserConfig(
+      await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -868,10 +855,10 @@ describe("POST /configs", () => {
     it("removes the peer from the node when the node-side creation fails", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       fakeProtocolClient.createAccess.mockRejectedValueOnce(new Error("Node-side failure"))
 
-      await createUserConfig(
+      await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -889,7 +876,7 @@ describe("POST /configs", () => {
     it("leaves the user's other pending config untouched when the node-side creation fails", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       const otherPendingConfig = await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,
@@ -899,7 +886,7 @@ describe("POST /configs", () => {
       })
       fakeProtocolClient.createAccess.mockRejectedValueOnce(new Error("Node-side failure"))
 
-      await createUserConfig(
+      await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -916,19 +903,21 @@ describe("POST /configs", () => {
     it("keeps the config pending when both the node-side creation and the rollback delete fail", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       fakeProtocolClient.createAccess.mockRejectedValueOnce(new Error("Node-side failure"))
       fakeProtocolClient.deleteAccessByClientIdentifier.mockRejectedValueOnce(
         new Error("Rollback failure"),
       )
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "FAILED",
       )
 
@@ -960,15 +949,17 @@ describe("POST /configs", () => {
         server: { data: null },
       })
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "FAILED",
       )
     })
@@ -978,15 +969,17 @@ describe("POST /configs", () => {
         server: { data: serverDataWithoutSshHostKeys },
       })
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "FAILED",
       )
     })
@@ -996,15 +989,17 @@ describe("POST /configs", () => {
         server: { data: serverDataWithoutDns },
       })
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "FAILED",
       )
     })
@@ -1014,15 +1009,17 @@ describe("POST /configs", () => {
         endpoint: { data: {} },
       })
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "FAILED",
       )
     })
@@ -1032,15 +1029,17 @@ describe("POST /configs", () => {
         endpoint: { data: unparsableEndpointData },
       })
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "FAILED",
       )
     })
@@ -1050,9 +1049,9 @@ describe("POST /configs", () => {
         server: { data: null },
       })
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
 
-      await createUserConfig(
+      await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -1067,7 +1066,7 @@ describe("POST /configs", () => {
   })
 
   describe("cancellation race", () => {
-    const cancelUserConfigsDuringCreateAccess = (userId: string) => {
+    function cancelUserConfigsDuringCreateAccess(userId: string) {
       fakeProtocolClient.createAccess.mockImplementationOnce(async () => {
         await db.update(config).set({ status: "deleting" }).where(eq(config.userId, userId))
         return {
@@ -1080,16 +1079,18 @@ describe("POST /configs", () => {
     it("returns FAILED when the config is cancelled while node-side creation is in flight", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       cancelUserConfigsDuringCreateAccess(requestUser.id)
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "FAILED",
       )
     })
@@ -1097,10 +1098,10 @@ describe("POST /configs", () => {
     it("does not resurrect a config cancelled during node-side creation", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       cancelUserConfigsDuringCreateAccess(requestUser.id)
 
-      await createUserConfig(
+      await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -1117,10 +1118,10 @@ describe("POST /configs", () => {
     it("rolls the peer back off the node when the config was cancelled during creation", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       cancelUserConfigsDuringCreateAccess(requestUser.id)
 
-      await createUserConfig(
+      await callCreateUserConfig(
         {
           name: "Created Config",
           endpointId: configEndpoint.id,
@@ -1140,7 +1141,7 @@ describe("POST /configs", () => {
     it("responds with HTTP 502 when the node-side creation fails", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       fakeProtocolClient.createAccess.mockRejectedValueOnce(new Error("Node-side failure"))
 
       const response = await requestCreateUserConfig(
@@ -1158,7 +1159,7 @@ describe("POST /configs", () => {
     it("responds with HTTP 503 when the endpoint has no free client IP", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       fakeProtocolClient.allocateClientIdentifier.mockReturnValueOnce(null)
 
       const response = await requestCreateUserConfig(
@@ -1176,7 +1177,7 @@ describe("POST /configs", () => {
     it("responds with HTTP 409 when the config limit is reached", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       await insertTestConfigLimit({ userId: requestUser.id, maxCount: 0 })
 
       const response = await requestCreateUserConfig(
@@ -1194,7 +1195,7 @@ describe("POST /configs", () => {
     it("responds with HTTP 400 when the endpointId is unknown", async () => {
       const { configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
 
       const response = await requestCreateUserConfig(
         { name: "Created Config", endpointId: randomUUID(), deviceTypeId: configDeviceType.id },
@@ -1207,7 +1208,7 @@ describe("POST /configs", () => {
     it("responds with HTTP 400 when the deviceTypeId is unknown", async () => {
       const { configEndpoint } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
 
       const response = await requestCreateUserConfig(
         { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: randomUUID() },
@@ -1221,9 +1222,9 @@ describe("POST /configs", () => {
   it("allows an admin user as well", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const adminUser = await insertTestUser({ role: "admin" })
-    const headers = await signInTestUser(adminUser)
+    const headers = await insertTestSession(adminUser)
 
-    const createdConfig = await createUserConfig(
+    const createdConfig = await callCreateUserConfig(
       { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
       headers,
     )
@@ -1235,9 +1236,15 @@ describe("POST /configs", () => {
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
 
-    await expectCreateUserConfigError(
-      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-      new Headers(),
+    await expectOrpcError(
+      callCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        new Headers(),
+      ),
       "UNAUTHORIZED",
     )
   })
@@ -1248,7 +1255,7 @@ describe("POST /configs", () => {
 
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       headers.set("content-type", "application/json")
 
       const response = await app.request("/api/configs", {
@@ -1266,16 +1273,18 @@ describe("POST /configs", () => {
     it("returns FAILED when the endpoint is deleted between validation and protocol client resolution", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
-      const headers = await signInTestUser(requestUser)
+      const headers = await insertTestSession(requestUser)
       vi.mocked(findEndpointProtocolClientData).mockResolvedValueOnce(undefined)
 
-      await expectCreateUserConfigError(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
         "FAILED",
       )
     })
@@ -1284,18 +1293,20 @@ describe("POST /configs", () => {
       it("rejects the creation with UNSUPPORTED_PROTOCOL when the endpoint protocol client resolution reports unsupported_protocol", async () => {
         const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
         const requestUser = await insertTestUser()
-        const headers = await signInTestUser(requestUser)
+        const headers = await insertTestSession(requestUser)
         vi.mocked(findEndpointProtocolClientData).mockResolvedValueOnce(
           unsupportedProtocolClientData,
         )
 
-        await expectCreateUserConfigError(
-          {
-            name: "Created Config",
-            endpointId: configEndpoint.id,
-            deviceTypeId: configDeviceType.id,
-          },
-          headers,
+        await expectOrpcError(
+          callCreateUserConfig(
+            {
+              name: "Created Config",
+              endpointId: configEndpoint.id,
+              deviceTypeId: configDeviceType.id,
+            },
+            headers,
+          ),
           "UNSUPPORTED_PROTOCOL",
         )
       })
@@ -1303,12 +1314,12 @@ describe("POST /configs", () => {
       it("does not persist a config when the endpoint protocol is unsupported", async () => {
         const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
         const requestUser = await insertTestUser()
-        const headers = await signInTestUser(requestUser)
+        const headers = await insertTestSession(requestUser)
         vi.mocked(findEndpointProtocolClientData).mockResolvedValueOnce(
           unsupportedProtocolClientData,
         )
 
-        await createUserConfig(
+        await callCreateUserConfig(
           {
             name: "Created Config",
             endpointId: configEndpoint.id,
@@ -1324,7 +1335,7 @@ describe("POST /configs", () => {
       it("responds with HTTP 400 when the endpoint protocol is unsupported", async () => {
         const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
         const requestUser = await insertTestUser()
-        const headers = await signInTestUser(requestUser)
+        const headers = await insertTestSession(requestUser)
         vi.mocked(findEndpointProtocolClientData).mockResolvedValueOnce(
           unsupportedProtocolClientData,
         )

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { makeSignature } from "better-auth/crypto"
 import { eq } from "drizzle-orm"
 import { describe, expect, it } from "vitest"
@@ -8,10 +8,12 @@ import { protocolRouter } from "@/api/modules/protocol/index.js"
 import { authServer } from "@/core/auth-server/index.js"
 import { db } from "@/core/database/index.js"
 import { session, user } from "@/core/database/schemas/index.js"
-import { signInTestUser, insertTestUser } from "../../helpers/index.js"
+import { expectOrpcError } from "../../assertions/index.js"
+import { insertTestSession, insertTestUser } from "../../helpers/index.js"
 
-const callCarrierRoute = (headers: Headers) =>
-  call(deviceTypeRouter.getDeviceTypes, undefined, { context: { headers } })
+function callCarrierRoute(headers: Headers) {
+  return call(deviceTypeRouter.getDeviceTypes, undefined, { context: { headers } })
+}
 
 async function cookieHeaders(cookieValue: string) {
   const authContext = await authServer.$context
@@ -30,56 +32,56 @@ async function insertSessionToken(userId: string) {
   return token
 }
 
-const expectUnauthorized = async (headers: Headers) => {
-  await expect(callCarrierRoute(headers)).rejects.toSatisfy(
-    (error) => error instanceof ORPCError && error.code === "UNAUTHORIZED",
-  )
-}
-
 describe("authorized", () => {
   it("rejects a garbage cookie value", async () => {
-    await expectUnauthorized(await cookieHeaders("garbage"))
+    await expectOrpcError(callCarrierRoute(await cookieHeaders("garbage")), "UNAUTHORIZED")
   })
 
   it("rejects an unsigned token of an existing session", async () => {
     const sessionUser = await insertTestUser()
     const token = await insertSessionToken(sessionUser.id)
-    await expectUnauthorized(await cookieHeaders(token))
+    await expectOrpcError(callCarrierRoute(await cookieHeaders(token)), "UNAUTHORIZED")
   })
 
   it("rejects an existing session token signed with a wrong secret", async () => {
     const sessionUser = await insertTestUser()
     const token = await insertSessionToken(sessionUser.id)
     const forgedSignature = await makeSignature(token, "wrong-secret")
-    await expectUnauthorized(await cookieHeaders(`${token}.${forgedSignature}`))
+    await expectOrpcError(
+      callCarrierRoute(await cookieHeaders(`${token}.${forgedSignature}`)),
+      "UNAUTHORIZED",
+    )
   })
 
   it("rejects a correctly signed token that has no session", async () => {
     const authContext = await authServer.$context
     const token = randomUUID()
     const signature = await makeSignature(token, authContext.secret)
-    await expectUnauthorized(await cookieHeaders(`${token}.${signature}`))
+    await expectOrpcError(
+      callCarrierRoute(await cookieHeaders(`${token}.${signature}`)),
+      "UNAUTHORIZED",
+    )
   })
 
   it("rejects an expired session", async () => {
     const sessionUser = await insertTestUser()
-    const headers = await signInTestUser(sessionUser, {
+    const headers = await insertTestSession(sessionUser, {
       expiresAt: new Date(Date.now() - 60 * 1000),
     })
-    await expectUnauthorized(headers)
+    await expectOrpcError(callCarrierRoute(headers), "UNAUTHORIZED")
   })
 
   it("rejects a session whose user was deleted", async () => {
     const sessionUser = await insertTestUser()
-    const headers = await signInTestUser(sessionUser)
+    const headers = await insertTestSession(sessionUser)
     await db.delete(user).where(eq(user.id, sessionUser.id))
-    await expectUnauthorized(headers)
+    await expectOrpcError(callCarrierRoute(headers), "UNAUTHORIZED")
   })
 
   it("rejects a session of a banned user", async () => {
     const sessionUser = await insertTestUser({ banned: true })
-    const headers = await signInTestUser(sessionUser)
-    await expectUnauthorized(headers)
+    const headers = await insertTestSession(sessionUser)
+    await expectOrpcError(callCarrierRoute(headers), "UNAUTHORIZED")
   })
 
   it("rejects a session of a user with an active temporary ban", async () => {
@@ -87,8 +89,8 @@ describe("authorized", () => {
       banned: true,
       banExpires: new Date(Date.now() + 60 * 60 * 1000),
     })
-    const headers = await signInTestUser(sessionUser)
-    await expectUnauthorized(headers)
+    const headers = await insertTestSession(sessionUser)
+    await expectOrpcError(callCarrierRoute(headers), "UNAUTHORIZED")
   })
 
   it("allows a user whose temporary ban has expired", async () => {
@@ -96,15 +98,16 @@ describe("authorized", () => {
       banned: true,
       banExpires: new Date(Date.now() - 60 * 1000),
     })
-    const headers = await signInTestUser(sessionUser)
+    const headers = await insertTestSession(sessionUser)
     await expect(callCarrierRoute(headers)).resolves.toBeDefined()
   })
 
   it("forbids a non-admin user on an admin route with FORBIDDEN", async () => {
     const sessionUser = await insertTestUser()
-    const headers = await signInTestUser(sessionUser)
-    await expect(
+    const headers = await insertTestSession(sessionUser)
+    await expectOrpcError(
       call(protocolRouter.getProtocols, undefined, { context: { headers } }),
-    ).rejects.toSatisfy((error) => error instanceof ORPCError && error.code === "FORBIDDEN")
+      "FORBIDDEN",
+    )
   })
 })

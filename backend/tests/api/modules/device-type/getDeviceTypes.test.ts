@@ -1,15 +1,16 @@
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { DeviceTypeSchema, type DeviceType } from "@spurro/api-contract"
 import { eq } from "drizzle-orm"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
 import { deviceTypeRouter } from "@/api/modules/device-type/index.js"
 import { findActiveDeviceTypes } from "@/api/modules/device-type/queries/findActiveDeviceTypes.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
-import { config, deviceType } from "@/core/database/schemas/index.js"
-import { signInTestUser, insertTestUser } from "../../../helpers/index.js"
+import { deviceType } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
+import { signInTestAdmin, signInTestUser } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/device-type/queries/findActiveDeviceTypes.js", async (importOriginal) => {
   const original =
@@ -19,23 +20,14 @@ vi.mock("@/api/modules/device-type/queries/findActiveDeviceTypes.js", async (imp
   return { findActiveDeviceTypes: vi.fn(original.findActiveDeviceTypes) }
 })
 
-const getDeviceTypes = (headers: Headers) =>
-  call(deviceTypeRouter.getDeviceTypes, undefined, { context: { headers } })
-
-async function authorizedHeaders(role?: string) {
-  const requestUser = await insertTestUser(role ? { role } : {})
-  return signInTestUser(requestUser)
+function callGetDeviceTypes(headers: Headers) {
+  return call(deviceTypeRouter.getDeviceTypes, undefined, { context: { headers } })
 }
 
 describe("GET /device-types", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(deviceType)
-  })
-
   it("returns the seeded device-type catalog matching the contract schema", async () => {
     await bootstrapDeviceTypes()
-    const deviceTypes = await getDeviceTypes(await authorizedHeaders())
+    const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     const parsed = z.array(DeviceTypeSchema).parse(deviceTypes)
     expect(parsed).toHaveLength(5)
@@ -50,7 +42,7 @@ describe("GET /device-types", () => {
 
   it("exposes exactly the contract fields and nothing more", async () => {
     await bootstrapDeviceTypes()
-    const deviceTypes = await getDeviceTypes(await authorizedHeaders())
+    const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     for (const entry of deviceTypes) {
       expect(Object.keys(entry).sort()).toEqual(["code", "id", "name"])
@@ -66,7 +58,7 @@ describe("GET /device-types", () => {
       android: "Android",
     }
     await bootstrapDeviceTypes()
-    const deviceTypes = await getDeviceTypes(await authorizedHeaders())
+    const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     expect(deviceTypes).toHaveLength(5)
     for (const entry of deviceTypes) {
@@ -76,7 +68,7 @@ describe("GET /device-types", () => {
 
   it("returns entries ordered by name ascending", async () => {
     await bootstrapDeviceTypes()
-    const deviceTypes = await getDeviceTypes(await authorizedHeaders())
+    const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     const names = deviceTypes.map((entry) => entry.name)
     expect(names).toEqual([...names].sort())
@@ -85,7 +77,7 @@ describe("GET /device-types", () => {
   it("omits disabled device types", async () => {
     await bootstrapDeviceTypes()
     await db.update(deviceType).set({ isEnabled: false }).where(eq(deviceType.code, "linux"))
-    const deviceTypes = await getDeviceTypes(await authorizedHeaders())
+    const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     const codes = deviceTypes.map((entry) => entry.code)
     expect(codes).not.toContain("linux")
@@ -95,28 +87,26 @@ describe("GET /device-types", () => {
   it("returns an empty array when all device types are disabled", async () => {
     await bootstrapDeviceTypes()
     await db.update(deviceType).set({ isEnabled: false })
-    const deviceTypes = await getDeviceTypes(await authorizedHeaders())
+    const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     expect(deviceTypes).toEqual([])
   })
 
   it("returns an empty array when no device types exist", async () => {
-    const deviceTypes = await getDeviceTypes(await authorizedHeaders())
+    const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     expect(deviceTypes).toEqual([])
   })
 
   it("allows an admin user as well", async () => {
     await bootstrapDeviceTypes()
-    const deviceTypes = await getDeviceTypes(await authorizedHeaders("admin"))
+    const deviceTypes = await callGetDeviceTypes(await signInTestAdmin())
 
     expect(deviceTypes).toHaveLength(5)
   })
 
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expect(getDeviceTypes(new Headers())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "UNAUTHORIZED",
-    )
+    await expectOrpcError(callGetDeviceTypes(new Headers()), "UNAUTHORIZED")
   })
 
   describe("technical", () => {
@@ -124,7 +114,7 @@ describe("GET /device-types", () => {
       vi.mocked(findActiveDeviceTypes).mockRejectedValueOnce(new Error("Query failure"))
 
       const response = await app.request("/api/device-types", {
-        headers: await authorizedHeaders(),
+        headers: await signInTestUser(),
       })
       expect(response.status).toBe(500)
     })

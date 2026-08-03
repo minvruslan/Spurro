@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it } from "vitest"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
-import { config, deviceType, endpoint, protocol } from "@/core/database/schemas/index.js"
+import { deviceType } from "@/core/database/schemas/index.js"
 import { insertTestConfig } from "./insertTestConfig.js"
 import { insertTestEndpoint } from "./insertTestEndpoint.js"
 import { insertTestProtocol } from "./insertTestProtocol.js"
@@ -9,17 +9,7 @@ import { insertTestServer } from "./insertTestServer.js"
 import { insertTestUser } from "./insertTestUser.js"
 
 describe("insertTestConfig", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(protocol)
-    await db.delete(deviceType)
-    await bootstrapDeviceTypes()
-  })
-
-  afterEach(async () => {
-    await db.delete(config)
-  })
+  beforeEach(bootstrapDeviceTypes)
 
   it("creates a persisted active config bound to its user, endpoint and device type", async () => {
     const configUser = await insertTestUser()

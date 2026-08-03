@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { call, ORPCError } from "@orpc/server"
+import { call } from "@orpc/server"
 import { UserSchema } from "@spurro/api-contract"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
@@ -7,15 +7,17 @@ import { userRouter } from "@/api/modules/user/index.js"
 import { findUserById } from "@/api/modules/user/queries/findUserById.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
-import { config, deviceType, endpoint, protocol, server } from "@/core/database/schemas/index.js"
+import { deviceType, server } from "@/core/database/schemas/index.js"
+import { expectOrpcError } from "../../../assertions/index.js"
 import {
   insertTestConfig,
   insertTestConfigLimit,
   insertTestEndpoint,
   insertTestProtocol,
   insertTestServer,
+  insertTestSession,
   insertTestUser,
-  signInTestUser,
+  signInTestAdmin,
 } from "../../../helpers/index.js"
 
 vi.mock("@/api/modules/user/queries/findUserById.js", async (importOriginal) => {
@@ -24,12 +26,8 @@ vi.mock("@/api/modules/user/queries/findUserById.js", async (importOriginal) => 
   return { findUserById: vi.fn(original.findUserById) }
 })
 
-const getUser = (id: string, headers: Headers) =>
-  call(userRouter.getUser, { id }, { context: { headers } })
-
-async function adminHeaders() {
-  const requestUser = await insertTestUser({ role: "admin" })
-  return signInTestUser(requestUser)
+function callGetUser(id: string, headers: Headers) {
+  return call(userRouter.getUser, { id }, { context: { headers } })
 }
 
 async function insertConfigInfrastructure(
@@ -46,18 +44,11 @@ async function insertConfigInfrastructure(
 }
 
 describe("GET /users/{id}", () => {
-  beforeEach(async () => {
-    await db.delete(config)
-    await db.delete(endpoint)
-    await db.delete(server)
-    await db.delete(protocol)
-    await db.delete(deviceType)
-    await bootstrapDeviceTypes()
-  })
+  beforeEach(bootstrapDeviceTypes)
 
   it("returns the requested user matching the contract schema", async () => {
     const requestedUser = await insertTestUser()
-    const foundUser = await getUser(requestedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     const parsed = UserSchema.parse(foundUser)
     expect(parsed.id).toBe(requestedUser.id)
@@ -68,7 +59,7 @@ describe("GET /users/{id}", () => {
   it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({ userId: requestedUser.id })
-    const foundUser = await getUser(requestedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(Object.keys(foundUser).sort()).toEqual([
       "banReason",
@@ -105,7 +96,7 @@ describe("GET /users/{id}", () => {
         status,
       })
     }
-    const foundUser = await getUser(requestedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
     for (const limit of foundUser.limits) {
@@ -126,7 +117,7 @@ describe("GET /users/{id}", () => {
       status: "pending",
       createdAt: new Date(Date.now() - 7 * 60 * 1000),
     })
-    const foundUser = await getUser(requestedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
     for (const limit of foundUser.limits) {
@@ -136,14 +127,14 @@ describe("GET /users/{id}", () => {
 
   it("returns an empty limits array when the user has no config limits", async () => {
     const requestedUser = await insertTestUser()
-    const foundUser = await getUser(requestedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toEqual([])
   })
 
   it("returns a banned user with banned and banReason populated", async () => {
     const bannedUser = await insertTestUser({ banned: true, banReason: "Violation of terms" })
-    const foundUser = await getUser(bannedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(bannedUser.id, await signInTestAdmin())
 
     const parsed = UserSchema.parse(foundUser)
     expect(parsed.banned).toBe(true)
@@ -153,9 +144,7 @@ describe("GET /users/{id}", () => {
   it("rejects a user with role admin with NOT_FOUND", async () => {
     const adminUser = await insertTestUser({ role: "admin" })
 
-    await expect(getUser(adminUser.id, await adminHeaders())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
-    )
+    await expectOrpcError(callGetUser(adminUser.id, await signInTestAdmin()), "NOT_FOUND")
   })
 
   it("returns a limit with used exceeding maxCount as-is parsing against the contract schema", async () => {
@@ -172,7 +161,7 @@ describe("GET /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    const foundUser = await getUser(requestedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     const parsed = UserSchema.parse(foundUser)
     expect(parsed.limits).toHaveLength(1)
@@ -191,7 +180,7 @@ describe("GET /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    const foundUser = await getUser(requestedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
     for (const limit of foundUser.limits) {
@@ -208,7 +197,7 @@ describe("GET /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    const foundUser = await getUser(requestedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toEqual([])
   })
@@ -217,7 +206,7 @@ describe("GET /users/{id}", () => {
     await insertTestProtocol({ isEnabled: false })
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({ userId: requestedUser.id, maxCount: 2 })
-    const foundUser = await getUser(requestedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
     for (const limit of foundUser.limits) {
@@ -236,7 +225,7 @@ describe("GET /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    const foundUser = await getUser(bannedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(bannedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
     for (const limit of foundUser.limits) {
@@ -255,7 +244,7 @@ describe("GET /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    const foundUser = await getUser(requestedUser.id, await adminHeaders())
+    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
     for (const limit of foundUser.limits) {
@@ -264,48 +253,39 @@ describe("GET /users/{id}", () => {
   })
 
   it("rejects an unknown id with NOT_FOUND", async () => {
-    await expect(getUser(`unknown-user-${randomUUID()}`, await adminHeaders())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
+    await expectOrpcError(
+      callGetUser(`unknown-user-${randomUUID()}`, await signInTestAdmin()),
+      "NOT_FOUND",
     )
   })
 
   it("rejects an empty string id with NOT_FOUND", async () => {
-    await expect(getUser("", await adminHeaders())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
-    )
+    await expectOrpcError(callGetUser("", await signInTestAdmin()), "NOT_FOUND")
   })
 
   it("rejects a malformed identifier with NOT_FOUND", async () => {
-    await expect(getUser("%%%not-a-user-id%%%", await adminHeaders())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "NOT_FOUND",
-    )
+    await expectOrpcError(callGetUser("%%%not-a-user-id%%%", await signInTestAdmin()), "NOT_FOUND")
   })
 
   it("rejects an ordinary user requesting another user's record with FORBIDDEN", async () => {
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
     const otherUser = await insertTestUser()
 
-    await expect(getUser(otherUser.id, headers)).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "FORBIDDEN",
-    )
+    await expectOrpcError(callGetUser(otherUser.id, headers), "FORBIDDEN")
   })
 
   it("rejects an ordinary user requesting their own record with FORBIDDEN", async () => {
     const requestUser = await insertTestUser()
-    const headers = await signInTestUser(requestUser)
+    const headers = await insertTestSession(requestUser)
 
-    await expect(getUser(requestUser.id, headers)).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "FORBIDDEN",
-    )
+    await expectOrpcError(callGetUser(requestUser.id, headers), "FORBIDDEN")
   })
 
   it("rejects an anonymous request with UNAUTHORIZED", async () => {
     const requestedUser = await insertTestUser()
 
-    await expect(getUser(requestedUser.id, new Headers())).rejects.toSatisfy(
-      (error) => error instanceof ORPCError && error.code === "UNAUTHORIZED",
-    )
+    await expectOrpcError(callGetUser(requestedUser.id, new Headers()), "UNAUTHORIZED")
   })
 
   describe("technical", () => {
@@ -314,7 +294,7 @@ describe("GET /users/{id}", () => {
       vi.mocked(findUserById).mockRejectedValueOnce(new Error("Query failure"))
 
       const response = await app.request(`/api/users/${requestedUser.id}`, {
-        headers: await adminHeaders(),
+        headers: await signInTestAdmin(),
       })
       expect(response.status).toBe(500)
     })
