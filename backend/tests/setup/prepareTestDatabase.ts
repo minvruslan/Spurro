@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js"
 import { migrate } from "drizzle-orm/postgres-js/migrator"
 import postgres from "postgres"
-import { TEST_DATABASE_URL } from "../constants/TEST_DATABASE_URL.js"
+import { TEST_DATABASE_URL } from "@tests/constants/TEST_DATABASE_URL.js"
 
 export default async function prepareTestDatabase() {
   const connection = postgres(TEST_DATABASE_URL, { max: 1, onnotice: () => {} })

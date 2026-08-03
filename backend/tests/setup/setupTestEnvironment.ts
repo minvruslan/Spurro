@@ -1,5 +1,5 @@
-import { TEST_DATABASE_URL } from "../constants/TEST_DATABASE_URL.js"
-import { TEST_QUEUE_URL } from "../constants/TEST_QUEUE_URL.js"
+import { TEST_DATABASE_URL } from "@tests/constants/TEST_DATABASE_URL.js"
+import { TEST_QUEUE_URL } from "@tests/constants/TEST_QUEUE_URL.js"
 
 process.env.LOG_LEVEL = "silent"
 process.env.DOTENV_CONFIG_QUIET = "true"

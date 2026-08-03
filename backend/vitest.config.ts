@@ -15,15 +15,16 @@ const modulesWithApprovedSpecifications: string[] = [
 ]
 
 const integrationTestGlobs = [
-  "tests/api/**/*.test.ts",
-  "tests/worker/**/*.test.ts",
+  "tests/src/api/**/*.test.ts",
+  "tests/src/worker/**/*.test.ts",
+  "tests/src/core/bootstraps/**/*.test.ts",
   "tests/helpers/**/*.test.ts",
-  "tests/core/bootstraps/**/*.test.ts",
 ]
 
 export default defineConfig({
   resolve: {
     alias: {
+      "@tests": fileURLToPath(new URL("./tests", import.meta.url)),
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
