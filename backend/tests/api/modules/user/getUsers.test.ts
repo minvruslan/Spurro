@@ -161,7 +161,7 @@ describe("GET /users", () => {
     }
   })
 
-  it("returns each limit with used counting the user's non-deleted configs of the matching protocol family", async () => {
+  it("returns each limit with used counting the user's slot-reserving configs of the matching protocol family", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const limitedUser = await insertTestUser()
     await insertTestConfigLimit({ userId: limitedUser.id, maxCount: 5 })
@@ -182,7 +182,7 @@ describe("GET /users", () => {
       for (const limit of entry.limits) {
         expect(limit.protocolFamily).toBe("amneziawg")
         expect(limit.maxCount).toBe(5)
-        expect(limit.used).toBe(3)
+        expect(limit.used).toBe(2)
       }
     }
   })

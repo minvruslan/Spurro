@@ -1,7 +1,7 @@
 import { and, eq, gt, or, sql } from "drizzle-orm"
 import { config } from "@/core/database/schemas/domainSchema.js"
 
-const PENDING_CONFIG_RESERVATION_MINUTES = 10
+const PENDING_CONFIG_RESERVATION_MINUTES = 6
 
 export function reservedConfigCondition() {
   return or(

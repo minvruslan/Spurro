@@ -1,6 +1,7 @@
-import { and, count, eq, inArray, ne } from "drizzle-orm"
+import { and, count, eq, inArray } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
 import { config, endpoint, protocol } from "@/core/database/schemas/domainSchema.js"
+import { reservedConfigCondition } from "./conditions/reservedConfigCondition.js"
 
 export async function countUsersConfigsByProtocolFamily(executor: DbOrTx, userIds: string[]) {
   return executor
@@ -12,6 +13,6 @@ export async function countUsersConfigsByProtocolFamily(executor: DbOrTx, userId
     .from(config)
     .innerJoin(endpoint, eq(config.endpointId, endpoint.id))
     .innerJoin(protocol, eq(endpoint.protocolId, protocol.id))
-    .where(and(inArray(config.userId, userIds), ne(config.status, "deleted")))
+    .where(and(inArray(config.userId, userIds), reservedConfigCondition()))
     .groupBy(config.userId, protocol.family)
 }

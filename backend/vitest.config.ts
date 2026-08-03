@@ -4,6 +4,7 @@ import { configDefaults, defineConfig } from "vitest/config"
 const FullCoverageThresholds = { statements: 100, branches: 100, functions: 100, lines: 100 }
 
 const modulesWithApprovedSpecifications: string[] = [
+  "src/api/modules/config-limit/**/*.ts",
   "src/api/modules/device-type/**/*.ts",
   "src/api/modules/endpoint/**/*.ts",
   "src/api/modules/protocol/**/*.ts",

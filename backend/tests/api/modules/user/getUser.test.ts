@@ -93,7 +93,7 @@ describe("GET /users/{id}", () => {
     }
   })
 
-  it("returns the user's limits with used counting their non-deleted configs of the matching protocol family", async () => {
+  it("returns the user's limits with used counting their slot-reserving configs of the matching protocol family", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({ userId: requestedUser.id, maxCount: 5 })
@@ -111,11 +111,11 @@ describe("GET /users/{id}", () => {
     for (const limit of foundUser.limits) {
       expect(limit.protocolFamily).toBe("amneziawg")
       expect(limit.maxCount).toBe(5)
-      expect(limit.used).toBe(3)
+      expect(limit.used).toBe(2)
     }
   })
 
-  it("counts a pending config older than ten minutes in used", async () => {
+  it("excludes a pending config older than the reservation window from used", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({ userId: requestedUser.id, maxCount: 5 })
@@ -124,13 +124,13 @@ describe("GET /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "pending",
-      createdAt: new Date(Date.now() - 11 * 60 * 1000),
+      createdAt: new Date(Date.now() - 7 * 60 * 1000),
     })
     const foundUser = await getUser(requestedUser.id, await adminHeaders())
 
     expect(foundUser.limits).toHaveLength(1)
     for (const limit of foundUser.limits) {
-      expect(limit.used).toBe(1)
+      expect(limit.used).toBe(0)
     }
   })
 
