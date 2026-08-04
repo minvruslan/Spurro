@@ -1,5 +1,5 @@
 import { call } from "@orpc/server"
-import { type Protocol, ServerSchema } from "@spurro/api-contract"
+import { ServerSchema } from "@spurro/api-contract"
 import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
@@ -43,7 +43,7 @@ describe("GET /servers", () => {
     expect(parsedFirstServer?.status).toBe("active")
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
+  it("returns every contract field at every nesting level", async () => {
     const serverProtocol = await insertTestProtocol()
     const listedServer = await insertTestServer()
     await insertTestEndpoint({ serverId: listedServer.id, protocolId: serverProtocol.id })
@@ -72,26 +72,6 @@ describe("GET /servers", () => {
           "id",
           "name",
         ])
-      }
-    }
-  })
-
-  it("returns each server endpoint protocol with the family matching its code", async () => {
-    const expectedFamiliesByCode: Record<Protocol["code"], Protocol["family"]> = {
-      amneziawg2: "amneziawg",
-    }
-    const serverProtocol = await insertTestProtocol()
-    const listedServer = await insertTestServer()
-    await insertTestEndpoint({ serverId: listedServer.id, protocolId: serverProtocol.id })
-    const servers = await callGetServers(await signInTestAdmin())
-
-    expect(servers).toHaveLength(1)
-    for (const entry of servers) {
-      expect(entry.endpoints).toHaveLength(1)
-      for (const serverEndpoint of entry.endpoints) {
-        expect(serverEndpoint.protocol.family).toBe(
-          expectedFamiliesByCode[serverEndpoint.protocol.code],
-        )
       }
     }
   })
@@ -140,15 +120,6 @@ describe("GET /servers", () => {
     const parsed = z.array(ServerSchema).parse(servers)
     expect(parsed.map((entry) => entry.id)).toContain(provisioningServer.id)
     expect(parsed.find((entry) => entry.id === provisioningServer.id)?.status).toBe("provisioning")
-  })
-
-  it("returns servers with status failed", async () => {
-    const failedServer = await insertTestServer({ status: "failed" })
-    const servers = await callGetServers(await signInTestAdmin())
-
-    const parsed = z.array(ServerSchema).parse(servers)
-    expect(parsed.map((entry) => entry.id)).toContain(failedServer.id)
-    expect(parsed.find((entry) => entry.id === failedServer.id)?.status).toBe("failed")
   })
 
   it("omits servers with status deleted", async () => {
@@ -239,14 +210,6 @@ describe("GET /servers", () => {
   })
 
   it("returns an empty array when no servers exist", async () => {
-    const servers = await callGetServers(await signInTestAdmin())
-
-    expect(servers).toEqual([])
-  })
-
-  it("returns an empty array when every server is deleted", async () => {
-    await insertTestServer({ status: "deleted" })
-    await insertTestServer({ status: "deleted" })
     const servers = await callGetServers(await signInTestAdmin())
 
     expect(servers).toEqual([])

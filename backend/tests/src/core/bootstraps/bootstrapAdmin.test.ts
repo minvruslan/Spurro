@@ -17,6 +17,35 @@ describe("bootstrapAdmin", () => {
     expect(userRows[0].emailVerified).toBe(true)
   })
 
+  it("stores the email lowercased when ADMIN_EMAIL has mixed case", async () => {
+    const originalAdminEmail = env.ADMIN_EMAIL
+    env.ADMIN_EMAIL = "Admin@Test.Local"
+    try {
+      await bootstrapAdmin()
+
+      const userRows = await db.select().from(user)
+      expect(userRows).toHaveLength(1)
+      expect(userRows[0].email).toBe("admin@test.local")
+      expect(userRows[0].role).toBe("admin")
+    } finally {
+      env.ADMIN_EMAIL = originalAdminEmail
+    }
+  })
+
+  it("inserts nothing when a lowercase row already exists for a mixed-case ADMIN_EMAIL", async () => {
+    const existingUser = await insertTestUser({ email: env.ADMIN_EMAIL })
+    const originalAdminEmail = env.ADMIN_EMAIL
+    env.ADMIN_EMAIL = "Admin@Test.Local"
+    try {
+      await bootstrapAdmin()
+
+      const userRows = await db.select().from(user)
+      expect(userRows).toEqual([existingUser])
+    } finally {
+      env.ADMIN_EMAIL = originalAdminEmail
+    }
+  })
+
   it("creates no second user when run twice", async () => {
     await bootstrapAdmin()
     const [createdAdmin] = await db.select().from(user).where(eq(user.email, env.ADMIN_EMAIL))
@@ -34,10 +63,7 @@ describe("bootstrapAdmin", () => {
     await bootstrapAdmin()
 
     const userRows = await db.select().from(user).where(eq(user.email, env.ADMIN_EMAIL))
-    expect(userRows).toHaveLength(1)
-    expect(userRows[0].id).toBe(existingUser.id)
-    expect(userRows[0].name).toBe("Existing")
-    expect(userRows[0].role).toBeNull()
+    expect(userRows).toEqual([existingUser])
   })
 
   it("leaves other users untouched", async () => {

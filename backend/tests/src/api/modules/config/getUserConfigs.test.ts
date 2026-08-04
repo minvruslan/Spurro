@@ -42,7 +42,7 @@ async function insertConfigInfrastructure(
     protocolId: configProtocol.id,
   })
   const [configDeviceType] = await db.select().from(deviceType).limit(1)
-  return { configEndpoint, configDeviceType }
+  return { configProtocol, configServer, configEndpoint, configDeviceType }
 }
 
 describe("GET /configs", () => {
@@ -69,8 +69,9 @@ describe("GET /configs", () => {
     expect(parsed[0].endpoint.id).toBe(configEndpoint.id)
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+  it("returns the joined endpoint, server, protocol and device type values", async () => {
+    const { configProtocol, configServer, configEndpoint, configDeviceType } =
+      await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     await insertTestConfig({
@@ -90,20 +91,14 @@ describe("GET /configs", () => {
     z.array(ConfigSchema).parse(configs)
     expect(configs).toHaveLength(1)
     const [entry] = configs
-    expect(Object.keys(entry).sort()).toEqual([
-      "createdAt",
-      "data",
-      "deviceType",
-      "endpoint",
-      "id",
-      "name",
-      "status",
-      "updatedAt",
-    ])
-    expect(Object.keys(entry.deviceType).sort()).toEqual(["code", "id", "name"])
-    expect(Object.keys(entry.endpoint).sort()).toEqual(["id", "port", "protocol", "server"])
-    expect(Object.keys(entry.endpoint.protocol).sort()).toEqual(["code", "family", "id", "name"])
-    expect(Object.keys(entry.endpoint.server).sort()).toEqual(["country", "id", "name"])
+    expect(entry.endpoint.port).toBe(configEndpoint.port)
+    expect(entry.endpoint.protocol.code).toBe(configProtocol.code)
+    expect(entry.endpoint.protocol.family).toBe(configProtocol.family)
+    expect(entry.endpoint.protocol.name).toBe(configProtocol.name)
+    expect(entry.endpoint.server.name).toBe(configServer.name)
+    expect(entry.endpoint.server.country).toBe(configServer.country)
+    expect(entry.deviceType.code).toBe(configDeviceType.code)
+    expect(entry.deviceType.name).toBe(configDeviceType.name)
     expect(Object.keys(entry.data).sort()).toEqual([
       "ip",
       "presharedKey",
@@ -111,6 +106,40 @@ describe("GET /configs", () => {
       "publicKey",
     ])
     expect(entry.data).not.toHaveProperty("configuration")
+  })
+
+  it("returns each config with its own server", async () => {
+    const configProtocol = await insertTestProtocol()
+    const firstServer = await insertTestServer()
+    const secondServer = await insertTestServer()
+    const firstEndpoint = await insertTestEndpoint({
+      serverId: firstServer.id,
+      protocolId: configProtocol.id,
+    })
+    const secondEndpoint = await insertTestEndpoint({
+      serverId: secondServer.id,
+      protocolId: configProtocol.id,
+    })
+    const [configDeviceType] = await db.select().from(deviceType).limit(1)
+    const requestUser = await insertTestUser()
+    const headers = await insertTestSession(requestUser)
+    const firstConfig = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: firstEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+    const secondConfig = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: secondEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+    const configs = await callGetUserConfigs(headers)
+
+    const serverNamesByConfigId = new Map(
+      configs.map((entry) => [entry.id, entry.endpoint.server.name]),
+    )
+    expect(serverNamesByConfigId.get(firstConfig.id)).toBe(firstServer.name)
+    expect(serverNamesByConfigId.get(secondConfig.id)).toBe(secondServer.name)
   })
 
   it("returns an empty array when the user has no configs", async () => {

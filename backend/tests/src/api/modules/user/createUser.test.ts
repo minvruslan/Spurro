@@ -43,7 +43,20 @@ describe("POST /users", () => {
     expect(parsed.email).toBe(email)
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
+  it("stores a mixed-case email lowercased", async () => {
+    const mixedCaseEmail = createTestEmail().toUpperCase()
+    const createdUser = await callCreateUser(
+      { name: "Created User", email: mixedCaseEmail },
+      await signInTestAdmin(),
+    )
+
+    const parsed = UserSchema.parse(createdUser)
+    expect(parsed.email).toBe(mixedCaseEmail.toLowerCase())
+    const userRows = await db.select().from(user).where(eq(user.id, parsed.id))
+    expect(userRows[0].email).toBe(mixedCaseEmail.toLowerCase())
+  })
+
+  it("returns every contract field at every nesting level", async () => {
     const createdUser = await callCreateUser(
       {
         name: "Created User",
@@ -165,15 +178,6 @@ describe("POST /users", () => {
   it("creates the user with an empty limits array when limits is omitted", async () => {
     const createdUser = await callCreateUser(
       { name: "Created User", email: createTestEmail() },
-      await signInTestAdmin(),
-    )
-
-    expect(createdUser.limits).toEqual([])
-  })
-
-  it("creates the user with an empty limits array when limits is an empty array", async () => {
-    const createdUser = await callCreateUser(
-      { name: "Created User", email: createTestEmail(), limits: [] },
       await signInTestAdmin(),
     )
 
@@ -327,6 +331,17 @@ describe("POST /users", () => {
     )
   })
 
+  it("ignores a role and banned sent in the payload", async () => {
+    const createdUser = await callCreateUser(
+      { name: "Created User", email: createTestEmail(), role: "admin", banned: true },
+      await signInTestAdmin(),
+    )
+
+    const userRows = await db.select().from(user).where(eq(user.id, createdUser.id))
+    expect(userRows[0].role).toBeNull()
+    expect(userRows[0].banned).toBe(false)
+  })
+
   it("rejects a duplicate email with EMAIL_TAKEN", async () => {
     const existingUser = await insertTestUser()
 
@@ -348,11 +363,11 @@ describe("POST /users", () => {
     )
   })
 
-  it("rejects a duplicate email with EMAIL_TAKEN even when the existing user is banned", async () => {
-    const existingUser = await insertTestUser({ banned: true, banReason: "Violation of terms" })
+  it("rejects a duplicate email with EMAIL_TAKEN when the existing user is an admin", async () => {
+    const adminUser = await insertTestUser({ role: "admin" })
 
     await expectOrpcError(
-      callCreateUser({ name: "Created User", email: existingUser.email }, await signInTestAdmin()),
+      callCreateUser({ name: "Created User", email: adminUser.email }, await signInTestAdmin()),
       "EMAIL_TAKEN",
     )
   })

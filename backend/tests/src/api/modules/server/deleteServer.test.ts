@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
+import { configRouter } from "@/api/modules/config/index.js"
 import { serverRouter } from "@/api/modules/server/index.js"
 import { deleteServer } from "@/api/modules/server/queries/deleteServer.js"
 import { findServerById } from "@/api/modules/server/queries/findServerById.js"
@@ -19,6 +20,7 @@ import {
   insertTestSession,
   insertTestUser,
   signInTestAdmin,
+  waitForDatabaseLockWaiter,
 } from "@tests/helpers/index.js"
 
 vi.mock("@/api/modules/server/queries/findServerById.js", async (importOriginal) => {
@@ -72,13 +74,6 @@ describe("DELETE /servers/{id}", () => {
 
     const parsed = z.object({ id: z.uuid() }).parse(deleteServerResult)
     expect(parsed).toEqual({ id: deletedServer.id })
-  })
-
-  it("exposes exactly the contract fields and nothing more", async () => {
-    const deletedServer = await insertTestServer()
-    const deleteServerResult = await callDeleteServer(deletedServer.id, await signInTestAdmin())
-
-    expect(Object.keys(deleteServerResult)).toEqual(["id"])
   })
 
   it("hard-deletes the server row when no configs are reserved for it", async () => {
@@ -146,6 +141,58 @@ describe("DELETE /servers/{id}", () => {
     expect(serverRows[0]?.status).toBe("deleted")
   })
 
+  it("waits for the server advisory lock and soft-deletes after a concurrent config reservation commits", async () => {
+    const { deletedServer, deletedEndpoint } = await insertServerWithEndpoint()
+    const configUser = await insertTestUser()
+    const [configDeviceType] = await db.select().from(deviceType).limit(1)
+    const headers = await signInTestAdmin()
+
+    let releaseReservation!: () => void
+    let markReservationHeld!: () => void
+    const reservationReleased = new Promise<void>((resolve) => {
+      releaseReservation = resolve
+    })
+    const reservationHeld = new Promise<void>((resolve) => {
+      markReservationHeld = resolve
+    })
+
+    const reservationTransaction = db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${deletedServer.id}))`)
+      await insertTestConfig(
+        {
+          userId: configUser.id,
+          endpointId: deletedEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+          status: "pending",
+        },
+        tx,
+      )
+      markReservationHeld()
+      await reservationReleased
+    })
+
+    await reservationHeld
+    const deleteServerResult = callDeleteServer(deletedServer.id, headers)
+    await waitForDatabaseLockWaiter(deleteServerResult)
+    releaseReservation()
+    await reservationTransaction
+    await deleteServerResult
+
+    const serverRows = await db.select().from(server).where(eq(server.id, deletedServer.id))
+    expect(serverRows).toHaveLength(1)
+    expect(serverRows[0]?.status).toBe("deleted")
+  })
+
+  it("soft-deletes the server when a config on its endpoints is in status deleting", async () => {
+    const { deletedServer, deletedEndpoint } = await insertServerWithEndpoint()
+    await insertConfigOnEndpoint(deletedEndpoint.id, "deleting")
+    await callDeleteServer(deletedServer.id, await signInTestAdmin())
+
+    const serverRows = await db.select().from(server).where(eq(server.id, deletedServer.id))
+    expect(serverRows).toHaveLength(1)
+    expect(serverRows[0]?.status).toBe("deleted")
+  })
+
   it("hard-deletes a server and its config rows when its configs are all in status deleted", async () => {
     const { deletedServer, deletedEndpoint } = await insertServerWithEndpoint()
     const deletedConfig = await insertConfigOnEndpoint(deletedEndpoint.id, "deleted")
@@ -169,6 +216,27 @@ describe("DELETE /servers/{id}", () => {
     expect(endpointRows).toHaveLength(1)
     expect(endpointRows[0]?.id).toBe(deletedEndpoint.id)
     expect(endpointRows[0]?.status).toBe("deleted")
+  })
+
+  it("hides the user's configs after a soft server deletion", async () => {
+    const { deletedServer, deletedEndpoint } = await insertServerWithEndpoint()
+    const configUser = await insertTestUser()
+    const [configDeviceType] = await db.select().from(deviceType).limit(1)
+    const userConfig = await insertTestConfig({
+      userId: configUser.id,
+      endpointId: deletedEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "active",
+    })
+
+    await callDeleteServer(deletedServer.id, await signInTestAdmin())
+
+    const configRows = await db.select().from(config).where(eq(config.id, userConfig.id))
+    expect(configRows[0]?.status).toBe("deleted")
+    const userConfigs = await call(configRouter.getUserConfigs, undefined, {
+      context: { headers: await insertTestSession(configUser) },
+    })
+    expect(userConfigs).toEqual([])
   })
 
   it("keeps the config rows when the server is soft-deleted", async () => {

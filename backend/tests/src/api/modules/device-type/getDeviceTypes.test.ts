@@ -40,10 +40,11 @@ describe("GET /device-types", () => {
     ])
   })
 
-  it("exposes exactly the contract fields and nothing more", async () => {
+  it("returns every contract field", async () => {
     await bootstrapDeviceTypes()
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
+    expect(deviceTypes).toHaveLength(5)
     for (const entry of deviceTypes) {
       expect(Object.keys(entry).sort()).toEqual(["code", "id", "name"])
     }
@@ -71,7 +72,7 @@ describe("GET /device-types", () => {
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     const names = deviceTypes.map((entry) => entry.name)
-    expect(names).toEqual([...names].sort())
+    expect(names).toEqual(["Android", "Linux", "Windows", "iOS", "macOS"])
   })
 
   it("omits disabled device types", async () => {

@@ -10,7 +10,7 @@ export function reservedConfigCondition() {
       eq(config.status, "pending"),
       gt(
         config.createdAt,
-        sql`now() - make_interval(mins => ${PENDING_CONFIG_RESERVATION_MINUTES})`,
+        sql`(now() at time zone 'utc') - make_interval(mins => ${PENDING_CONFIG_RESERVATION_MINUTES})`,
       ),
     ),
   )

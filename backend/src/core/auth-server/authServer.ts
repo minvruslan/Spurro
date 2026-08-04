@@ -1,5 +1,3 @@
-import { writeFile } from "node:fs/promises"
-import { resolve } from "node:path"
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { admin, magicLink } from "better-auth/plugins"
@@ -7,10 +5,11 @@ import { eq } from "drizzle-orm"
 import { db } from "@/core/database/index.js"
 import * as schema from "@/core/database/schemas/authSchema.js"
 import { user } from "@/core/database/schemas/authSchema.js"
+import { sendMagicLinkEmail } from "@/core/mailer/index.js"
 import { env } from "@/core/env/index.js"
-import { authLogger } from "@/core/logger/index.js"
 
-const MAGIC_LINK_FILE = resolve(process.cwd(), "magic-link.log")
+const MAGIC_LINK_LIFETIME_SECONDS = 300
+const SESSION_LIFETIME_SECONDS = 604800
 
 export const authServer = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
@@ -22,10 +21,16 @@ export const authServer = betterAuth({
   emailAndPassword: {
     enabled: false,
   },
+  session: {
+    expiresIn: SESSION_LIFETIME_SECONDS,
+  },
   advanced: {
     defaultCookieAttributes: {
       sameSite: "lax",
     },
+    // better-auth silently skips origin and callbackURL checks when NODE_ENV=test; pinning
+    // the flag keeps tests running the same CSRF protection as production.
+    disableOriginCheck: false,
     ipAddress: {
       // Real client IP comes from X-Forwarded-For. The proxy must overwrite it, not append,
       // or clients could spoof it and bypass rate limiting.
@@ -44,16 +49,15 @@ export const authServer = betterAuth({
     admin(),
     magicLink({
       disableSignUp: true,
+      expiresIn: MAGIC_LINK_LIFETIME_SECONDS,
       sendMagicLink: async ({ email, url }) => {
         const [existing] = await db
           .select({ id: user.id })
           .from(user)
-          .where(eq(user.email, email))
+          .where(eq(user.email, email.toLowerCase()))
           .limit(1)
         if (!existing) return
-        // TODO: wire up a real email provider.
-        await writeFile(MAGIC_LINK_FILE, `${url}\n`)
-        authLogger.info({ url }, `Magic link for ${email} saved to ${MAGIC_LINK_FILE}.`)
+        await sendMagicLinkEmail(email, url)
       },
     }),
   ],

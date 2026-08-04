@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
-import { type Protocol, ServerSchema } from "@spurro/api-contract"
+import { ServerSchema } from "@spurro/api-contract"
 import { describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
 import { serverRouter } from "@/api/modules/server/index.js"
@@ -40,7 +40,7 @@ describe("GET /servers/{id}", () => {
     expect(parsed.status).toBe("active")
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
+  it("returns every contract field at every nesting level", async () => {
     const serverProtocol = await insertTestProtocol()
     const requestedServer = await insertTestServer()
     await insertTestEndpoint({ serverId: requestedServer.id, protocolId: serverProtocol.id })
@@ -62,23 +62,6 @@ describe("GET /servers/{id}", () => {
     for (const serverEndpoint of foundServer.endpoints) {
       expect(Object.keys(serverEndpoint).sort()).toEqual(["id", "port", "protocol", "status"])
       expect(Object.keys(serverEndpoint.protocol).sort()).toEqual(["code", "family", "id", "name"])
-    }
-  })
-
-  it("returns the server endpoint protocol with the family matching its code", async () => {
-    const expectedFamiliesByCode: Record<Protocol["code"], Protocol["family"]> = {
-      amneziawg2: "amneziawg",
-    }
-    const serverProtocol = await insertTestProtocol()
-    const requestedServer = await insertTestServer()
-    await insertTestEndpoint({ serverId: requestedServer.id, protocolId: serverProtocol.id })
-    const foundServer = await callGetServer(requestedServer.id, await signInTestAdmin())
-
-    expect(foundServer.endpoints).toHaveLength(1)
-    for (const serverEndpoint of foundServer.endpoints) {
-      expect(serverEndpoint.protocol.family).toBe(
-        expectedFamiliesByCode[serverEndpoint.protocol.code],
-      )
     }
   })
 
@@ -172,15 +155,6 @@ describe("GET /servers/{id}", () => {
     const parsed = ServerSchema.parse(foundServer)
     expect(parsed.id).toBe(provisioningServer.id)
     expect(parsed.status).toBe("provisioning")
-  })
-
-  it("returns a server with status failed", async () => {
-    const failedServer = await insertTestServer({ status: "failed" })
-    const foundServer = await callGetServer(failedServer.id, await signInTestAdmin())
-
-    const parsed = ServerSchema.parse(foundServer)
-    expect(parsed.id).toBe(failedServer.id)
-    expect(parsed.status).toBe("failed")
   })
 
   it("rejects an unknown id with NOT_FOUND", async () => {

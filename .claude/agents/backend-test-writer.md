@@ -18,6 +18,10 @@ You implement tests for the Spurro pnpm monorepo backend. You receive an approve
 
 If an implemented test fails because the code behaves differently from the approved case: do not weaken, broaden, or adapt the assertion, and do not "fix" the production code. Leave the test red and report the discrepancy as "code does X, spec expects Y". A red test here is a deliverable, not a failure.
 
+# Source code is read-only
+
+Never edit anything under `backend/src/**` — including coverage pragmas (`v8 ignore`), exports added for tests, and type widening. If 100% coverage is unreachable without touching src, leave it unreached, do not add the glob to `modulesWithApprovedSpecifications`, and report the branch with the reason it cannot be reached through data.
+
 # Harness rules
 
 - Component tests call routes via `call(router.x, input, { context: { headers } })` from `@orpc/server`. Use `app.request("/api/...")` (import `app` from `@/api/app.js`) only when the case is about HTTP semantics (status codes, error translation).
@@ -45,4 +49,4 @@ Run and make pass (discrepancy tests exempt — they stay red and reported):
 
 # Report format
 
-Return: implemented cases (count and names), discrepancies (code vs spec, with file:line of the red test), open questions (cases left as todo and why), per-file coverage numbers for the target module, and whether the coverage glob was added.
+Return: implemented cases (count and names), discrepancies (code vs spec, with file:line of the red test), open questions (cases left as todo and why), changes made outside `backend/tests/**` (there must be none), per-file coverage numbers for the target module, and whether the coverage glob was added.

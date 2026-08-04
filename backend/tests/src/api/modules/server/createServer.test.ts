@@ -99,7 +99,18 @@ describe("POST /servers", () => {
     expect(parsed.country).toBe(input.country)
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
+  it("ignores an isCurrent and status sent in the payload", async () => {
+    const createdServer = await callCreateServer(
+      createServerInput({ isCurrent: true, status: "active" }),
+      await signInTestAdmin(),
+    )
+
+    const serverRows = await db.select().from(server).where(eq(server.id, createdServer.id))
+    expect(serverRows[0].isCurrent).toBe(false)
+    expect(serverRows[0].status).toBe("provisioning")
+  })
+
+  it("returns every contract field at every nesting level", async () => {
     const serverProtocol = await insertTestProtocol()
     const createdServer = await callCreateServer(
       createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 51820 }] }),
@@ -244,16 +255,6 @@ describe("POST /servers", () => {
 
   it("creates a server with an empty endpoints array when endpoints are omitted", async () => {
     const createdServer = await callCreateServer(createServerInput(), await signInTestAdmin())
-
-    const parsed = ServerSchema.parse(createdServer)
-    expect(parsed.endpoints).toEqual([])
-  })
-
-  it("creates a server with an empty endpoints array when endpoints is an empty array", async () => {
-    const createdServer = await callCreateServer(
-      createServerInput({ endpoints: [] }),
-      await signInTestAdmin(),
-    )
 
     const parsed = ServerSchema.parse(createdServer)
     expect(parsed.endpoints).toEqual([])

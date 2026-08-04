@@ -1,17 +1,25 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
+import { RemoteServer } from "@spurro/infrastructure"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
-import { deleteUserConfigsFromRemoteEndpointService } from "@/api/modules/config/services/deleteUserConfigsFromRemoteEndpointService.js"
 import { userRouter } from "@/api/modules/user/index.js"
 import { deleteUser } from "@/api/modules/user/queries/deleteUser.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
-import { config, configLimit, deviceType, session, user } from "@/core/database/schemas/index.js"
+import {
+  config,
+  configLimit,
+  deviceType,
+  server,
+  session,
+  user,
+} from "@/core/database/schemas/index.js"
 import { expectOrpcError } from "@tests/assertions/index.js"
 import {
+  createFakeAmneziawg2Client,
   insertTestConfig,
   insertTestConfigLimit,
   insertTestEndpoint,
@@ -22,21 +30,6 @@ import {
   signInTestAdmin,
 } from "@tests/helpers/index.js"
 
-vi.mock(
-  "@/api/modules/config/services/deleteUserConfigsFromRemoteEndpointService.js",
-  async (importOriginal) => {
-    const original =
-      await importOriginal<
-        typeof import("@/api/modules/config/services/deleteUserConfigsFromRemoteEndpointService.js")
-      >()
-    return {
-      deleteUserConfigsFromRemoteEndpointService: vi.fn(
-        original.deleteUserConfigsFromRemoteEndpointService,
-      ),
-    }
-  },
-)
-
 vi.mock("@/api/modules/user/queries/deleteUser.js", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/api/modules/user/queries/deleteUser.js")>()
   return { deleteUser: vi.fn(original.deleteUser) }
@@ -46,9 +39,13 @@ function callDeleteUser(id: string, headers: Headers) {
   return call(userRouter.deleteUser, { id }, { context: { headers } })
 }
 
-async function insertConfigInfrastructure() {
+async function insertConfigInfrastructure(
+  overrides: {
+    server?: Partial<typeof server.$inferInsert>
+  } = {},
+) {
   const configProtocol = await insertTestProtocol()
-  const configServer = await insertTestServer()
+  const configServer = await insertTestServer(overrides.server)
   const configEndpoint = await insertTestEndpoint({
     serverId: configServer.id,
     protocolId: configProtocol.id,
@@ -57,8 +54,16 @@ async function insertConfigInfrastructure() {
   return { configEndpoint, configDeviceType }
 }
 
+let fakeAmneziawg2Client: ReturnType<typeof createFakeAmneziawg2Client>
+
 describe("DELETE /users/{id}", () => {
-  beforeEach(bootstrapDeviceTypes)
+  beforeEach(async () => {
+    fakeAmneziawg2Client = createFakeAmneziawg2Client()
+    vi.spyOn(RemoteServer.prototype, "getProtocolClient").mockReturnValue(
+      fakeAmneziawg2Client.client,
+    )
+    await bootstrapDeviceTypes()
+  })
 
   it("deletes the user and returns their id", async () => {
     const targetUser = await insertTestUser()
@@ -105,10 +110,6 @@ describe("DELETE /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
-      ok: true,
-      data: null,
-    })
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     const configRows = await db.select().from(config).where(eq(config.userId, targetUser.id))
@@ -118,22 +119,21 @@ describe("DELETE /users/{id}", () => {
   it("deletes the user's VPN configs on the nodes before removing the user", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const targetUser = await insertTestUser()
-    await insertTestConfig({
+    const targetConfig = await insertTestConfig({
       userId: targetUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
     let userRowsDuringNodeCall: { id: string }[] = []
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockImplementationOnce(async () => {
+    fakeAmneziawg2Client.deleteAccesses.mockImplementationOnce(async () => {
       userRowsDuringNodeCall = await db.select().from(user).where(eq(user.id, targetUser.id))
-      return { ok: true, data: null }
     })
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
-    expect(deleteUserConfigsFromRemoteEndpointService).toHaveBeenCalledTimes(1)
-    expect(vi.mocked(deleteUserConfigsFromRemoteEndpointService).mock.calls[0][0]).toBe(
-      configEndpoint.id,
-    )
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledTimes(1)
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+      targetConfig.data,
+    ])
     expect(userRowsDuringNodeCall).toHaveLength(1)
     const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
     expect(userRows).toHaveLength(0)
@@ -151,21 +151,16 @@ describe("DELETE /users/{id}", () => {
       userId: targetUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
-    })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
-      ok: true,
-      data: null,
+      data: { protocolCode: "amneziawg2", ip: "10.8.0.3" },
     })
 
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
-    expect(deleteUserConfigsFromRemoteEndpointService).toHaveBeenCalledTimes(1)
-    const [calledEndpointId, calledConfigs] = vi.mocked(deleteUserConfigsFromRemoteEndpointService)
-      .mock.calls[0]
-    expect(calledEndpointId).toBe(configEndpoint.id)
-    expect(calledConfigs.map((calledConfig) => calledConfig.id).sort()).toEqual(
-      [firstConfig.id, secondConfig.id].sort(),
-    )
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledTimes(1)
+    const [, deletedConfigData] = fakeAmneziawg2Client.deleteAccesses.mock.calls[0]
+    expect(deletedConfigData).toHaveLength(2)
+    expect(deletedConfigData).toContainEqual(firstConfig.data)
+    expect(deletedConfigData).toContainEqual(secondConfig.data)
   })
 
   it("removes both config rows when the user has two configs on the same endpoint", async () => {
@@ -181,10 +176,6 @@ describe("DELETE /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
-      ok: true,
-      data: null,
-    })
 
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
@@ -199,6 +190,7 @@ describe("DELETE /users/{id}", () => {
       userId: targetUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
+      data: { protocolCode: "amneziawg2", ip: "10.8.0.77" },
     })
     const bystanderUser = await insertTestUser()
     await insertTestSession(bystanderUser)
@@ -207,10 +199,6 @@ describe("DELETE /users/{id}", () => {
       userId: bystanderUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
-    })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
-      ok: true,
-      data: null,
     })
 
     await callDeleteUser(targetUser.id, await signInTestAdmin())
@@ -228,18 +216,17 @@ describe("DELETE /users/{id}", () => {
     expect(configRows).toHaveLength(1)
     expect(configRows[0].id).toBe(bystanderConfig.id)
     expect(configRows[0].status).toBe("active")
-    expect(deleteUserConfigsFromRemoteEndpointService).toHaveBeenCalledTimes(1)
-    const [calledEndpointId, calledConfigs] = vi.mocked(deleteUserConfigsFromRemoteEndpointService)
-      .mock.calls[0]
-    expect(calledEndpointId).toBe(configEndpoint.id)
-    expect(calledConfigs.map((calledConfig) => calledConfig.id)).toEqual([targetConfig.id])
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledTimes(1)
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+      targetConfig.data,
+    ])
   })
 
   it("makes no node calls when the user has no configs", async () => {
     const targetUser = await insertTestUser()
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
-    expect(deleteUserConfigsFromRemoteEndpointService).not.toHaveBeenCalled()
+    expect(fakeAmneziawg2Client.deleteAccesses).not.toHaveBeenCalled()
   })
 
   it("makes no node calls for configs that are already deleted", async () => {
@@ -253,7 +240,7 @@ describe("DELETE /users/{id}", () => {
     })
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
-    expect(deleteUserConfigsFromRemoteEndpointService).not.toHaveBeenCalled()
+    expect(fakeAmneziawg2Client.deleteAccesses).not.toHaveBeenCalled()
   })
 
   it("deletes a user whose used count exceeds their limit's maxCount", async () => {
@@ -264,10 +251,6 @@ describe("DELETE /users/{id}", () => {
       userId: targetUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
-    })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
-      ok: true,
-      data: null,
     })
     const deleteUserResult = await callDeleteUser(targetUser.id, await signInTestAdmin())
 
@@ -283,10 +266,6 @@ describe("DELETE /users/{id}", () => {
       userId: targetUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
-    })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
-      ok: true,
-      data: null,
     })
     const deleteUserResult = await callDeleteUser(targetUser.id, await signInTestAdmin())
 
@@ -310,17 +289,14 @@ describe("DELETE /users/{id}", () => {
   })
 
   it("returns CONFIG_DELETE_FAILED when a node holding the user's configs is unreachable", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+      server: { data: null },
+    })
     const targetUser = await insertTestUser()
     await insertTestConfig({
       userId: targetUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
-    })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
-      ok: false,
-      errorCode: "unavailable",
-      error: new Error("Node unreachable"),
     })
 
     await expectOrpcError(
@@ -330,18 +306,15 @@ describe("DELETE /users/{id}", () => {
   })
 
   it("keeps the user, their limits and their configs when node config deletion fails", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+      server: { data: null },
+    })
     const targetUser = await insertTestUser()
     await insertTestConfigLimit({ userId: targetUser.id })
     await insertTestConfig({
       userId: targetUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
-    })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
-      ok: false,
-      errorCode: "unavailable",
-      error: new Error("Node unreachable"),
     })
 
     await callDeleteUser(targetUser.id, await signInTestAdmin()).catch(() => undefined)
@@ -359,17 +332,14 @@ describe("DELETE /users/{id}", () => {
   })
 
   it("responds with HTTP 502 when node config deletion fails", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+      server: { data: null },
+    })
     const targetUser = await insertTestUser()
     await insertTestConfig({
       userId: targetUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
-    })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockResolvedValueOnce({
-      ok: false,
-      errorCode: "unavailable",
-      error: new Error("Node unreachable"),
     })
 
     const response = await app.request(`/api/users/${targetUser.id}`, {
@@ -383,7 +353,7 @@ describe("DELETE /users/{id}", () => {
   it("deletes configs on the reachable node and returns CONFIG_DELETE_FAILED when another node fails", async () => {
     const configProtocol = await insertTestProtocol()
     const reachableServer = await insertTestServer()
-    const unreachableServer = await insertTestServer()
+    const unreachableServer = await insertTestServer({ data: null })
     const reachableEndpoint = await insertTestEndpoint({
       serverId: reachableServer.id,
       protocolId: configProtocol.id,
@@ -394,7 +364,7 @@ describe("DELETE /users/{id}", () => {
     })
     const [configDeviceType] = await db.select().from(deviceType).limit(1)
     const targetUser = await insertTestUser()
-    await insertTestConfig({
+    const reachableConfig = await insertTestConfig({
       userId: targetUser.id,
       endpointId: reachableEndpoint.id,
       deviceTypeId: configDeviceType.id,
@@ -404,24 +374,22 @@ describe("DELETE /users/{id}", () => {
       endpointId: unreachableEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockImplementation(async (endpointId) => {
-      if (endpointId === unreachableEndpoint.id) {
-        return { ok: false, errorCode: "unavailable", error: new Error("Node unreachable") }
-      }
-      return { ok: true, data: null }
-    })
 
     await expectOrpcError(
       callDeleteUser(targetUser.id, await signInTestAdmin()),
       "CONFIG_DELETE_FAILED",
     )
 
-    const calledEndpointIds = vi
-      .mocked(deleteUserConfigsFromRemoteEndpointService)
-      .mock.calls.map((mockCall) => mockCall[0])
-    expect(calledEndpointIds.sort()).toEqual([reachableEndpoint.id, unreachableEndpoint.id].sort())
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+      reachableConfig.data,
+    ])
     const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
     expect(userRows).toHaveLength(1)
+    const reachableConfigRows = await db
+      .select()
+      .from(config)
+      .where(eq(config.id, reachableConfig.id))
+    expect(reachableConfigRows[0].status).toBe("deleted")
     const unreachableConfigRows = await db
       .select()
       .from(config)
@@ -438,13 +406,12 @@ describe("DELETE /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockImplementationOnce(async () => {
+    fakeAmneziawg2Client.deleteAccesses.mockImplementationOnce(async () => {
       await insertTestConfig({
         userId: targetUser.id,
         endpointId: configEndpoint.id,
         deviceTypeId: configDeviceType.id,
       })
-      return { ok: true, data: null }
     })
 
     await expectOrpcError(
@@ -461,13 +428,12 @@ describe("DELETE /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockImplementationOnce(async () => {
+    fakeAmneziawg2Client.deleteAccesses.mockImplementationOnce(async () => {
       await insertTestConfig({
         userId: targetUser.id,
         endpointId: configEndpoint.id,
         deviceTypeId: configDeviceType.id,
       })
-      return { ok: true, data: null }
     })
 
     await callDeleteUser(targetUser.id, await signInTestAdmin()).catch(() => undefined)
@@ -484,13 +450,12 @@ describe("DELETE /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
-    vi.mocked(deleteUserConfigsFromRemoteEndpointService).mockImplementationOnce(async () => {
+    fakeAmneziawg2Client.deleteAccesses.mockImplementationOnce(async () => {
       await insertTestConfig({
         userId: targetUser.id,
         endpointId: configEndpoint.id,
         deviceTypeId: configDeviceType.id,
       })
-      return { ok: true, data: null }
     })
 
     const response = await app.request(`/api/users/${targetUser.id}`, {

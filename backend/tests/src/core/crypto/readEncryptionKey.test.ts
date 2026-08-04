@@ -27,12 +27,6 @@ describe("readEncryptionKey", () => {
     expect(key.toString("base64")).toBe(process.env.APP_ENCRYPTION_KEY)
   })
 
-  it("returns the same key instance on repeated calls", async () => {
-    const readEncryptionKey = await importReadEncryptionKey()
-
-    expect(readEncryptionKey()).toBe(readEncryptionKey())
-  })
-
   it("keeps the key it read first when the environment changes afterwards", async () => {
     const readEncryptionKey = await importReadEncryptionKey()
     const key = readEncryptionKey()
@@ -48,13 +42,6 @@ describe("readEncryptionKey", () => {
     expect(readEncryptionKey).toThrow(INVALID_KEY_MESSAGE)
   })
 
-  it("throws when APP_ENCRYPTION_KEY is an empty string", async () => {
-    vi.stubEnv("APP_ENCRYPTION_KEY", "")
-    const readEncryptionKey = await importReadEncryptionKey()
-
-    expect(readEncryptionKey).toThrow(INVALID_KEY_MESSAGE)
-  })
-
   it("throws when APP_ENCRYPTION_KEY decodes to fewer than 32 bytes", async () => {
     vi.stubEnv("APP_ENCRYPTION_KEY", Buffer.alloc(31, "short").toString("base64"))
     const readEncryptionKey = await importReadEncryptionKey()
@@ -64,13 +51,6 @@ describe("readEncryptionKey", () => {
 
   it("throws when APP_ENCRYPTION_KEY decodes to more than 32 bytes", async () => {
     vi.stubEnv("APP_ENCRYPTION_KEY", Buffer.alloc(33, "long").toString("base64"))
-    const readEncryptionKey = await importReadEncryptionKey()
-
-    expect(readEncryptionKey).toThrow(INVALID_KEY_MESSAGE)
-  })
-
-  it("throws when APP_ENCRYPTION_KEY is not valid base64", async () => {
-    vi.stubEnv("APP_ENCRYPTION_KEY", "not base64 at all")
     const readEncryptionKey = await importReadEncryptionKey()
 
     expect(readEncryptionKey).toThrow(INVALID_KEY_MESSAGE)

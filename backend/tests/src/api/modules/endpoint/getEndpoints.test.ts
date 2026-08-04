@@ -45,7 +45,7 @@ describe("GET /endpoints", () => {
     expect(parsed[0].server.country).toBe(endpointServer.country)
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
+  it("returns every contract field at every nesting level", async () => {
     const endpointProtocol = await insertTestProtocol()
     const endpointServer = await insertTestServer()
     await insertTestEndpoint({ serverId: endpointServer.id, protocolId: endpointProtocol.id })
@@ -97,51 +97,71 @@ describe("GET /endpoints", () => {
 
   it("omits endpoints with status deleted", async () => {
     const endpointProtocol = await insertTestProtocol()
+    const controlServer = await insertTestServer()
+    const controlEndpoint = await insertTestEndpoint({
+      serverId: controlServer.id,
+      protocolId: endpointProtocol.id,
+    })
     const endpointServer = await insertTestServer()
-    const deletedEndpoint = await insertTestEndpoint({
+    await insertTestEndpoint({
       serverId: endpointServer.id,
       protocolId: endpointProtocol.id,
       status: "deleted",
     })
     const endpoints = await callGetEndpoints(await signInTestUser())
 
-    expect(endpoints.map((entry) => entry.id)).not.toContain(deletedEndpoint.id)
+    expect(endpoints.map((entry) => entry.id)).toEqual([controlEndpoint.id])
   })
 
   it("omits endpoints of servers with status deleted", async () => {
     const endpointProtocol = await insertTestProtocol()
+    const controlServer = await insertTestServer()
+    const controlEndpoint = await insertTestEndpoint({
+      serverId: controlServer.id,
+      protocolId: endpointProtocol.id,
+    })
     const deletedServer = await insertTestServer({ status: "deleted" })
-    const deletedServerEndpoint = await insertTestEndpoint({
+    await insertTestEndpoint({
       serverId: deletedServer.id,
       protocolId: endpointProtocol.id,
     })
     const endpoints = await callGetEndpoints(await signInTestUser())
 
-    expect(endpoints.map((entry) => entry.id)).not.toContain(deletedServerEndpoint.id)
+    expect(endpoints.map((entry) => entry.id)).toEqual([controlEndpoint.id])
   })
 
   it("omits endpoints of servers with status provisioning", async () => {
     const endpointProtocol = await insertTestProtocol()
+    const controlServer = await insertTestServer()
+    const controlEndpoint = await insertTestEndpoint({
+      serverId: controlServer.id,
+      protocolId: endpointProtocol.id,
+    })
     const provisioningServer = await insertTestServer({ status: "provisioning" })
-    const provisioningServerEndpoint = await insertTestEndpoint({
+    await insertTestEndpoint({
       serverId: provisioningServer.id,
       protocolId: endpointProtocol.id,
     })
     const endpoints = await callGetEndpoints(await signInTestUser())
 
-    expect(endpoints.map((entry) => entry.id)).not.toContain(provisioningServerEndpoint.id)
+    expect(endpoints.map((entry) => entry.id)).toEqual([controlEndpoint.id])
   })
 
   it("omits endpoints of servers with status failed", async () => {
     const endpointProtocol = await insertTestProtocol()
+    const controlServer = await insertTestServer()
+    const controlEndpoint = await insertTestEndpoint({
+      serverId: controlServer.id,
+      protocolId: endpointProtocol.id,
+    })
     const failedServer = await insertTestServer({ status: "failed" })
-    const failedServerEndpoint = await insertTestEndpoint({
+    await insertTestEndpoint({
       serverId: failedServer.id,
       protocolId: endpointProtocol.id,
     })
     const endpoints = await callGetEndpoints(await signInTestUser())
 
-    expect(endpoints.map((entry) => entry.id)).not.toContain(failedServerEndpoint.id)
+    expect(endpoints.map((entry) => entry.id)).toEqual([controlEndpoint.id])
   })
 
   it("keeps listing endpoints whose protocol is disabled", async () => {

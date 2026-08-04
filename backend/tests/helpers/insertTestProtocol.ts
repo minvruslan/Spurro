@@ -1,3 +1,4 @@
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import type { DbOrTx } from "@/core/database/index.js"
 import { db } from "@/core/database/index.js"
 import { protocol } from "@/core/database/schemas/index.js"
@@ -10,8 +11,8 @@ export async function insertTestProtocol(
     .insert(protocol)
     .values({
       code: "amneziawg2",
-      family: "amneziawg",
-      name: "AmneziaWG 2",
+      family: ProtocolRegistry.amneziawg2.family,
+      name: ProtocolRegistry.amneziawg2.name,
       ...overrides,
     })
     .returning()

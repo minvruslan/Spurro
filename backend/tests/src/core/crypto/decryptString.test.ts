@@ -17,6 +17,13 @@ describe("decryptString", () => {
     vi.resetModules()
   })
 
+  it("decrypts a ciphertext frozen in the current at-rest format", () => {
+    const frozenCiphertext =
+      "v1:9wGxUO11PG/XaZXQ:KSTyoqLaymYwU6uw+I94vi16FuFDioDjM37GeWmaUvHXbqJNlr4KDNB9sws="
+
+    expect(decryptString(frozenCiphertext)).toBe("spurro-at-rest-golden-vector")
+  })
+
   it("rejects a ciphertext with an unsupported version prefix", () => {
     const ciphertext = encryptString("secret value").replace(/^v1:/, "v2:")
 

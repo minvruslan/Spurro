@@ -17,7 +17,7 @@ export async function createUserService(
 ): Promise<ServiceResult<{ user: User }, ErrorCode>> {
   try {
     return await db.transaction(async (tx) => {
-      const [created] = await insertUser(tx, { name: input.name, email: input.email })
+      const [created] = await insertUser(tx, { name: input.name, email: input.email.toLowerCase() })
       await setUserConfigLimitsService(created.id, input.limits ?? [], tx)
       const limitsResult = await getUserConfigLimitsService(created.id, tx)
       return {

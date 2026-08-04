@@ -1,5 +1,7 @@
 import { getTableName, sql } from "drizzle-orm"
 import { db } from "@/core/database/index.js"
+import { env } from "@/core/env/index.js"
+import { TEST_DATABASE_URL } from "@tests/constants/TEST_DATABASE_URL.js"
 import {
   account,
   config,
@@ -31,5 +33,8 @@ const TRUNCATE_STATEMENT = `truncate table ${TABLES_TO_RESET.map(
 ).join(", ")} cascade`
 
 export async function resetTestDatabase() {
+  if (env.DATABASE_URL !== TEST_DATABASE_URL) {
+    throw new Error(`Refusing to truncate a non-test database: ${env.DATABASE_URL}.`)
+  }
   await db.execute(sql.raw(TRUNCATE_STATEMENT))
 }

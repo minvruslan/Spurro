@@ -55,7 +55,7 @@ describe("GET /users", () => {
     expect(parsedIds).toContain(secondUser.id)
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
+  it("returns every contract field at every nesting level", async () => {
     const listedUser = await insertTestUser()
     await insertTestConfigLimit({ userId: listedUser.id })
     const users = await callGetUsers(await signInTestAdmin())
@@ -85,6 +85,24 @@ describe("GET /users", () => {
         ])
       }
     }
+  })
+
+  it("returns each user's own limits", async () => {
+    const firstUser = await insertTestUser()
+    const secondUser = await insertTestUser()
+    const thirdUser = await insertTestUser()
+    const firstConfigLimit = await insertTestConfigLimit({ userId: firstUser.id, maxCount: 1 })
+    const secondConfigLimit = await insertTestConfigLimit({ userId: secondUser.id, maxCount: 2 })
+    const users = await callGetUsers(await signInTestAdmin())
+
+    const entriesById = new Map(users.map((entry) => [entry.id, entry]))
+    expect(entriesById.get(firstUser.id)?.limits).toEqual([
+      expect.objectContaining({ id: firstConfigLimit.id, maxCount: 1 }),
+    ])
+    expect(entriesById.get(secondUser.id)?.limits).toEqual([
+      expect.objectContaining({ id: secondConfigLimit.id, maxCount: 2 }),
+    ])
+    expect(entriesById.get(thirdUser.id)?.limits).toEqual([])
   })
 
   it("omits users with role admin including the requesting admin from the list", async () => {

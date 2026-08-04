@@ -67,7 +67,7 @@ describe("PUT /servers/{id}", () => {
     expect(parsed.country).toBe(input.country)
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
+  it("returns every contract field at every nesting level", async () => {
     const serverProtocol = await insertTestProtocol()
     const updatedServer = await insertTestServer()
     await insertTestEndpoint({ serverId: updatedServer.id, protocolId: serverProtocol.id })
@@ -104,6 +104,15 @@ describe("PUT /servers/{id}", () => {
     expect(serverRows).toHaveLength(1)
     expect(serverRows[0]?.name).toBe(input.name)
     expect(serverRows[0]?.country).toBe(input.country)
+  })
+
+  it("leaves another server untouched", async () => {
+    const updatedServer = await insertTestServer()
+    const otherServer = await insertTestServer()
+    await callUpdateServer(createUpdateServerInput(updatedServer.id), await signInTestAdmin())
+
+    const otherServerRows = await db.select().from(server).where(eq(server.id, otherServer.id))
+    expect(otherServerRows).toEqual([otherServer])
   })
 
   it("keeps the server status unchanged after an update", async () => {

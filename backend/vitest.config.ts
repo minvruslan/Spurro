@@ -3,21 +3,21 @@ import { configDefaults, defineConfig } from "vitest/config"
 
 const FullCoverageThresholds = { statements: 100, branches: 100, functions: 100, lines: 100 }
 
-const modulesWithApprovedSpecifications: string[] = [
-  "src/api/modules/config/**/*.ts",
-  "src/api/modules/config-limit/**/*.ts",
-  "src/api/modules/device-type/**/*.ts",
-  "src/api/modules/endpoint/**/*.ts",
-  "src/api/modules/protocol/**/*.ts",
-  "src/api/modules/server/**/*.ts",
-  "src/api/modules/user/**/*.ts",
-  "src/core/crypto/**/*.ts",
+const filesWithoutCoverageRequirement: string[] = [
+  "src/api/index.ts",
+  "src/worker/index.ts",
+  "src/worker/jobs/**",
+  "src/core/database/schemas/**",
+  "src/core/database/checkDatabaseConnection.ts",
+  "src/core/mailer/**",
+  "src/core/queue/checkQueueConnection.ts",
 ]
 
 const integrationTestGlobs = [
   "tests/src/api/**/*.test.ts",
   "tests/src/worker/**/*.test.ts",
   "tests/src/core/bootstraps/**/*.test.ts",
+  "tests/src/core/database/**/*.test.ts",
   "tests/helpers/**/*.test.ts",
 ]
 
@@ -40,7 +40,10 @@ export default defineConfig({
           name: "unit",
           include: ["tests/**/*.test.ts"],
           exclude: [...configDefaults.exclude, ...integrationTestGlobs],
-          setupFiles: ["tests/setup/setupTestEnvironment.ts"],
+          setupFiles: [
+            "tests/setup/setupTestEnvironment.ts",
+            "tests/setup/mockSendMagicLinkEmail.ts",
+          ],
         },
       },
       {
@@ -51,6 +54,7 @@ export default defineConfig({
           fileParallelism: false,
           setupFiles: [
             "tests/setup/setupTestEnvironment.ts",
+            "tests/setup/mockSendMagicLinkEmail.ts",
             "tests/setup/resetDatabaseBetweenTests.ts",
           ],
           globalSetup: ["tests/setup/prepareTestDatabase.ts"],
@@ -60,9 +64,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      thresholds: Object.fromEntries(
-        modulesWithApprovedSpecifications.map((moduleGlob) => [moduleGlob, FullCoverageThresholds]),
-      ),
+      exclude: filesWithoutCoverageRequirement,
+      thresholds: FullCoverageThresholds,
     },
   },
 })

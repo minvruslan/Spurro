@@ -59,7 +59,7 @@ describe("PUT /users/{id}", () => {
     expect(parsed.email).toBe(newEmail)
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
+  it("returns every contract field at every nesting level", async () => {
     const targetUser = await insertTestUser()
     const updatedUser = await callUpdateUser(
       {
@@ -170,17 +170,6 @@ describe("PUT /users/{id}", () => {
     await insertTestConfigLimit({ userId: targetUser.id, maxCount: 2 })
     const updatedUser = await callUpdateUser(
       { id: targetUser.id, name: targetUser.name, email: targetUser.email },
-      await signInTestAdmin(),
-    )
-
-    expect(updatedUser.limits).toEqual([])
-  })
-
-  it("deletes the user's limits when an empty limits array is provided", async () => {
-    const targetUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: targetUser.id, maxCount: 2 })
-    const updatedUser = await callUpdateUser(
-      { id: targetUser.id, name: targetUser.name, email: targetUser.email, limits: [] },
       await signInTestAdmin(),
     )
 
@@ -378,15 +367,26 @@ describe("PUT /users/{id}", () => {
 
   it("accepts updating the email to its current value differing only in case", async () => {
     const targetUser = await insertTestUser()
-    const caseVariantEmail = targetUser.email.toUpperCase()
     const updatedUser = await callUpdateUser(
-      { id: targetUser.id, name: "Updated Name", email: caseVariantEmail },
+      { id: targetUser.id, name: "Updated Name", email: targetUser.email.toUpperCase() },
       await signInTestAdmin(),
     )
 
     const parsed = UserSchema.parse(updatedUser)
-    expect(parsed.email).toBe(caseVariantEmail)
+    expect(parsed.email).toBe(targetUser.email)
     expect(parsed.name).toBe("Updated Name")
+  })
+
+  it("stores an updated mixed-case email lowercased", async () => {
+    const targetUser = await insertTestUser()
+    const mixedCaseEmail = createTestEmail().toUpperCase()
+    await callUpdateUser(
+      { id: targetUser.id, name: targetUser.name, email: mixedCaseEmail },
+      await signInTestAdmin(),
+    )
+
+    const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
+    expect(userRows[0].email).toBe(mixedCaseEmail.toLowerCase())
   })
 
   it("rejects updating the email to another user's email with EMAIL_TAKEN", async () => {
@@ -409,6 +409,19 @@ describe("PUT /users/{id}", () => {
     await expectOrpcError(
       callUpdateUser(
         { id: targetUser.id, name: targetUser.name, email: otherUser.email.toUpperCase() },
+        await signInTestAdmin(),
+      ),
+      "EMAIL_TAKEN",
+    )
+  })
+
+  it("rejects updating the email to an admin's email with EMAIL_TAKEN", async () => {
+    const targetUser = await insertTestUser()
+    const adminUser = await insertTestUser({ role: "admin" })
+
+    await expectOrpcError(
+      callUpdateUser(
+        { id: targetUser.id, name: targetUser.name, email: adminUser.email },
         await signInTestAdmin(),
       ),
       "EMAIL_TAKEN",

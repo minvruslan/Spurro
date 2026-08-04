@@ -30,6 +30,12 @@ const messageStartsUppercaseRule = {
         if (node.callee.type !== "Identifier" || !node.callee.name.endsWith("Error")) return
         if (node.arguments[0]) checkMessageArgument(node.arguments[0])
       },
+      Property(node) {
+        if (node.computed) return
+        const keyName = node.key.type === "Identifier" ? node.key.name : node.key.value
+        if (keyName !== "message") return
+        checkMessageArgument(node.value)
+      },
       CallExpression(node) {
         if (node.callee.type !== "MemberExpression") return
         const { object, property } = node.callee

@@ -56,7 +56,7 @@ describe("GET /users/{id}", () => {
     expect(parsed.email).toBe(requestedUser.email)
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
+  it("returns every contract field at every nesting level", async () => {
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({ userId: requestedUser.id })
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
@@ -202,33 +202,27 @@ describe("GET /users/{id}", () => {
     expect(foundUser.limits).toEqual([])
   })
 
-  it("returns a limit for a protocol family with no enabled protocols", async () => {
-    await insertTestProtocol({ isEnabled: false })
+  it("counts a config on a disabled protocol in used", async () => {
+    const disabledProtocol = await insertTestProtocol({ isEnabled: false })
+    const configServer = await insertTestServer()
+    const configEndpoint = await insertTestEndpoint({
+      serverId: configServer.id,
+      protocolId: disabledProtocol.id,
+    })
+    const [configDeviceType] = await db.select().from(deviceType).limit(1)
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({ userId: requestedUser.id, maxCount: 2 })
+    await insertTestConfig({
+      userId: requestedUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
     for (const limit of foundUser.limits) {
       expect(limit.protocolFamily).toBe("amneziawg")
       expect(limit.maxCount).toBe(2)
-      expect(limit.used).toBe(0)
-    }
-  })
-
-  it("counts a banned user's configs in used", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
-    const bannedUser = await insertTestUser({ banned: true, banReason: "Violation of terms" })
-    await insertTestConfigLimit({ userId: bannedUser.id, maxCount: 5 })
-    await insertTestConfig({
-      userId: bannedUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
-    })
-    const foundUser = await callGetUser(bannedUser.id, await signInTestAdmin())
-
-    expect(foundUser.limits).toHaveLength(1)
-    for (const limit of foundUser.limits) {
       expect(limit.used).toBe(1)
     }
   })

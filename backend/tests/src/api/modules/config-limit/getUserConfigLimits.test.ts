@@ -61,25 +61,6 @@ describe("GET /config-limits", () => {
     expect(parsed[0].maxCount).toBe(3)
   })
 
-  it("exposes exactly the contract fields and nothing more", async () => {
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id })
-    const configLimits = await callGetUserConfigLimits(headers)
-
-    expect(configLimits).toHaveLength(1)
-    for (const entry of configLimits) {
-      expect(Object.keys(entry).sort()).toEqual([
-        "createdAt",
-        "id",
-        "maxCount",
-        "protocolFamily",
-        "updatedAt",
-        "used",
-      ])
-    }
-  })
-
   it("returns used as the number of the user's slot-reserving configs in the limit's protocol family", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()

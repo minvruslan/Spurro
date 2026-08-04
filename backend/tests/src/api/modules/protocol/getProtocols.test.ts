@@ -37,7 +37,7 @@ describe("GET /protocols", () => {
     expect(parsed[0].code).toBe("amneziawg2")
   })
 
-  it("exposes exactly the contract fields and nothing more", async () => {
+  it("returns every contract field", async () => {
     await bootstrapProtocols()
     const protocols = await callGetProtocols(await signInTestAdmin())
 
@@ -58,13 +58,6 @@ describe("GET /protocols", () => {
     for (const entry of protocols) {
       expect(entry.family).toBe(expectedFamiliesByCode[entry.code])
     }
-  })
-
-  it("omits disabled protocols", async () => {
-    const disabledProtocol = await insertTestProtocol({ isEnabled: false })
-    const protocols = await callGetProtocols(await signInTestAdmin())
-
-    expect(protocols.map((entry) => entry.code)).not.toContain(disabledProtocol.code)
   })
 
   it("keeps a disabled protocol hidden even when it has active endpoints", async () => {

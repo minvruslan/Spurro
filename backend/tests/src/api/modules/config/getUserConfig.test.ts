@@ -42,7 +42,7 @@ async function insertConfigInfrastructure(
     protocolId: configProtocol.id,
   })
   const [configDeviceType] = await db.select().from(deviceType).limit(1)
-  return { configEndpoint, configDeviceType }
+  return { configProtocol, configServer, configEndpoint, configDeviceType }
 }
 
 describe("GET /configs/{id}", () => {
@@ -68,8 +68,9 @@ describe("GET /configs/{id}", () => {
     expect(parsed.endpoint.id).toBe(configEndpoint.id)
   })
 
-  it("exposes exactly the contract fields and nothing more at every nesting level", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+  it("returns the joined endpoint, server, protocol and device type values", async () => {
+    const { configProtocol, configServer, configEndpoint, configDeviceType } =
+      await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
@@ -86,38 +87,22 @@ describe("GET /configs/{id}", () => {
     })
     const requestedConfig = await callGetUserConfig(headers, insertedConfig.id)
 
-    ConfigSchema.parse(requestedConfig)
-    expect(Object.keys(requestedConfig).sort()).toEqual([
-      "createdAt",
-      "data",
-      "deviceType",
-      "endpoint",
-      "id",
-      "name",
-      "status",
-      "updatedAt",
-    ])
-    expect(Object.keys(requestedConfig.deviceType).sort()).toEqual(["code", "id", "name"])
-    expect(Object.keys(requestedConfig.endpoint).sort()).toEqual([
-      "id",
-      "port",
-      "protocol",
-      "server",
-    ])
-    expect(Object.keys(requestedConfig.endpoint.protocol).sort()).toEqual([
-      "code",
-      "family",
-      "id",
-      "name",
-    ])
-    expect(Object.keys(requestedConfig.endpoint.server).sort()).toEqual(["country", "id", "name"])
-    expect(Object.keys(requestedConfig.data).sort()).toEqual([
+    const parsed = ConfigSchema.parse(requestedConfig)
+    expect(parsed.endpoint.port).toBe(configEndpoint.port)
+    expect(parsed.endpoint.protocol.code).toBe(configProtocol.code)
+    expect(parsed.endpoint.protocol.family).toBe(configProtocol.family)
+    expect(parsed.endpoint.protocol.name).toBe(configProtocol.name)
+    expect(parsed.endpoint.server.name).toBe(configServer.name)
+    expect(parsed.endpoint.server.country).toBe(configServer.country)
+    expect(parsed.deviceType.code).toBe(configDeviceType.code)
+    expect(parsed.deviceType.name).toBe(configDeviceType.name)
+    expect(Object.keys(parsed.data).sort()).toEqual([
       "ip",
       "presharedKey",
       "protocolCode",
       "publicKey",
     ])
-    expect(requestedConfig.data).not.toHaveProperty("configuration")
+    expect(parsed.data).not.toHaveProperty("configuration")
   })
 
   it("returns a pending config younger than the reservation window", async () => {

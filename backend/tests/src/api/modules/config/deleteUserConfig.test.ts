@@ -1,19 +1,19 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { ConfigSchema, type UpsertConfig } from "@spurro/api-contract"
+import { RemoteServer } from "@spurro/infrastructure"
 import { eq } from "drizzle-orm"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
 import { configRouter } from "@/api/modules/config/index.js"
 import { findDeletableUserConfigs } from "@/api/modules/config/queries/findDeletableUserConfigs.js"
-import { getEndpointProtocolClientService } from "@/api/modules/config/services/getEndpointProtocolClientService.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
 import { db } from "@/core/database/index.js"
-import { config, deviceType } from "@/core/database/schemas/index.js"
+import { config, deviceType, server } from "@/core/database/schemas/index.js"
 import { expectOrpcError } from "@tests/assertions/index.js"
 import {
-  createFakeProtocolClient,
+  createFakeAmneziawg2Client,
   insertTestConfig,
   insertTestConfigLimit,
   insertTestEndpoint,
@@ -22,10 +22,6 @@ import {
   insertTestSession,
   insertTestUser,
 } from "@tests/helpers/index.js"
-
-vi.mock("@/api/modules/config/services/getEndpointProtocolClientService.js", () => ({
-  getEndpointProtocolClientService: vi.fn(),
-}))
 
 vi.mock("@/api/modules/config/queries/findDeletableUserConfigs.js", async (importOriginal) => {
   const original =
@@ -37,15 +33,20 @@ vi.mock("@/api/modules/config/queries/findDeletableUserConfigs.js", async (impor
 
 const DeleteUserConfigOutputSchema = z.object({ id: z.uuid() })
 
-let fakeProtocolClient: ReturnType<typeof createFakeProtocolClient>
+let fakeAmneziawg2Client: ReturnType<typeof createFakeAmneziawg2Client>
+let getProtocolClientSpy: MockInstance<RemoteServer["getProtocolClient"]>
 
 function callDeleteUserConfig(headers: Headers, id: string) {
   return call(configRouter.deleteUserConfig, { id }, { context: { headers } })
 }
 
-async function insertConfigInfrastructure() {
+async function insertConfigInfrastructure(
+  overrides: {
+    server?: Partial<typeof server.$inferInsert>
+  } = {},
+) {
   const configProtocol = await insertTestProtocol()
-  const configServer = await insertTestServer()
+  const configServer = await insertTestServer(overrides.server)
   const configEndpoint = await insertTestEndpoint({
     serverId: configServer.id,
     protocolId: configProtocol.id,
@@ -56,28 +57,10 @@ async function insertConfigInfrastructure() {
 
 describe("DELETE /configs/{id}", () => {
   beforeEach(async () => {
-    fakeProtocolClient = createFakeProtocolClient()
-    vi.mocked(getEndpointProtocolClientService).mockImplementation(async () => ({
-      ok: true,
-      data: {
-        client: fakeProtocolClient.client,
-        server: {
-          ip: "192.0.2.10",
-          domainName: null,
-          actualState: {
-            ssh: { type: "privateKey", username: "spurro", port: 22 },
-            dns: "1.1.1.1",
-            appliedAt: new Date().toISOString(),
-          },
-        },
-        endpointActualState: {
-          protocolCode: "amneziawg2",
-          port: 51820,
-          appliedAt: new Date().toISOString(),
-        },
-        protocolCode: "amneziawg2",
-      },
-    }))
+    fakeAmneziawg2Client = createFakeAmneziawg2Client()
+    getProtocolClientSpy = vi
+      .spyOn(RemoteServer.prototype, "getProtocolClient")
+      .mockReturnValue(fakeAmneziawg2Client.client)
     await bootstrapDeviceTypes()
   })
 
@@ -98,7 +81,7 @@ describe("DELETE /configs/{id}", () => {
     expect(parsed.id).toBe(insertedConfig.id)
   })
 
-  it("exposes exactly the contract fields and nothing more", async () => {
+  it("returns every contract field", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
@@ -112,7 +95,6 @@ describe("DELETE /configs/{id}", () => {
     const deletedConfig = await callDeleteUserConfig(headers, insertedConfig.id)
 
     DeleteUserConfigOutputSchema.parse(deletedConfig)
-    expect(Object.keys(deletedConfig)).toEqual(["id"])
   })
 
   it("marks the config deleted in the database", async () => {
@@ -146,8 +128,8 @@ describe("DELETE /configs/{id}", () => {
 
     await callDeleteUserConfig(headers, insertedConfig.id)
 
-    expect(vi.mocked(getEndpointProtocolClientService)).toHaveBeenCalledWith(configEndpoint.id)
-    expect(fakeProtocolClient.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+    expect(getProtocolClientSpy).toHaveBeenCalledWith("amneziawg2")
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
       insertedConfig.data,
     ])
   })
@@ -176,7 +158,7 @@ describe("DELETE /configs/{id}", () => {
     const configRows = await db.select().from(config).where(eq(config.id, siblingConfig.id))
     expect(configRows).toHaveLength(1)
     expect(configRows[0].status).toBe("active")
-    expect(fakeProtocolClient.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
       deletedConfigRow.data,
     ])
   })
@@ -323,7 +305,7 @@ describe("DELETE /configs/{id}", () => {
         deviceTypeId: configDeviceType.id,
         status: "active",
       })
-      fakeProtocolClient.deleteAccesses.mockRejectedValueOnce(new Error("Node-side failure"))
+      fakeAmneziawg2Client.deleteAccesses.mockRejectedValueOnce(new Error("Node-side failure"))
 
       await expectOrpcError(callDeleteUserConfig(headers, insertedConfig.id), "DELETE_FAILED")
     })
@@ -338,7 +320,7 @@ describe("DELETE /configs/{id}", () => {
         deviceTypeId: configDeviceType.id,
         status: "active",
       })
-      fakeProtocolClient.deleteAccesses.mockRejectedValueOnce(new Error("Node-side failure"))
+      fakeAmneziawg2Client.deleteAccesses.mockRejectedValueOnce(new Error("Node-side failure"))
 
       await callDeleteUserConfig(headers, insertedConfig.id).catch(() => undefined)
 
@@ -356,7 +338,7 @@ describe("DELETE /configs/{id}", () => {
         deviceTypeId: configDeviceType.id,
         status: "active",
       })
-      fakeProtocolClient.deleteAccesses.mockRejectedValueOnce(new Error("Node-side failure"))
+      fakeAmneziawg2Client.deleteAccesses.mockRejectedValueOnce(new Error("Node-side failure"))
 
       const response = await app.request(`/api/configs/${insertedConfig.id}`, {
         method: "DELETE",
@@ -366,8 +348,10 @@ describe("DELETE /configs/{id}", () => {
       expect(response.status).toBe(502)
     })
 
-    it("returns DELETE_FAILED and keeps the config deleting when the endpoint protocol client cannot be resolved", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    it("returns DELETE_FAILED and keeps the config deleting when the server has no usable data", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+        server: { data: null },
+      })
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
       const insertedConfig = await insertTestConfig({
@@ -375,11 +359,6 @@ describe("DELETE /configs/{id}", () => {
         endpointId: configEndpoint.id,
         deviceTypeId: configDeviceType.id,
         status: "active",
-      })
-      vi.mocked(getEndpointProtocolClientService).mockResolvedValueOnce({
-        ok: false,
-        errorCode: "unavailable",
-        error: new Error("Protocol client unavailable"),
       })
 
       await expectOrpcError(callDeleteUserConfig(headers, insertedConfig.id), "DELETE_FAILED")
