@@ -7,6 +7,7 @@ import * as schema from "@/core/database/schemas/authSchema.js"
 import { user } from "@/core/database/schemas/authSchema.js"
 import { sendMagicLinkEmail } from "@/core/mailer/index.js"
 import { env } from "@/core/env/index.js"
+import { authLogger } from "@/core/logger/index.js"
 
 const MAGIC_LINK_LIFETIME_SECONDS = 300
 const SESSION_LIFETIME_SECONDS = 604800
@@ -20,6 +21,12 @@ export const authServer = betterAuth({
   }),
   emailAndPassword: {
     enabled: false,
+  },
+  logger: {
+    // better-auth routes its own error logs to the global console logger when level is
+    // "error", "warn" or "debug"; "info" keeps every log inside the log callback below.
+    level: "info",
+    log: (level, message, ...args) => authLogger[level]({ args }, message),
   },
   session: {
     expiresIn: SESSION_LIFETIME_SECONDS,

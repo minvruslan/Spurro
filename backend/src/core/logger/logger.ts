@@ -1,3 +1,4 @@
+import { env } from "@/core/env/index.js"
 import { pino, stdSerializers } from "pino"
 
 const REDACTED_PATHS = [
@@ -16,7 +17,7 @@ const REDACTED_PATHS = [
 ]
 
 export const logger = pino({
-  level: process.env.LOG_LEVEL ?? "info",
+  level: env.LOG_LEVEL,
   redact: REDACTED_PATHS,
   serializers: { error: stdSerializers.err },
   transport: process.env.NODE_ENV === "production" ? undefined : { target: "pino-pretty" },

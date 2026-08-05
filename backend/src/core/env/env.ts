@@ -1,4 +1,3 @@
-import { startupLogger } from "@/core/logger/index.js"
 import { config } from "dotenv"
 
 config()
@@ -9,7 +8,7 @@ import { EnvSchema } from "./EnvSchema.js"
 const parsed = EnvSchema.safeParse(process.env)
 
 if (!parsed.success) {
-  startupLogger.error("Invalid environment:\n" + z.prettifyError(parsed.error))
+  console.error("Invalid environment:\n" + z.prettifyError(parsed.error))
   process.exit(1)
 }
 

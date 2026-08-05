@@ -10,9 +10,9 @@ import {
 import type { ProvisioningStep } from "./ProvisioningStep.js"
 
 export const resolveServerDesiredState: ProvisioningStep<
-  { desiredState: unknown },
+  { desiredState: unknown; ip: string; domainName: string | null },
   ServerDesiredState
-> = async (serverId, { desiredState }) => {
+> = async (serverId, { desiredState, ip, domainName }) => {
   const parsedDesiredState = ServerDesiredStateSchema.safeParse(desiredState)
   if (parsedDesiredState.success) return parsedDesiredState.data
 
@@ -26,6 +26,7 @@ export const resolveServerDesiredState: ProvisioningStep<
       username: VPN_NODE_USERNAME,
       port: VPN_NODE_SSH_PORT,
     },
+    host: domainName ?? ip,
     dns: VPN_NODE_DNS,
     baseDirectory: VPN_NODE_BASE_DIRECTORY,
   })

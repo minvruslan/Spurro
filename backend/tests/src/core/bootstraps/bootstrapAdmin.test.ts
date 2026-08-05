@@ -46,6 +46,15 @@ describe("bootstrapAdmin", () => {
     }
   })
 
+  it("inserts nothing when an existing row differs from ADMIN_EMAIL only in case", async () => {
+    const existingUser = await insertTestUser({ email: env.ADMIN_EMAIL.toUpperCase() })
+
+    await bootstrapAdmin()
+
+    const userRows = await db.select().from(user)
+    expect(userRows).toEqual([existingUser])
+  })
+
   it("creates no second user when run twice", async () => {
     await bootstrapAdmin()
     const [createdAdmin] = await db.select().from(user).where(eq(user.email, env.ADMIN_EMAIL))

@@ -1,10 +1,12 @@
 import { z } from "zod"
+import { DomainNameSchema } from "../common/network/DomainNameSchema"
 import { IpSchema } from "../common/network/IpSchema"
 import { UnixPathSchema } from "../common/unix/UnixPathSchema"
 import { ServerSshSchema } from "./ServerSshSchema"
 
 export const ServerDesiredStateSchema = z.object({
   ssh: ServerSshSchema,
+  host: z.union([DomainNameSchema, IpSchema]),
   dns: z
     .string()
     .min(1)

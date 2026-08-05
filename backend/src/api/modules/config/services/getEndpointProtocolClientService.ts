@@ -11,7 +11,7 @@ import { findEndpointProtocolClientData } from "../queries/findEndpointProtocolC
 
 type EndpointProtocolClient = {
   client: ProtocolClient
-  server: { ip: string; domainName: string | null; actualState: ServerActualState }
+  serverActualState: ServerActualState
   endpointActualState: EndpointActualState
   protocolCode: ProtocolCode
 }
@@ -62,13 +62,19 @@ export async function getEndpointProtocolClientService(
     }
   }
 
+  if (!serverData.actualState.host) {
+    return {
+      ok: false,
+      errorCode: "unavailable",
+      error: new Error(`Endpoint ${endpointId} server actual state has no host.`),
+    }
+  }
+
   if (!serverData.actualState.dns) {
     return {
       ok: false,
       errorCode: "unavailable",
-      error: new Error(
-        `Endpoint ${endpointId} server actual state has no DNS; server may not be hardened.`,
-      ),
+      error: new Error(`Endpoint ${endpointId} server actual state has no DNS.`),
     }
   }
 
@@ -79,7 +85,7 @@ export async function getEndpointProtocolClientService(
     return {
       ok: false,
       errorCode: "unavailable",
-      error: new Error(`Endpoint ${endpointId} has no actual state; it may not be deployed.`),
+      error: new Error(`Endpoint ${endpointId} has no actual state.`),
     }
   }
 
@@ -89,11 +95,7 @@ export async function getEndpointProtocolClientService(
     ok: true,
     data: {
       client,
-      server: {
-        ip: endpointProtocolClientData.serverIp,
-        domainName: endpointProtocolClientData.serverDomainName,
-        actualState: serverData.actualState,
-      },
+      serverActualState: serverData.actualState,
       endpointActualState: endpointActualState.data,
       protocolCode: parsedCode.data,
     },

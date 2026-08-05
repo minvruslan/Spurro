@@ -58,6 +58,7 @@ const validServerData: ServerData = {
   facts: { sshHostKeys: [serverSshHostKey] },
   actualState: {
     ssh: { type: "privateKey", username: "spurro", port: 22 },
+    host: "192.0.2.1",
     dns: "1.1.1.1",
     baseDirectory: "/opt/spurro",
     appliedAt,
@@ -129,6 +130,49 @@ describe("POST /configs", () => {
     expect(parsed.endpoint.id).toBe(configEndpoint.id)
     expect(parsed.data.ip).toBe(allocatedClientIp)
     expect(parsed.data.configuration).toBe(fakeClientConfiguration)
+  })
+
+  it("issues the config endpoint host from the applied actual state and not from the live server columns", async () => {
+    const appliedHost = "vpn.example.com"
+    const { configServer, configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+      server: {
+        ip: "203.0.113.9",
+        domainName: "live.example.com",
+        data: {
+          ...validServerData,
+          actualState: { ...validServerData.actualState, host: appliedHost },
+        },
+      },
+    })
+    const requestUser = await insertTestUser()
+    const headers = await insertTestSession(requestUser)
+    fakeAmneziawg2Client.createAccess.mockImplementation(
+      async (serverActualState, endpointActualState, clientIdentifier) => ({
+        configData: { ...fakeNodeConfigData, ip: clientIdentifier },
+        clientConfiguration: `Endpoint = ${serverActualState.host}:${endpointActualState.port}`,
+      }),
+    )
+
+    const createdConfig = await callCreateUserConfig(
+      { name: "Created Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
+      headers,
+    )
+    await db
+      .update(server)
+      .set({ domainName: "changed.example.com" })
+      .where(eq(server.id, configServer.id))
+    const recreatedConfig = await callCreateUserConfig(
+      {
+        name: "Recreated Config",
+        endpointId: configEndpoint.id,
+        deviceTypeId: configDeviceType.id,
+      },
+      headers,
+    )
+
+    const expectedEndpointLine = `Endpoint = ${appliedHost}:${configEndpoint.port}`
+    expect(ConfigSchema.parse(createdConfig).data.configuration).toBe(expectedEndpointLine)
+    expect(ConfigSchema.parse(recreatedConfig).data.configuration).toBe(expectedEndpointLine)
   })
 
   it("returns the joined endpoint, server, protocol and device type values", async () => {
@@ -265,7 +309,14 @@ describe("POST /configs", () => {
     const targetServerDomainName = "target-endpoint.example.test"
     const targetEndpointPort = 51999
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
-      server: { ip: targetServerIp, domainName: targetServerDomainName },
+      server: {
+        ip: targetServerIp,
+        domainName: targetServerDomainName,
+        data: {
+          ...validServerData,
+          actualState: { ...validServerData.actualState, host: targetServerDomainName },
+        },
+      },
       endpoint: {
         data: { actualState: { ...FakeAmneziawg2EndpointActualState, port: targetEndpointPort } },
       },
@@ -280,7 +331,7 @@ describe("POST /configs", () => {
 
     expect(getProtocolClientSpy).toHaveBeenCalledWith("amneziawg2")
     expect(fakeAmneziawg2Client.createAccess).toHaveBeenCalledWith(
-      expect.objectContaining({ ip: targetServerIp, domainName: targetServerDomainName }),
+      expect.objectContaining({ host: targetServerDomainName }),
       expect.objectContaining({ port: targetEndpointPort }),
       allocatedClientIp,
     )
@@ -1112,6 +1163,17 @@ describe("POST /configs", () => {
       facts: { sshHostKeys: [serverSshHostKey] },
       actualState: {
         ssh: { type: "privateKey", username: "spurro", port: 22 },
+        host: "192.0.2.1",
+        baseDirectory: "/opt/spurro",
+        appliedAt,
+      },
+    }
+
+    const serverDataWithoutHost: ServerData = {
+      facts: { sshHostKeys: [serverSshHostKey] },
+      actualState: {
+        ssh: { type: "privateKey", username: "spurro", port: 22 },
+        dns: "1.1.1.1",
         baseDirectory: "/opt/spurro",
         appliedAt,
       },
@@ -1162,6 +1224,26 @@ describe("POST /configs", () => {
     it("returns FAILED when the server actual state has no dns", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
         server: { data: serverDataWithoutDns },
+      })
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
+        "FAILED",
+      )
+    })
+
+    it("returns FAILED when the server actual state has no host", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+        server: { data: serverDataWithoutHost },
       })
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)

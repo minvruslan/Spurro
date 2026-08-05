@@ -6,12 +6,8 @@ export const hardenSshAccess: ProvisioningStep<
   { currentAccess: ServerAccess; targetAccess: ServerAccess },
   void
 > = async (serverId, { currentAccess, targetAccess }) => {
-  if ("privateKey" in currentAccess) {
-    await new RemoteServer(currentAccess).hardenSshAccess(targetAccess.port)
-    return
-  }
-
-  const preHardenAccess = { ...targetAccess, port: currentAccess.port }
+  const preHardenAccess =
+    "privateKey" in currentAccess ? currentAccess : { ...targetAccess, port: currentAccess.port }
   const preHardenServer = new RemoteServer(preHardenAccess)
   await preHardenServer.assertConnectivity()
   await preHardenServer.assertPrivilegeEscalation()

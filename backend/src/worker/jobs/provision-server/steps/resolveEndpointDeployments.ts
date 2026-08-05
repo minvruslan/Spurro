@@ -34,6 +34,7 @@ export const resolveEndpointDeployments: ProvisioningStep<
 
   for (const endpoint of endpoints) {
     const parsedProtocolCode = ProtocolCodeSchema.safeParse(endpoint.protocolCode)
+    /* v8 ignore start */
     if (!parsedProtocolCode.success) {
       throw new ProvisioningError(
         serverId,
@@ -43,6 +44,7 @@ export const resolveEndpointDeployments: ProvisioningStep<
         ),
       )
     }
+    /* v8 ignore stop */
 
     if (endpoint.data === null) {
       throw new ProvisioningError(

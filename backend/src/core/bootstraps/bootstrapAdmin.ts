@@ -1,5 +1,5 @@
 import { bootstrapLogger } from "@/core/logger/index.js"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { db } from "@/core/database/index.js"
 import { user } from "@/core/database/schemas/authSchema.js"
@@ -8,7 +8,11 @@ import { env } from "@/core/env/index.js"
 export async function bootstrapAdmin() {
   const email = env.ADMIN_EMAIL.toLowerCase()
 
-  const existing = await db.select().from(user).where(eq(user.email, email)).limit(1)
+  const existing = await db
+    .select()
+    .from(user)
+    .where(eq(sql`lower(${user.email})`, email))
+    .limit(1)
   if (existing.length > 0) return
 
   await db.insert(user).values({

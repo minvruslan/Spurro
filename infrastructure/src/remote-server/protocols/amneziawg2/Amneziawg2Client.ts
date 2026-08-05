@@ -2,7 +2,6 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { z } from "zod"
 import {
-  DomainNameSchema,
   IpSchema,
   PortSchema,
   type Amneziawg2ClientIdentifier,
@@ -117,18 +116,18 @@ export class Amneziawg2Client {
   }
 
   async createAccess(
-    server: { ip: string; domainName: string | null; actualState: ServerActualState },
+    serverActualState: ServerActualState,
     endpointActualState: EndpointActualState,
     clientIdentifier: string,
   ): Promise<{ configData: Amneziawg2ConfigData; clientConfiguration: string }> {
     const actualState = this.parseEndpointActualState(endpointActualState)
     const clientIp = IpSchema.parse(clientIdentifier)
-    const serverHost =
-      server.domainName === null
-        ? IpSchema.parse(server.ip)
-        : DomainNameSchema.parse(server.domainName)
 
-    if (!server.actualState.dns) {
+    if (!serverActualState.host) {
+      throw new Error("Server actual state has no host; server may not be hardened.")
+    }
+
+    if (!serverActualState.dns) {
       throw new Error("Server actual state has no DNS; server may not be hardened.")
     }
 
@@ -163,9 +162,9 @@ export class Amneziawg2Client {
       clientIp,
       serverPublicKey: createdAccess.serverPublicKey,
       presharedKey: createdAccess.presharedKey,
-      serverEndpoint: `${serverHost}:${actualState.port}`,
+      serverEndpoint: `${serverActualState.host}:${actualState.port}`,
       obfuscation: createdAccess.obfuscation,
-      dns: server.actualState.dns,
+      dns: serverActualState.dns,
     })
 
     return {

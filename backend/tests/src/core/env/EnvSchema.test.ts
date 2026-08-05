@@ -36,6 +36,21 @@ describe("EnvSchema", () => {
     expect(parsed.data?.ADMIN_NAME).toBe("Admin")
   })
 
+  it("defaults LOG_LEVEL to info", () => {
+    expect(parseEnv().data?.LOG_LEVEL).toBe("info")
+  })
+
+  it("accepts every pino level as LOG_LEVEL", () => {
+    for (const level of ["fatal", "error", "warn", "info", "debug", "trace", "silent"]) {
+      expect(parseEnv({ LOG_LEVEL: level }).data?.LOG_LEVEL).toBe(level)
+    }
+  })
+
+  it("rejects a LOG_LEVEL outside the pino level set", () => {
+    expect(parseEnv({ LOG_LEVEL: "verbose" }).success).toBe(false)
+    expect(parseEnv({ LOG_LEVEL: "info " }).success).toBe(false)
+  })
+
   it("coerces PORT to a number", () => {
     expect(parseEnv({ PORT: "8080" }).data?.PORT).toBe(8080)
   })

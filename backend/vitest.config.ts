@@ -6,7 +6,6 @@ const FullCoverageThresholds = { statements: 100, branches: 100, functions: 100,
 const filesWithoutCoverageRequirement: string[] = [
   "src/api/index.ts",
   "src/worker/index.ts",
-  "src/worker/jobs/**",
   "src/core/database/schemas/**",
   "src/core/database/checkDatabaseConnection.ts",
   "src/core/mailer/**",

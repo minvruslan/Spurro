@@ -23,8 +23,12 @@ export async function provisionServerJob(job: ProvisionServerJob) {
   if (!server) throw new ProvisioningError(serverId, "server_not_found")
   if (!server.data) throw new ProvisioningError(serverId, "invalid_server_data")
 
+  if (server.status !== "provisioning") await updateServerStatus(serverId, "provisioning")
+
   const desiredState = await resolveServerDesiredState(serverId, {
     desiredState: server.data.desiredState,
+    ip: server.ip,
+    domainName: server.domainName,
   })
 
   let serverData = server.data

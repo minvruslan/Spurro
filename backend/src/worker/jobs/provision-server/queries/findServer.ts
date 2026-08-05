@@ -8,6 +8,7 @@ export async function findServer(serverId: string) {
     .select({
       ip: server.ip,
       domainName: server.domainName,
+      status: server.status,
       data: server.data,
     })
     .from(server)
@@ -18,8 +19,8 @@ export async function findServer(serverId: string) {
 
   const parsedData = ServerDataSchema.safeParse(row.data)
   if (!parsedData.success) {
-    return { ip: row.ip, domainName: row.domainName, data: null }
+    return { ip: row.ip, domainName: row.domainName, status: row.status, data: null }
   }
 
-  return { ip: row.ip, domainName: row.domainName, data: parsedData.data }
+  return { ip: row.ip, domainName: row.domainName, status: row.status, data: parsedData.data }
 }

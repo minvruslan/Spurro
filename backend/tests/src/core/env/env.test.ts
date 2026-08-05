@@ -8,8 +8,7 @@ async function importEnvModule(dotenvValues: Record<string, string> = {}) {
       return { parsed: dotenvValues }
     },
   }))
-  const { startupLogger } = await import("@/core/logger/index.js")
-  const errorSpy = vi.spyOn(startupLogger, "error").mockImplementation(() => undefined)
+  const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined)
   const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as unknown as never)
   const { env } = await import("@/core/env/env.js")
   return { env, errorSpy, exitSpy }

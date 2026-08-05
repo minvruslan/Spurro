@@ -31,6 +31,7 @@ export const EnvSchema = z.object({
   BETTER_AUTH_URL: urlString,
   PORT: z.coerce.number().int().positive().default(4000),
   HOST: z.string().min(1).default("localhost"),
+  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   ADMIN_EMAIL: z.email(),
   ADMIN_NAME: z.string().min(1).default("Admin"),
   APP_ENCRYPTION_KEY: z

@@ -16,9 +16,11 @@ export const resolveServerAccess: ProvisioningStep<
     { ip, data: serverData },
     appSshPrivateKey,
   )
+  /* v8 ignore start */
   if (!actualStateAccess) {
     throw new ProvisioningError(serverId, "hardened_without_ssh_host_keys")
   }
+  /* v8 ignore stop */
 
   const desiredStateAccess = RemoteServer.buildServerAccessFromDesiredState(
     { ip, data: serverData },

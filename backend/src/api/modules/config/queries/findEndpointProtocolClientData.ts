@@ -7,7 +7,6 @@ export async function findEndpointProtocolClientData(executor: DbOrTx, endpointI
   const [row] = await executor
     .select({
       serverIp: server.ip,
-      serverDomainName: server.domainName,
       serverData: server.data,
       endpointData: endpoint.data,
       protocolCode: protocol.code,
@@ -27,7 +26,6 @@ export async function findEndpointProtocolClientData(executor: DbOrTx, endpointI
 
   return {
     serverIp: row.serverIp,
-    serverDomainName: row.serverDomainName,
     protocolCode: row.protocolCode,
     serverData: parsedServerData.success ? parsedServerData.data : null,
     endpointData: parsedEndpointData.success ? parsedEndpointData.data : null,
