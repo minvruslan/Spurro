@@ -18,7 +18,7 @@ function createAmneziawg2Client(): ProtocolClient {
 }
 
 const FakeAmneziawg2EndpointActualState = Amneziawg2EndpointActualStateSchema.parse({
-  ...createAmneziawg2Client().createEndpointDesiredState(51820),
+  ...createAmneziawg2Client().createEndpointDesiredState(51820, "192.0.2.1", "1.1.1.1"),
   appliedAt: "2026-01-01T00:00:00.000Z",
 })
 
@@ -41,7 +41,7 @@ function createFakeAmneziawg2Client() {
     createInitialConfigData: vi.spyOn(client, "createInitialConfigData"),
     createAccess: vi
       .spyOn(client, "createAccess")
-      .mockImplementation(async (_server, _endpointActualState, clientIdentifier) => ({
+      .mockImplementation(async (_endpointActualState, clientIdentifier) => ({
         configData: { ...FakeAmneziawg2CreateAccessResult.configData, ip: clientIdentifier },
         clientConfiguration: FakeAmneziawg2CreateAccessResult.clientConfiguration,
       })),

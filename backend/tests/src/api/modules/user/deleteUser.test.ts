@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { RemoteServer } from "@spurro/infrastructure"
-import { eq } from "drizzle-orm"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
+import { eq, sql } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
@@ -28,6 +29,7 @@ import {
   insertTestSession,
   insertTestUser,
   signInTestAdmin,
+  waitForDatabaseLockWaiter,
 } from "@tests/helpers/index.js"
 
 vi.mock("@/api/modules/user/queries/deleteUser.js", async (importOriginal) => {
@@ -67,6 +69,7 @@ describe("DELETE /users/{id}", () => {
 
   it("deletes the user and returns their id", async () => {
     const targetUser = await insertTestUser()
+
     const deleteUserResult = await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     const parsed = z.object({ id: z.string() }).parse(deleteUserResult)
@@ -75,6 +78,7 @@ describe("DELETE /users/{id}", () => {
 
   it("removes the user row from the database", async () => {
     const targetUser = await insertTestUser()
+
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
@@ -83,7 +87,12 @@ describe("DELETE /users/{id}", () => {
 
   it("removes the user's config limits", async () => {
     const targetUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: targetUser.id })
+    await insertTestConfigLimit({
+      userId: targetUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
+
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     const configLimitRows = await db
@@ -96,6 +105,7 @@ describe("DELETE /users/{id}", () => {
   it("removes the user's sessions", async () => {
     const targetUser = await insertTestUser()
     await insertTestSession(targetUser)
+
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     const sessionRows = await db.select().from(session).where(eq(session.userId, targetUser.id))
@@ -110,6 +120,7 @@ describe("DELETE /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     const configRows = await db.select().from(config).where(eq(config.userId, targetUser.id))
@@ -128,6 +139,7 @@ describe("DELETE /users/{id}", () => {
     fakeAmneziawg2Client.deleteAccesses.mockImplementationOnce(async () => {
       userRowsDuringNodeCall = await db.select().from(user).where(eq(user.id, targetUser.id))
     })
+
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledTimes(1)
@@ -194,7 +206,11 @@ describe("DELETE /users/{id}", () => {
     })
     const bystanderUser = await insertTestUser()
     await insertTestSession(bystanderUser)
-    const bystanderConfigLimit = await insertTestConfigLimit({ userId: bystanderUser.id })
+    const bystanderConfigLimit = await insertTestConfigLimit({
+      userId: bystanderUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
     const bystanderConfig = await insertTestConfig({
       userId: bystanderUser.id,
       endpointId: configEndpoint.id,
@@ -224,6 +240,7 @@ describe("DELETE /users/{id}", () => {
 
   it("makes no node calls when the user has no configs", async () => {
     const targetUser = await insertTestUser()
+
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     expect(fakeAmneziawg2Client.deleteAccesses).not.toHaveBeenCalled()
@@ -238,6 +255,7 @@ describe("DELETE /users/{id}", () => {
       deviceTypeId: configDeviceType.id,
       status: "deleted",
     })
+
     await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     expect(fakeAmneziawg2Client.deleteAccesses).not.toHaveBeenCalled()
@@ -246,12 +264,17 @@ describe("DELETE /users/{id}", () => {
   it("deletes a user whose used count exceeds their limit's maxCount", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const targetUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: targetUser.id, maxCount: 0 })
+    await insertTestConfigLimit({
+      userId: targetUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 0,
+    })
     await insertTestConfig({
       userId: targetUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+
     const deleteUserResult = await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     expect(deleteUserResult).toEqual({ id: targetUser.id })
@@ -267,6 +290,7 @@ describe("DELETE /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+
     const deleteUserResult = await callDeleteUser(targetUser.id, await signInTestAdmin())
 
     expect(deleteUserResult).toEqual({ id: targetUser.id })
@@ -310,7 +334,11 @@ describe("DELETE /users/{id}", () => {
       server: { data: null },
     })
     const targetUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: targetUser.id })
+    await insertTestConfigLimit({
+      userId: targetUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
     await insertTestConfig({
       userId: targetUser.id,
       endpointId: configEndpoint.id,
@@ -464,6 +492,45 @@ describe("DELETE /users/{id}", () => {
     })
 
     expect(response.status).toBe(409)
+  })
+
+  it("waits for the user advisory lock and rejects with CONFIGS_APPEARED after a concurrent config insert commits", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const targetUser = await insertTestUser()
+    const headers = await signInTestAdmin()
+
+    let releaseConfigInsert!: () => void
+    let markConfigInsertHeld!: () => void
+    const configInsertReleased = new Promise<void>((resolve) => {
+      releaseConfigInsert = resolve
+    })
+    const configInsertHeld = new Promise<void>((resolve) => {
+      markConfigInsertHeld = resolve
+    })
+
+    const configInsertTransaction = db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${targetUser.id}))`)
+      await insertTestConfig(
+        {
+          userId: targetUser.id,
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        tx,
+      )
+      markConfigInsertHeld()
+      await configInsertReleased
+    })
+
+    await configInsertHeld
+    const deleteUserResult = callDeleteUser(targetUser.id, headers)
+    await waitForDatabaseLockWaiter(deleteUserResult)
+    releaseConfigInsert()
+    await configInsertTransaction
+
+    await expectOrpcError(deleteUserResult, "CONFIGS_APPEARED")
+    const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
+    expect(userRows).toHaveLength(1)
   })
 
   it("rejects deleting a user with role admin with NOT_FOUND", async () => {

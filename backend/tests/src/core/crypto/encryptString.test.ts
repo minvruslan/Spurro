@@ -22,6 +22,7 @@ describe("encryptString", () => {
     const plaintext = "secret value"
 
     const firstCiphertext = encryptString(plaintext)
+
     const secondCiphertext = encryptString(plaintext)
 
     expect(firstCiphertext).not.toBe(secondCiphertext)

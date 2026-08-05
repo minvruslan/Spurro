@@ -40,6 +40,7 @@ describe("authorized", () => {
   it("rejects an unsigned token of an existing session", async () => {
     const sessionUser = await insertTestUser()
     const token = await insertSessionToken(sessionUser.id)
+
     await expectOrpcError(callCarrierRoute(await cookieHeaders(token)), "UNAUTHORIZED")
   })
 
@@ -47,6 +48,7 @@ describe("authorized", () => {
     const sessionUser = await insertTestUser()
     const token = await insertSessionToken(sessionUser.id)
     const forgedSignature = await makeSignature(token, "wrong-secret")
+
     await expectOrpcError(
       callCarrierRoute(await cookieHeaders(`${token}.${forgedSignature}`)),
       "UNAUTHORIZED",
@@ -57,6 +59,7 @@ describe("authorized", () => {
     const authContext = await authServer.$context
     const token = randomUUID()
     const signature = await makeSignature(token, authContext.secret)
+
     await expectOrpcError(
       callCarrierRoute(await cookieHeaders(`${token}.${signature}`)),
       "UNAUTHORIZED",
@@ -68,12 +71,14 @@ describe("authorized", () => {
     const headers = await insertTestSession(sessionUser, {
       expiresAt: new Date(Date.now() - 60 * 1000),
     })
+
     await expectOrpcError(callCarrierRoute(headers), "UNAUTHORIZED")
   })
 
   it("rejects a session of a banned user", async () => {
     const sessionUser = await insertTestUser({ banned: true })
     const headers = await insertTestSession(sessionUser)
+
     await expectOrpcError(callCarrierRoute(headers), "UNAUTHORIZED")
   })
 
@@ -83,6 +88,7 @@ describe("authorized", () => {
       banExpires: new Date(Date.now() + 60 * 60 * 1000),
     })
     const headers = await insertTestSession(sessionUser)
+
     await expectOrpcError(callCarrierRoute(headers), "UNAUTHORIZED")
   })
 
@@ -98,6 +104,7 @@ describe("authorized", () => {
   it("forbids a non-admin user on an admin route with FORBIDDEN", async () => {
     const sessionUser = await insertTestUser()
     const headers = await insertTestSession(sessionUser)
+
     await expectOrpcError(
       call(protocolRouter.getProtocols, undefined, { context: { headers } }),
       "FORBIDDEN",

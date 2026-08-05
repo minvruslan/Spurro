@@ -1,5 +1,6 @@
 import { call } from "@orpc/server"
 import { ConfigLimitSchema } from "@spurro/api-contract"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
@@ -32,7 +33,7 @@ function callGetUserConfigLimits(headers: Headers) {
   return call(configLimitRouter.getUserConfigLimits, undefined, { context: { headers } })
 }
 
-async function insertConfigInfrastructure(
+async function insertConfigPrerequisites(
   protocolOverrides: Partial<typeof protocol.$inferInsert> = {},
 ) {
   const configProtocol = await insertTestProtocol(protocolOverrides)
@@ -51,21 +52,31 @@ describe("GET /config-limits", () => {
   it("returns the requesting user's config limits matching the contract schema", async () => {
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    const insertedConfigLimit = await insertTestConfigLimit({ userId: requestUser.id, maxCount: 3 })
+    const insertedConfigLimit = await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
     expect(parsed).toHaveLength(1)
     expect(parsed[0].id).toBe(insertedConfigLimit.id)
-    expect(parsed[0].protocolFamily).toBe("amneziawg")
+    expect(parsed[0].protocolFamily).toBe(ProtocolRegistry.amneziawg2.family)
     expect(parsed[0].maxCount).toBe(3)
+    expect(parsed[0].used).toBe(0)
   })
 
   it("returns used as the number of the user's slot-reserving configs in the limit's protocol family", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id, maxCount: 5 })
+    await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 5,
+    })
     await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -78,6 +89,7 @@ describe("GET /config-limits", () => {
       deviceTypeId: configDeviceType.id,
       status: "pending",
     })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -88,7 +100,12 @@ describe("GET /config-limits", () => {
   it("returns used as zero when the user has no configs", async () => {
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id })
+    await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -97,16 +114,21 @@ describe("GET /config-limits", () => {
   })
 
   it("counts pending configs younger than the reservation window toward used", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id })
+    await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
     await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "pending",
     })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -115,10 +137,14 @@ describe("GET /config-limits", () => {
   })
 
   it("excludes pending configs older than the reservation window from used", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id })
+    await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
     const stalePendingConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -129,6 +155,7 @@ describe("GET /config-limits", () => {
       .update(config)
       .set({ createdAt: new Date(Date.now() - 7 * 60 * 1000) })
       .where(eq(config.id, stalePendingConfig.id))
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -137,16 +164,21 @@ describe("GET /config-limits", () => {
   })
 
   it("excludes deleting configs from used", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id })
+    await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
     await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "deleting",
     })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -155,16 +187,21 @@ describe("GET /config-limits", () => {
   })
 
   it("excludes deleted configs from used", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id })
+    await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
     await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "deleted",
     })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -173,18 +210,23 @@ describe("GET /config-limits", () => {
   })
 
   it("counts configs whose protocol is disabled toward used", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
       isEnabled: false,
     })
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id })
+    await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
     await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -193,20 +235,25 @@ describe("GET /config-limits", () => {
   })
 
   it("returns used equal to maxCount when the limit is exactly reached", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id, maxCount: 2 })
-    await insertTestConfig({
+    await insertTestConfigLimit({
       userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 2,
     })
     await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+    await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -216,20 +263,25 @@ describe("GET /config-limits", () => {
   })
 
   it("returns used greater than maxCount when the database holds more configs than the limit allows", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
-    await insertTestConfig({
+    await insertTestConfigLimit({
       userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 1,
     })
     await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+    await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -241,7 +293,12 @@ describe("GET /config-limits", () => {
   it("returns a limit with maxCount zero as stored", async () => {
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id, maxCount: 0 })
+    await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 0,
+    })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -252,6 +309,7 @@ describe("GET /config-limits", () => {
   it("returns an empty array when the user has no config limit rows", async () => {
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     expect(configLimits).toEqual([])
@@ -260,11 +318,15 @@ describe("GET /config-limits", () => {
   it.todo("returns entries ordered by protocol family ascending")
 
   it("excludes another user's configs from used", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const otherUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: requestUser.id })
+    await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
     await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -280,6 +342,7 @@ describe("GET /config-limits", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     const parsed = z.array(ConfigLimitSchema).parse(configLimits)
@@ -291,8 +354,17 @@ describe("GET /config-limits", () => {
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const otherUser = await insertTestUser()
-    const requestUserConfigLimit = await insertTestConfigLimit({ userId: requestUser.id })
-    await insertTestConfigLimit({ userId: otherUser.id })
+    const requestUserConfigLimit = await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
+    await insertTestConfigLimit({
+      userId: otherUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     expect(configLimits.map((entry) => entry.id)).toEqual([requestUserConfigLimit.id])
@@ -301,7 +373,12 @@ describe("GET /config-limits", () => {
   it("allows an admin user as well", async () => {
     const adminUser = await insertTestUser({ role: "admin" })
     const headers = await insertTestSession(adminUser)
-    const adminConfigLimit = await insertTestConfigLimit({ userId: adminUser.id })
+    const adminConfigLimit = await insertTestConfigLimit({
+      userId: adminUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
+
     const configLimits = await callGetUserConfigLimits(headers)
 
     expect(configLimits.map((entry) => entry.id)).toEqual([adminConfigLimit.id])
@@ -316,6 +393,7 @@ describe("GET /config-limits", () => {
       vi.mocked(findUserConfigLimits).mockRejectedValueOnce(new Error("Query failure"))
 
       const requestUser = await insertTestUser()
+
       const response = await app.request("/api/config-limits", {
         headers: await insertTestSession(requestUser),
       })

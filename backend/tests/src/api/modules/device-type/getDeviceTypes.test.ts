@@ -27,6 +27,7 @@ function callGetDeviceTypes(headers: Headers) {
 describe("GET /device-types", () => {
   it("returns the seeded device-type catalog matching the contract schema", async () => {
     await bootstrapDeviceTypes()
+
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     const parsed = z.array(DeviceTypeSchema).parse(deviceTypes)
@@ -42,6 +43,7 @@ describe("GET /device-types", () => {
 
   it("returns every contract field", async () => {
     await bootstrapDeviceTypes()
+
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     expect(deviceTypes).toHaveLength(5)
@@ -59,6 +61,7 @@ describe("GET /device-types", () => {
       android: "Android",
     }
     await bootstrapDeviceTypes()
+
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     expect(deviceTypes).toHaveLength(5)
@@ -69,6 +72,7 @@ describe("GET /device-types", () => {
 
   it("returns entries ordered by name ascending", async () => {
     await bootstrapDeviceTypes()
+
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     const names = deviceTypes.map((entry) => entry.name)
@@ -78,6 +82,7 @@ describe("GET /device-types", () => {
   it("omits disabled device types", async () => {
     await bootstrapDeviceTypes()
     await db.update(deviceType).set({ isEnabled: false }).where(eq(deviceType.code, "linux"))
+
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     const codes = deviceTypes.map((entry) => entry.code)
@@ -88,6 +93,7 @@ describe("GET /device-types", () => {
   it("returns an empty array when all device types are disabled", async () => {
     await bootstrapDeviceTypes()
     await db.update(deviceType).set({ isEnabled: false })
+
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     expect(deviceTypes).toEqual([])
@@ -101,6 +107,7 @@ describe("GET /device-types", () => {
 
   it("allows an admin user as well", async () => {
     await bootstrapDeviceTypes()
+
     const deviceTypes = await callGetDeviceTypes(await signInTestAdmin())
 
     expect(deviceTypes).toHaveLength(5)

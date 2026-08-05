@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { UserSchema } from "@spurro/api-contract"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
@@ -47,6 +48,7 @@ describe("GET /users", () => {
   it("returns all users matching the contract schema", async () => {
     const firstUser = await insertTestUser()
     const secondUser = await insertTestUser()
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const parsed = z.array(UserSchema).parse(users)
@@ -57,7 +59,12 @@ describe("GET /users", () => {
 
   it("returns every contract field at every nesting level", async () => {
     const listedUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: listedUser.id })
+    await insertTestConfigLimit({
+      userId: listedUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const entries = users.filter((entry) => entry.id === listedUser.id)
@@ -91,8 +98,17 @@ describe("GET /users", () => {
     const firstUser = await insertTestUser()
     const secondUser = await insertTestUser()
     const thirdUser = await insertTestUser()
-    const firstConfigLimit = await insertTestConfigLimit({ userId: firstUser.id, maxCount: 1 })
-    const secondConfigLimit = await insertTestConfigLimit({ userId: secondUser.id, maxCount: 2 })
+    const firstConfigLimit = await insertTestConfigLimit({
+      userId: firstUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 1,
+    })
+    const secondConfigLimit = await insertTestConfigLimit({
+      userId: secondUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 2,
+    })
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const entriesById = new Map(users.map((entry) => [entry.id, entry]))
@@ -110,6 +126,7 @@ describe("GET /users", () => {
     const headers = await insertTestSession(adminUser)
     const otherAdminUser = await insertTestUser({ role: "admin" })
     const ordinaryUser = await insertTestUser()
+
     const users = await callGetUsers(headers)
 
     const listedIds = users.map((entry) => entry.id)
@@ -126,6 +143,7 @@ describe("GET /users", () => {
 
   it("returns a user with null role, banned and banReason parsing against the schema", async () => {
     const nullFieldsUser = await insertTestUser({ role: null, banned: null, banReason: null })
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const entries = users.filter((entry) => entry.id === nullFieldsUser.id)
@@ -140,6 +158,7 @@ describe("GET /users", () => {
 
   it("returns a banned user with banned and banReason populated", async () => {
     const bannedUser = await insertTestUser({ banned: true, banReason: "Violation of terms" })
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const entries = users.filter((entry) => entry.id === bannedUser.id)
@@ -153,6 +172,7 @@ describe("GET /users", () => {
 
   it("returns an empty limits array for a user without config limits", async () => {
     const unlimitedUser = await insertTestUser()
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const entries = users.filter((entry) => entry.id === unlimitedUser.id)
@@ -165,7 +185,11 @@ describe("GET /users", () => {
   it("returns each limit with used counting the user's slot-reserving configs of the matching protocol family", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const limitedUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: limitedUser.id, maxCount: 5 })
+    await insertTestConfigLimit({
+      userId: limitedUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 5,
+    })
     for (const status of ["active", "pending", "deleting", "deleted"] as const) {
       await insertTestConfig({
         userId: limitedUser.id,
@@ -174,6 +198,7 @@ describe("GET /users", () => {
         status,
       })
     }
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const entries = users.filter((entry) => entry.id === limitedUser.id)
@@ -181,7 +206,7 @@ describe("GET /users", () => {
     for (const entry of entries) {
       expect(entry.limits).toHaveLength(1)
       for (const limit of entry.limits) {
-        expect(limit.protocolFamily).toBe("amneziawg")
+        expect(limit.protocolFamily).toBe(ProtocolRegistry.amneziawg2.family)
         expect(limit.maxCount).toBe(5)
         expect(limit.used).toBe(2)
       }
@@ -192,7 +217,11 @@ describe("GET /users", () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const limitedUser = await insertTestUser()
     const otherUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: limitedUser.id, maxCount: 5 })
+    await insertTestConfigLimit({
+      userId: limitedUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 5,
+    })
     await insertTestConfig({
       userId: limitedUser.id,
       endpointId: configEndpoint.id,
@@ -208,6 +237,7 @@ describe("GET /users", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const entries = users.filter((entry) => entry.id === limitedUser.id)
@@ -223,17 +253,22 @@ describe("GET /users", () => {
   it("returns a limit with used exceeding maxCount as-is parsing against the contract schema", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const overLimitUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: overLimitUser.id, maxCount: 1 })
-    await insertTestConfig({
+    await insertTestConfigLimit({
       userId: overLimitUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 1,
     })
     await insertTestConfig({
       userId: overLimitUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+    await insertTestConfig({
+      userId: overLimitUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const entries = users.filter((entry) => entry.id === overLimitUser.id)
@@ -256,6 +291,7 @@ describe("GET /users", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const entries = users.filter((entry) => entry.id === unlimitedUser.id)
@@ -270,6 +306,7 @@ describe("GET /users", () => {
     const charlieUser = await insertTestUser({ name: `Charlie User ${randomUUID()}` })
     const alphaUser = await insertTestUser({ name: `Alpha User ${randomUUID()}` })
     const orderedUserIds = [alphaUser.id, bravoUser.id, charlieUser.id]
+
     const users = await callGetUsers(await signInTestAdmin())
 
     const listedIds = users

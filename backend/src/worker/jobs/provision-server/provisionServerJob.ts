@@ -1,6 +1,7 @@
 import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { RemoteServer } from "@spurro/infrastructure"
 import { env } from "@/core/env/index.js"
+import { VPN_NODE_DNS } from "./constants/index.js"
 import type { ProvisionServerJob } from "@/core/queue/provision-server/index.js"
 import { ProvisioningError } from "./ProvisioningError.js"
 import { findServer } from "./queries/findServer.js"
@@ -27,8 +28,6 @@ export async function provisionServerJob(job: ProvisionServerJob) {
 
   const desiredState = await resolveServerDesiredState(serverId, {
     desiredState: server.data.desiredState,
-    ip: server.ip,
-    domainName: server.domainName,
   })
 
   let serverData = server.data
@@ -73,6 +72,8 @@ export async function provisionServerJob(job: ProvisionServerJob) {
   const endpoints = await findActiveEndpoints(serverId)
   const { endpointDeployments, endpointDataUpdates } = await resolveEndpointDeployments(serverId, {
     remoteServer,
+    host: server.domainName ?? server.ip,
+    dns: VPN_NODE_DNS,
     endpoints,
   })
 

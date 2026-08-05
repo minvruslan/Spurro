@@ -61,12 +61,18 @@ export class Amneziawg2Client {
     return Amneziawg2EndpointActualStateSchema.parse(actualState)
   }
 
-  createEndpointDesiredState(port: number): Amneziawg2EndpointDesiredState {
+  createEndpointDesiredState(
+    port: number,
+    host: string,
+    dns: string,
+  ): Amneziawg2EndpointDesiredState {
     const parsedPort = PortSchema.parse(port)
     const serverKeyPair = generateServerKeyPair()
 
     return {
       protocolCode: this.protocolCode,
+      host: Amneziawg2EndpointDesiredStateSchema.shape.host.parse(host),
+      dns: Amneziawg2EndpointDesiredStateSchema.shape.dns.parse(dns),
       dockerImageVersion: this.dockerImageVersion,
       port: parsedPort,
       containerName: AMNEZIAWG2_CONTAINER_NAME,
@@ -116,20 +122,11 @@ export class Amneziawg2Client {
   }
 
   async createAccess(
-    serverActualState: ServerActualState,
     endpointActualState: EndpointActualState,
     clientIdentifier: string,
   ): Promise<{ configData: Amneziawg2ConfigData; clientConfiguration: string }> {
     const actualState = this.parseEndpointActualState(endpointActualState)
     const clientIp = IpSchema.parse(clientIdentifier)
-
-    if (!serverActualState.host) {
-      throw new Error("Server actual state has no host; server may not be hardened.")
-    }
-
-    if (!serverActualState.dns) {
-      throw new Error("Server actual state has no DNS; server may not be hardened.")
-    }
 
     const output = await this.remoteCommandRunner.executeContainerScript(
       actualState.containerName,
@@ -162,9 +159,9 @@ export class Amneziawg2Client {
       clientIp,
       serverPublicKey: createdAccess.serverPublicKey,
       presharedKey: createdAccess.presharedKey,
-      serverEndpoint: `${serverActualState.host}:${actualState.port}`,
+      serverEndpoint: `${actualState.host}:${actualState.port}`,
       obfuscation: createdAccess.obfuscation,
-      dns: serverActualState.dns,
+      dns: actualState.dns,
     })
 
     return {

@@ -1,3 +1,3 @@
 import { z } from "zod"
 
-export const EndpointStatusSchema = z.enum(["active", "deleted"])
+export const EndpointStatusSchema = z.enum(["active"])

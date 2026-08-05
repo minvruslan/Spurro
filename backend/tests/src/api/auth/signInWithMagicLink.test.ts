@@ -78,6 +78,7 @@ describe("POST /api/auth/sign-in/magic-link", () => {
     const requestUser = await insertTestUser()
 
     const knownEmailResponse = await requestMagicLink({ email: requestUser.email }, createTestIp())
+
     const unknownEmailResponse = await requestMagicLink(
       { email: createTestEmail() },
       createTestIp(),

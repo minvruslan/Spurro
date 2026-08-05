@@ -32,6 +32,7 @@ describe("bootstrapCurrentServer", () => {
 
   it("stores the domain name when DOMAIN_NAME is set", async () => {
     env.DOMAIN_NAME = "current.spurro.test"
+
     try {
       await bootstrapCurrentServer()
 

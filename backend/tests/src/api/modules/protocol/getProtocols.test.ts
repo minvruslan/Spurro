@@ -30,6 +30,7 @@ function callGetProtocols(headers: Headers) {
 describe("GET /protocols", () => {
   it("returns the enabled protocol catalog matching the contract schema", async () => {
     await bootstrapProtocols()
+
     const protocols = await callGetProtocols(await signInTestAdmin())
 
     const parsed = z.array(ProtocolSchema).parse(protocols)
@@ -39,6 +40,7 @@ describe("GET /protocols", () => {
 
   it("returns every contract field", async () => {
     await bootstrapProtocols()
+
     const protocols = await callGetProtocols(await signInTestAdmin())
 
     expect(protocols).toHaveLength(1)
@@ -52,6 +54,7 @@ describe("GET /protocols", () => {
       amneziawg2: "amneziawg",
     }
     await bootstrapProtocols()
+
     const protocols = await callGetProtocols(await signInTestAdmin())
 
     expect(protocols).toHaveLength(1)
@@ -70,6 +73,7 @@ describe("GET /protocols", () => {
       data: {},
       status: "active",
     })
+
     const protocols = await callGetProtocols(await signInTestAdmin())
 
     expect(protocols.map((entry) => entry.code)).not.toContain(disabledProtocol.code)
@@ -77,6 +81,7 @@ describe("GET /protocols", () => {
 
   it("returns an empty array when all protocols are disabled", async () => {
     await insertTestProtocol({ isEnabled: false })
+
     const protocols = await callGetProtocols(await signInTestAdmin())
 
     expect(protocols).toEqual([])

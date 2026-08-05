@@ -20,6 +20,8 @@ type EndpointDataUpdate = {
 export const resolveEndpointDeployments: ProvisioningStep<
   {
     remoteServer: RemoteServer
+    host: string
+    dns: string
     endpoints: {
       endpointId: string
       port: number
@@ -28,7 +30,7 @@ export const resolveEndpointDeployments: ProvisioningStep<
     }[]
   },
   { endpointDeployments: EndpointDeployment[]; endpointDataUpdates: EndpointDataUpdate[] }
-> = async (serverId, { remoteServer, endpoints }) => {
+> = async (serverId, { remoteServer, host, dns, endpoints }) => {
   const endpointDeployments: EndpointDeployment[] = []
   const endpointDataUpdates: EndpointDataUpdate[] = []
 
@@ -71,7 +73,7 @@ export const resolveEndpointDeployments: ProvisioningStep<
     let endpointDesiredState = parsedDesiredState.success ? parsedDesiredState.data : undefined
 
     if (!endpointDesiredState) {
-      endpointDesiredState = client.createEndpointDesiredState(endpoint.port)
+      endpointDesiredState = client.createEndpointDesiredState(endpoint.port, host, dns)
       endpointData = { ...endpointData, desiredState: endpointDesiredState }
       endpointDataUpdates.push({ endpointId: endpoint.endpointId, endpointData })
     }

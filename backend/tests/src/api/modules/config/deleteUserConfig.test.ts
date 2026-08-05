@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { ConfigSchema, type UpsertConfig } from "@spurro/api-contract"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { RemoteServer } from "@spurro/infrastructure"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
@@ -167,7 +168,11 @@ describe("DELETE /configs/{id}", () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
+    await insertTestConfigLimit({
+      userId: requestUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 1,
+    })
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
@@ -394,6 +399,7 @@ describe("DELETE /configs/{id}", () => {
       vi.mocked(findDeletableUserConfigs).mockRejectedValueOnce(new Error("Query failure"))
 
       const requestUser = await insertTestUser()
+
       const response = await app.request(`/api/configs/${randomUUID()}`, {
         method: "DELETE",
         headers: await insertTestSession(requestUser),

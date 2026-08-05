@@ -8,6 +8,7 @@ import {
   ServerDataSchema,
   ServerDesiredStateSchema,
   type EndpointData,
+  type ServerAccess,
   type ServerData,
 } from "@spurro/infrastructure/types"
 import type { JobsOptions } from "bullmq"
@@ -47,16 +48,13 @@ const OPERATOR_SSH_PUBLIC_KEY = "ssh-ed25519 AAAAOperatorPublicKey"
 const PREVIOUSLY_APPLIED_AT = "2026-01-01T00:00:00.000Z"
 const UNREACHABLE_QUEUE_URL = "redis://localhost:1"
 const ACTUAL_STATE_SSH_PORT = 22
-const ACTUAL_STATE_HOST = "192.0.2.1"
 const DEFAULT_SERVER_SSH = { type: "privateKey", username: "spurro", port: 13013 }
-const DEFAULT_SERVER_DNS = "1.1.1.1, 1.0.0.1"
+const DEFAULT_ENDPOINT_DNS = "1.1.1.1, 1.0.0.1"
 const DEFAULT_SERVER_BASE_DIRECTORY = "/opt/spurro"
 
-function createDefaultServerDesiredState(host: string) {
+function createDefaultServerDesiredState() {
   return {
     ssh: DEFAULT_SERVER_SSH,
-    host,
-    dns: DEFAULT_SERVER_DNS,
     baseDirectory: DEFAULT_SERVER_BASE_DIRECTORY,
   }
 }
@@ -107,6 +105,11 @@ function mockRemoteServer() {
   }
 }
 
+function getServerAccess(remoteServer: unknown) {
+  return (remoteServer as { remoteCommandRunner: { serverAccess: ServerAccess } })
+    .remoteCommandRunner.serverAccess
+}
+
 function countRemoteServerCalls() {
   return Object.fromEntries(
     Object.entries(remoteServerSpies).map(([methodName, spy]) => [
@@ -139,8 +142,6 @@ function createKeyAccessServerData(overrides: Partial<ServerData> = {}): ServerD
     facts: { sshHostKeys: [FAKE_SERVER_SSH_HOST_KEY] },
     actualState: {
       ssh: { type: "privateKey", username: "spurro", port: ACTUAL_STATE_SSH_PORT },
-      host: ACTUAL_STATE_HOST,
-      dns: "1.1.1.1",
       baseDirectory: "/opt/spurro",
       appliedAt: PREVIOUSLY_APPLIED_AT,
     },
@@ -343,7 +344,7 @@ describe("createProvisioningWorker", () => {
 
       const serverRow = await findServerRow(provisionedServer.id)
       const serverData = ServerDataSchema.parse(serverRow.data)
-      expect(serverData.desiredState).toEqual(createDefaultServerDesiredState(provisionedServer.ip))
+      expect(serverData.desiredState).toEqual(createDefaultServerDesiredState())
       expect(remoteServerSpies.createServiceUser).toHaveBeenCalledWith(
         DEFAULT_SERVER_SSH.username,
         DEFAULT_SERVER_BASE_DIRECTORY,
@@ -354,18 +355,22 @@ describe("createProvisioningWorker", () => {
       )
     })
 
-    it("prefers the domain name over the ip for the default desiredState host", async () => {
+    it("prefers the domain name over the ip for the endpoint desiredState host", async () => {
       const domainName = `node-${randomUUID()}.spurro.test`
       const provisionedServer = await insertPasswordAccessServer(`password-${randomUUID()}`, {
         domainName,
       })
+      const provisionedProtocol = await insertTestProtocol()
+      const provisionedEndpoint = await insertTestEndpoint({
+        serverId: provisionedServer.id,
+        protocolId: provisionedProtocol.id,
+        data: {},
+      })
 
       await runSucceedingProvisioningJob(provisionedServer.id)
 
-      const serverRow = await findServerRow(provisionedServer.id)
-      const serverData = ServerDataSchema.parse(serverRow.data)
-      expect(serverData.desiredState).toEqual(createDefaultServerDesiredState(domainName))
-      expect(serverData.actualState.host).toBe(domainName)
+      const endpointDesiredState = await findEndpointDesiredState(provisionedEndpoint.id)
+      expect(endpointDesiredState.host).toBe(domainName)
     })
 
     it("installs the operator public key next to the application key when the environment provides one", async () => {
@@ -401,40 +406,33 @@ describe("createProvisioningWorker", () => {
       expect(serverData.facts?.sshHostKeys).toEqual([SCANNED_SSH_HOST_KEY])
     })
 
-    it("fills desiredState and actualState in the data of every active endpoint", async () => {
+    it("fills desiredState and actualState in the endpoint data", async () => {
       const provisionedServer = await insertPasswordAccessServer(`password-${randomUUID()}`)
       const provisionedProtocol = await insertTestProtocol()
-      const activeEndpoint = await insertTestEndpoint({
+      const provisionedEndpoint = await insertTestEndpoint({
         serverId: provisionedServer.id,
         protocolId: provisionedProtocol.id,
         port: 51820,
         data: {},
       })
-      const deletedEndpoint = await insertTestEndpoint({
-        serverId: provisionedServer.id,
-        protocolId: provisionedProtocol.id,
-        port: 51821,
-        status: "deleted",
-        data: {},
-      })
 
       await runSucceedingProvisioningJob(provisionedServer.id)
 
-      const activeEndpointRow = await findEndpointRow(activeEndpoint.id)
-      const activeEndpointData = EndpointDataSchema.parse(activeEndpointRow.data)
+      const provisionedEndpointRow = await findEndpointRow(provisionedEndpoint.id)
+      const provisionedEndpointData = EndpointDataSchema.parse(provisionedEndpointRow.data)
       const endpointDesiredState = Amneziawg2EndpointDesiredStateSchema.parse(
-        activeEndpointData.desiredState,
+        provisionedEndpointData.desiredState,
       )
       const endpointActualState = Amneziawg2EndpointActualStateSchema.parse(
-        activeEndpointData.actualState,
+        provisionedEndpointData.actualState,
       )
-      expect(endpointDesiredState.port).toBe(activeEndpoint.port)
+      expect(endpointDesiredState.port).toBe(provisionedEndpoint.port)
+      expect(endpointDesiredState.host).toBe(provisionedServer.ip)
+      expect(endpointDesiredState.dns).toBe(DEFAULT_ENDPOINT_DNS)
       expect(endpointActualState).toEqual({
         ...endpointDesiredState,
         appliedAt: endpointActualState.appliedAt,
       })
-      const deletedEndpointRow = await findEndpointRow(deletedEndpoint.id)
-      expect(deletedEndpointRow.data).toEqual({})
     })
 
     it("allows the firewall port with the endpoint port and transport and installs the protocol client", async () => {
@@ -456,7 +454,7 @@ describe("createProvisioningWorker", () => {
       expect(remoteServerSpies.getProtocolClient).toHaveBeenCalledWith(provisionedProtocol.code)
       expect(remoteServerSpies.install).toHaveBeenCalledTimes(1)
       expect(remoteServerSpies.install).toHaveBeenCalledWith(
-        { desiredState: createDefaultServerDesiredState(provisionedServer.ip) },
+        { desiredState: createDefaultServerDesiredState() },
         await findEndpointDesiredState(provisionedEndpoint.id),
       )
     })
@@ -585,6 +583,7 @@ describe("createProvisioningWorker", () => {
 
       await enqueueProvisionServerJob(failingServer.id)
       await failingJobFailure
+
       await enqueueProvisionServerJob(succeedingServer.id)
       await succeedingJobCompletion
 
@@ -631,6 +630,24 @@ describe("createProvisioningWorker", () => {
       expect(
         remoteServerSpies.assertConnectivity.mock.instances[connectivityCallIndexBeforeHardening],
       ).toBe(hardeningInstance)
+      expect(getServerAccess(hardeningInstance)).toMatchObject({
+        port: ACTUAL_STATE_SSH_PORT,
+        username: DEFAULT_SERVER_SSH.username,
+        privateKey: env.APP_SSH_PRIVATE_KEY,
+      })
+    })
+
+    it("hardens through the desired state access when the key access already works on a password server", async () => {
+      const provisionedServer = await insertPasswordAccessServer(`password-${randomUUID()}`)
+
+      await runSucceedingProvisioningJob(provisionedServer.id)
+
+      const [hardeningInstance] = remoteServerSpies.hardenSshAccess.mock.instances
+      expect(getServerAccess(hardeningInstance)).toMatchObject({
+        port: DEFAULT_SERVER_SSH.port,
+        username: DEFAULT_SERVER_SSH.username,
+        privateKey: env.APP_SSH_PRIVATE_KEY,
+      })
     })
 
     it("verifies connectivity and privilege escalation before hardening when the server already uses key access", async () => {
@@ -660,6 +677,11 @@ describe("createProvisioningWorker", () => {
       expect(
         remoteServerSpies.assertConnectivity.mock.instances[connectivityCallIndexBeforeHardening],
       ).toBe(hardeningInstance)
+      expect(getServerAccess(hardeningInstance)).toMatchObject({
+        port: ACTUAL_STATE_SSH_PORT,
+        username: DEFAULT_SERVER_SSH.username,
+        privateKey: env.APP_SSH_PRIVATE_KEY,
+      })
     })
 
     it("verifies connectivity of a new target access after hardening before reporting the server active", async () => {
@@ -686,6 +708,7 @@ describe("createProvisioningWorker", () => {
       await vi.waitFor(() => expect(remoteServerSpies.installDocker).toHaveBeenCalledTimes(1), {
         timeout: 10000,
       })
+
       await enqueueProvisionServerJob(provisionedServer.id)
 
       expect(
@@ -697,7 +720,7 @@ describe("createProvisioningWorker", () => {
       expect(await provisionServerQueueInstance.getJobs()).toHaveLength(0)
     }, 20000)
 
-    it("shows the provisioning status while an active server is being re-provisioned", async () => {
+    it("shows the provisioning status while the job re-runs on an active server", async () => {
       const provisionedServer = await insertKeyAccessServer({ status: "active" })
       const heldDockerInstall = createDeferredStep()
       remoteServerSpies.installDocker.mockReturnValueOnce(heldDockerInstall.stepPromise)
@@ -715,7 +738,7 @@ describe("createProvisioningWorker", () => {
       expect((await findServerRow(provisionedServer.id)).status).toBe("active")
     }, 20000)
 
-    it("re-runs the ssh steps and refreshes actualState appliedAt when re-provisioning an active server", async () => {
+    it("re-runs the ssh steps and refreshes actualState appliedAt when the job re-runs on an active server", async () => {
       const provisionedServer = await insertKeyAccessServer({ status: "active" })
       const provisioningStartedAt = Date.now()
 
@@ -731,7 +754,7 @@ describe("createProvisioningWorker", () => {
       )
     })
 
-    it("does not regenerate the endpoint desiredState when re-provisioning an active server", async () => {
+    it("does not regenerate the endpoint desiredState when the job re-runs on an active server", async () => {
       const provisionedServer = await insertKeyAccessServer({ status: "active" })
       const provisionedProtocol = await insertTestProtocol()
       const provisionedEndpoint = await insertTestEndpoint({
@@ -774,6 +797,7 @@ describe("createProvisioningWorker", () => {
       await failedJob?.remove()
       remoteServerSpies.createEndpointDesiredState.mockClear()
       const secondJobCompletion = waitForJobCompletion(provisioningWorker, provisionedServer.id)
+
       await enqueueProvisionServerJob(provisionedServer.id)
       await secondJobCompletion
 
@@ -784,7 +808,7 @@ describe("createProvisioningWorker", () => {
       expect((await findServerRow(provisionedServer.id)).status).toBe("active")
     }, 20000)
 
-    it("moves a failed server to active when re-provisioning succeeds", async () => {
+    it("moves a failed server to active when a retry succeeds", async () => {
       const provisionedServer = await insertKeyAccessServer({ status: "failed" })
 
       await runSucceedingProvisioningJob(provisionedServer.id)
@@ -809,29 +833,6 @@ describe("createProvisioningWorker", () => {
       expect(provisionServerJob?.attemptsMade).toBe(1)
       expect(await db.select().from(server)).toEqual(serverRowsBeforeJob)
     })
-
-    it("keeps a deleted server deleted and issues no ssh commands", async () => {
-      const provisionedServer = await insertKeyAccessServer({ status: "deleted" })
-      const controlServer = await insertInvalidDataServer()
-      const provisioningWorker = await startProvisioningWorker()
-      const provisionedJobFailure = waitForJobFailure(provisioningWorker, provisionedServer.id)
-      const controlJobFailure = waitForJobFailure(provisioningWorker, controlServer.id)
-
-      await enqueueProvisionServerJob(provisionedServer.id)
-      await provisionedJobFailure
-      await enqueueProvisionServerJob(controlServer.id)
-      await controlJobFailure
-      await expectServerStatusToBecome(controlServer.id, "failed")
-
-      const serverRow = await findServerRow(provisionedServer.id)
-      expect(serverRow.status).toBe("deleted")
-      expect(serverRow.data).toEqual(provisionedServer.data)
-      await expectJobFailureReason(
-        provisionedServer.id,
-        createProvisioningErrorReason(provisionedServer.id, "server_not_found"),
-      )
-      expect(countRemoteServerCalls()).toEqual(createZeroRemoteServerCallCounts())
-    }, 20000)
 
     it("moves the server to failed when its stored data is invalid", async () => {
       const provisionedServer = await insertKeyAccessServer({
@@ -861,8 +862,6 @@ describe("createProvisioningWorker", () => {
         data: createKeyAccessServerData({
           desiredState: {
             ssh: { type: "password", username: "spurro", password: "desired-password", port: 22 },
-            host: ACTUAL_STATE_HOST,
-            dns: "1.1.1.1",
             baseDirectory: "/opt/spurro",
           },
         }),

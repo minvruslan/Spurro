@@ -20,6 +20,7 @@ describe("bootstrapAdmin", () => {
   it("stores the email lowercased when ADMIN_EMAIL has mixed case", async () => {
     const originalAdminEmail = env.ADMIN_EMAIL
     env.ADMIN_EMAIL = "Admin@Test.Local"
+
     try {
       await bootstrapAdmin()
 
@@ -36,6 +37,7 @@ describe("bootstrapAdmin", () => {
     const existingUser = await insertTestUser({ email: env.ADMIN_EMAIL })
     const originalAdminEmail = env.ADMIN_EMAIL
     env.ADMIN_EMAIL = "Admin@Test.Local"
+
     try {
       await bootstrapAdmin()
 

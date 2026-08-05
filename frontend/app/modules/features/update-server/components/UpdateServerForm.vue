@@ -1,80 +1,28 @@
 <script setup lang="ts">
-import type { Server } from "@spurro/api-contract"
-import { computed, onMounted, ref } from "vue"
-import { Save, Trash2 } from "lucide-vue-next"
+import { computed } from "vue"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { CountryCombobox, FieldLabel, FormLayout } from "@/modules/common/components"
+import { FieldLabel, FormLayout } from "@/modules/common/components"
+import { useCountries } from "@/modules/common/composables"
 import { useServer } from "@/modules/entities/server"
-import { useUpdateServer } from "../composables/useUpdateServer"
-import { useDeleteServer } from "../composables/useDeleteServer"
-import type { UpdateServerFormValues } from "../types"
 import { messages } from "../translations/UpdateServerForm"
 
 const props = defineProps<{ id: string }>()
-const emit = defineEmits<{
-  (e: "updated", server: Server): void
-  (e: "deleted" | "cancel"): void
-}>()
+const emit = defineEmits<{ (e: "cancel"): void }>()
 
 const { t } = useI18n({ useScope: "local", messages })
 const { server, status, ready } = useServer(props.id)
-const { pending, update } = useUpdateServer(props.id)
-const { pending: deleting, deleteServer } = useDeleteServer(props.id)
-const { confirm } = useConfirmationDialog()
-const { showSuccess, showError } = useNotificationBanner()
+const { getCountryName } = useCountries()
 
 const endpoints = computed(() => server.value?.endpoints ?? [])
-const isCurrent = computed(() => server.value?.isCurrent ?? false)
-
-const nameInput = ref<{ $el: HTMLInputElement } | null>(null)
-
-onMounted(() => nameInput.value?.$el?.focus())
+const countryName = computed(() => getCountryName(server.value?.country ?? ""))
 
 await ready
-
-const loadedServer = server.value
-
-const form = ref<UpdateServerFormValues>({
-  name: loadedServer?.name ?? "",
-  country: loadedServer?.country ?? "",
-  ip: loadedServer?.ip ?? "",
-  domainName: loadedServer?.domainName ?? "",
-})
-
-const onSubmit = async () => {
-  if (pending.value) return
-  const updated = await update({ ...form.value })
-  if (updated) {
-    showSuccess(t("notifications.updated"))
-    emit("updated", updated)
-  } else {
-    showError(t("notifications.updateError"))
-  }
-}
-
-const onDelete = async () => {
-  const confirmed = await confirm({
-    title: t("deleteConfirmationDialog.title"),
-    description: t("deleteConfirmationDialog.description", { name: form.value.name }),
-    confirmButtonText: t("actions.delete"),
-    destructive: true,
-  })
-
-  if (!confirmed) return
-
-  if (await deleteServer()) {
-    showSuccess(t("notifications.deleted"))
-    emit("deleted")
-  } else {
-    showError(t("notifications.deleteError"))
-  }
-}
 </script>
 
 <template>
-  <FormLayout v-if="server" :disabled="pending || deleting" @submit="onSubmit">
+  <FormLayout v-if="server">
     <template #title>
       <h1 class="text-lg font-semibold tracking-tight">{{ t("title") }}</h1>
     </template>
@@ -82,18 +30,24 @@ const onDelete = async () => {
     <template #body>
       <div class="flex flex-col gap-3 sm:flex-row">
         <div class="flex flex-1 flex-col gap-2">
-          <FieldLabel for="name" required>{{ t("fields.name.label") }}</FieldLabel>
+          <FieldLabel for="name">{{ t("fields.name.label") }}</FieldLabel>
           <Input
             id="name"
-            ref="nameInput"
-            v-model="form.name"
-            aria-required="true"
-            :placeholder="t('fields.name.placeholder')"
+            :model-value="server.name"
+            readonly
+            tabindex="-1"
+            class="bg-muted text-muted-foreground"
           />
         </div>
         <div class="flex min-w-0 flex-1 flex-col gap-2">
-          <FieldLabel for="country" required>{{ t("fields.country.label") }}</FieldLabel>
-          <CountryCombobox id="country" v-model="form.country" required />
+          <FieldLabel for="country">{{ t("fields.country.label") }}</FieldLabel>
+          <Input
+            id="country"
+            :model-value="countryName"
+            readonly
+            tabindex="-1"
+            class="bg-muted text-muted-foreground"
+          />
         </div>
       </div>
 
@@ -102,7 +56,7 @@ const onDelete = async () => {
           <FieldLabel for="ip">{{ t("fields.ip.label") }}</FieldLabel>
           <Input
             id="ip"
-            :model-value="form.ip"
+            :model-value="server.ip"
             readonly
             tabindex="-1"
             class="bg-muted text-muted-foreground"
@@ -112,7 +66,7 @@ const onDelete = async () => {
           <FieldLabel for="domain">{{ t("fields.domain.label") }}</FieldLabel>
           <Input
             id="domain"
-            :model-value="form.domainName"
+            :model-value="server.domainName ?? ''"
             readonly
             tabindex="-1"
             class="bg-muted text-muted-foreground"
@@ -143,30 +97,8 @@ const onDelete = async () => {
     </template>
 
     <template #actions>
-      <Button
-        type="button"
-        variant="outline"
-        class="w-full sm:w-28"
-        :disabled="pending || deleting"
-        @click="emit('cancel')"
-      >
-        {{ t("actions.cancel") }}
-      </Button>
-      <Button
-        v-if="!isCurrent"
-        type="button"
-        variant="destructive"
-        class="w-full sm:order-first sm:mr-auto sm:w-32"
-        :loading="deleting"
-        :disabled="pending"
-        @click="onDelete"
-      >
-        <Trash2 class="size-4" aria-hidden="true" />
-        {{ t("actions.delete") }}
-      </Button>
-      <Button type="submit" class="w-full sm:w-32" :loading="pending" :disabled="deleting">
-        <Save class="size-4" aria-hidden="true" />
-        {{ t("actions.update") }}
+      <Button type="button" variant="outline" class="w-full sm:w-28" @click="emit('cancel')">
+        {{ t("actions.close") }}
       </Button>
     </template>
   </FormLayout>

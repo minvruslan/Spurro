@@ -58,6 +58,7 @@ describe("GET /configs/{id}", () => {
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
+
     const requestedConfig = await callGetUserConfig(headers, insertedConfig.id)
 
     const parsed = ConfigSchema.parse(requestedConfig)
@@ -85,6 +86,7 @@ describe("GET /configs/{id}", () => {
         presharedKey: "test-preshared-key",
       },
     })
+
     const requestedConfig = await callGetUserConfig(headers, insertedConfig.id)
 
     const parsed = ConfigSchema.parse(requestedConfig)
@@ -115,6 +117,7 @@ describe("GET /configs/{id}", () => {
       deviceTypeId: configDeviceType.id,
       status: "pending",
     })
+
     const requestedConfig = await callGetUserConfig(headers, pendingConfig.id)
 
     const parsed = ConfigSchema.parse(requestedConfig)
@@ -134,28 +137,11 @@ describe("GET /configs/{id}", () => {
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
+
     const requestedConfig = await callGetUserConfig(headers, disabledProtocolConfig.id)
 
     const parsed = ConfigSchema.parse(requestedConfig)
     expect(parsed.id).toBe(disabledProtocolConfig.id)
-  })
-
-  it("returns a config whose server has status deleted", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
-      server: { status: "deleted" },
-    })
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const deletedServerConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
-      status: "active",
-    })
-    const requestedConfig = await callGetUserConfig(headers, deletedServerConfig.id)
-
-    const parsed = ConfigSchema.parse(requestedConfig)
-    expect(parsed.id).toBe(deletedServerConfig.id)
   })
 
   it("rejects a pending config older than the reservation window with NOT_FOUND", async () => {
@@ -250,6 +236,7 @@ describe("GET /configs/{id}", () => {
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
+
     const requestedConfig = await callGetUserConfig(headers, adminConfig.id)
 
     const parsed = ConfigSchema.parse(requestedConfig)
@@ -265,6 +252,7 @@ describe("GET /configs/{id}", () => {
       vi.mocked(findUserConfig).mockRejectedValueOnce(new Error("Query failure"))
 
       const requestUser = await insertTestUser()
+
       const response = await app.request(`/api/configs/${randomUUID()}`, {
         headers: await insertTestSession(requestUser),
       })

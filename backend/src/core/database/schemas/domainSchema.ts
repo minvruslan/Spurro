@@ -20,8 +20,8 @@ import { user } from "./authSchema"
 
 // Enums
 
-export const serverStatus = pgEnum("server_status", ["provisioning", "active", "failed", "deleted"])
-export const endpointStatus = pgEnum("endpoint_status", ["active", "deleted"])
+export const serverStatus = pgEnum("server_status", ["provisioning", "active", "failed"])
+export const endpointStatus = pgEnum("endpoint_status", ["active"])
 export const configStatus = pgEnum("config_status", ["active", "pending", "deleting", "deleted"])
 
 // Catalog

@@ -3,16 +3,15 @@ import type { ServerDesiredState } from "@spurro/infrastructure/types"
 import { ProvisioningError } from "../ProvisioningError.js"
 import {
   VPN_NODE_BASE_DIRECTORY,
-  VPN_NODE_DNS,
   VPN_NODE_SSH_PORT,
   VPN_NODE_USERNAME,
 } from "../constants/index.js"
 import type { ProvisioningStep } from "./ProvisioningStep.js"
 
 export const resolveServerDesiredState: ProvisioningStep<
-  { desiredState: unknown; ip: string; domainName: string | null },
+  { desiredState: unknown },
   ServerDesiredState
-> = async (serverId, { desiredState, ip, domainName }) => {
+> = async (serverId, { desiredState }) => {
   const parsedDesiredState = ServerDesiredStateSchema.safeParse(desiredState)
   if (parsedDesiredState.success) return parsedDesiredState.data
 
@@ -26,8 +25,6 @@ export const resolveServerDesiredState: ProvisioningStep<
       username: VPN_NODE_USERNAME,
       port: VPN_NODE_SSH_PORT,
     },
-    host: domainName ?? ip,
-    dns: VPN_NODE_DNS,
     baseDirectory: VPN_NODE_BASE_DIRECTORY,
   })
 }

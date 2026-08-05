@@ -1,6 +1,8 @@
 import { call } from "@orpc/server"
 import { UserSchema, type UpsertUser } from "@spurro/api-contract"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { eq } from "drizzle-orm"
+import postgres from "postgres"
 import { describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
 import { userRouter } from "@/api/modules/user/index.js"
@@ -45,6 +47,7 @@ describe("POST /users", () => {
 
   it("stores a mixed-case email lowercased", async () => {
     const mixedCaseEmail = createTestEmail().toUpperCase()
+
     const createdUser = await callCreateUser(
       { name: "Created User", email: mixedCaseEmail },
       await signInTestAdmin(),
@@ -61,7 +64,7 @@ describe("POST /users", () => {
       {
         name: "Created User",
         email: createTestEmail(),
-        limits: [{ protocolFamily: "amneziawg", maxCount: 2 }],
+        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 2 }],
       },
       await signInTestAdmin(),
     )
@@ -91,6 +94,7 @@ describe("POST /users", () => {
 
   it("persists the created user in the database", async () => {
     const email = createTestEmail()
+
     const createdUser = await callCreateUser(
       { name: "Created User", email },
       await signInTestAdmin(),
@@ -119,7 +123,7 @@ describe("POST /users", () => {
       {
         name: "Created User",
         email: createTestEmail(),
-        limits: [{ protocolFamily: "amneziawg", maxCount: 4 }],
+        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 4 }],
       },
       await signInTestAdmin(),
     )
@@ -127,7 +131,7 @@ describe("POST /users", () => {
     const parsed = UserSchema.parse(createdUser)
     expect(parsed.limits).toHaveLength(1)
     for (const limit of parsed.limits) {
-      expect(limit.protocolFamily).toBe("amneziawg")
+      expect(limit.protocolFamily).toBe(ProtocolRegistry.amneziawg2.family)
       expect(limit.maxCount).toBe(4)
       expect(limit.used).toBe(0)
     }
@@ -138,7 +142,7 @@ describe("POST /users", () => {
       {
         name: "Created User",
         email: createTestEmail(),
-        limits: [{ protocolFamily: "amneziawg", maxCount: 4 }],
+        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 4 }],
       },
       await signInTestAdmin(),
     )
@@ -148,7 +152,7 @@ describe("POST /users", () => {
       .from(configLimit)
       .where(eq(configLimit.userId, createdUser.id))
     expect(configLimitRows).toHaveLength(1)
-    expect(configLimitRows[0].protocolFamily).toBe("amneziawg")
+    expect(configLimitRows[0].protocolFamily).toBe(ProtocolRegistry.amneziawg2.family)
     expect(configLimitRows[0].maxCount).toBe(4)
   })
 
@@ -156,6 +160,7 @@ describe("POST /users", () => {
     const bystanderUser = await insertTestUser()
     const bystanderConfigLimit = await insertTestConfigLimit({
       userId: bystanderUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
       maxCount: 6,
     })
 
@@ -163,7 +168,7 @@ describe("POST /users", () => {
       {
         name: "Created User",
         email: createTestEmail(),
-        limits: [{ protocolFamily: "amneziawg", maxCount: 4 }],
+        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 4 }],
       },
       await signInTestAdmin(),
     )
@@ -207,6 +212,7 @@ describe("POST /users", () => {
 
   it("accepts a name of exactly 255 characters", async () => {
     const name = "a".repeat(255)
+
     const createdUser = await callCreateUser(
       { name, email: createTestEmail() },
       await signInTestAdmin(),
@@ -238,6 +244,7 @@ describe("POST /users", () => {
 
   it("rejects an email longer than 255 characters", async () => {
     const email = `${"a".repeat(250)}@test.local`
+
     await expectOrpcError(
       callCreateUser({ name: "Created User", email }, await signInTestAdmin()),
       "BAD_REQUEST",
@@ -246,6 +253,7 @@ describe("POST /users", () => {
 
   it("ignores unknown extra fields in the payload", async () => {
     const email = createTestEmail()
+
     const createdUser = await callCreateUser(
       { name: "Created User", email, unknownField: "ignored" },
       await signInTestAdmin(),
@@ -263,8 +271,8 @@ describe("POST /users", () => {
           name: "Created User",
           email: createTestEmail(),
           limits: [
-            { protocolFamily: "amneziawg", maxCount: 1 },
-            { protocolFamily: "amneziawg", maxCount: 2 },
+            { protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 1 },
+            { protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 2 },
           ],
         },
         await signInTestAdmin(),
@@ -279,7 +287,7 @@ describe("POST /users", () => {
         {
           name: "Created User",
           email: createTestEmail(),
-          limits: [{ protocolFamily: "amneziawg", maxCount: -1 }],
+          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: -1 }],
         },
         await signInTestAdmin(),
       ),
@@ -292,7 +300,7 @@ describe("POST /users", () => {
       {
         name: "Created User",
         email: createTestEmail(),
-        limits: [{ protocolFamily: "amneziawg", maxCount: 0 }],
+        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 0 }],
       },
       await signInTestAdmin(),
     )
@@ -309,7 +317,7 @@ describe("POST /users", () => {
         {
           name: "Created User",
           email: createTestEmail(),
-          limits: [{ protocolFamily: "amneziawg", maxCount: 1.5 }],
+          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 1.5 }],
         },
         await signInTestAdmin(),
       ),
@@ -404,7 +412,11 @@ describe("POST /users", () => {
 
     await expectOrpcError(
       callCreateUser(
-        { name: "", email, limits: [{ protocolFamily: "amneziawg", maxCount: 5 }] },
+        {
+          name: "",
+          email,
+          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 5 }],
+        },
         await signInTestAdmin(),
       ),
       "BAD_REQUEST",
@@ -434,6 +446,60 @@ describe("POST /users", () => {
   describe("technical", () => {
     it("responds with HTTP 500 when the user insert throws", async () => {
       vi.mocked(insertUser).mockRejectedValueOnce(new Error("Insert failure"))
+      const headers = await signInTestAdmin()
+      headers.set("content-type", "application/json")
+
+      const response = await app.request("/api/users", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ name: "Created User", email: createTestEmail() }),
+      })
+      expect(response.status).toBe(500)
+    })
+
+    it("responds with HTTP 500 when the user insert throws a duplicate email violation that is not a PostgresError", async () => {
+      vi.mocked(insertUser).mockRejectedValueOnce(
+        Object.assign(new Error("Duplicate email"), {
+          code: "23505",
+          constraint_name: "user_email_unique",
+        }),
+      )
+      const headers = await signInTestAdmin()
+      headers.set("content-type", "application/json")
+
+      const response = await app.request("/api/users", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ name: "Created User", email: createTestEmail() }),
+      })
+      expect(response.status).toBe(500)
+    })
+
+    it("responds with HTTP 500 when the user insert throws a PostgresError that is not a unique violation", async () => {
+      vi.mocked(insertUser).mockRejectedValueOnce(
+        Object.assign(new postgres.PostgresError("Foreign key violation"), {
+          code: "23503",
+          constraint_name: "user_email_unique",
+        }),
+      )
+      const headers = await signInTestAdmin()
+      headers.set("content-type", "application/json")
+
+      const response = await app.request("/api/users", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ name: "Created User", email: createTestEmail() }),
+      })
+      expect(response.status).toBe(500)
+    })
+
+    it("responds with HTTP 500 when the user insert throws a unique violation on another constraint", async () => {
+      vi.mocked(insertUser).mockRejectedValueOnce(
+        Object.assign(new postgres.PostgresError("Unique violation"), {
+          code: "23505",
+          constraint_name: "user_name_unique",
+        }),
+      )
       const headers = await signInTestAdmin()
       headers.set("content-type", "application/json")
 

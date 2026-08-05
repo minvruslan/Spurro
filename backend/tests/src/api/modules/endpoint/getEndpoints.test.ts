@@ -33,6 +33,7 @@ describe("GET /endpoints", () => {
       serverId: endpointServer.id,
       protocolId: endpointProtocol.id,
     })
+
     const endpoints = await callGetEndpoints(await signInTestUser())
 
     const parsed = z.array(EndpointSchema).parse(endpoints)
@@ -49,6 +50,7 @@ describe("GET /endpoints", () => {
     const endpointProtocol = await insertTestProtocol()
     const endpointServer = await insertTestServer()
     await insertTestEndpoint({ serverId: endpointServer.id, protocolId: endpointProtocol.id })
+
     const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints).toHaveLength(1)
@@ -66,6 +68,7 @@ describe("GET /endpoints", () => {
     const endpointProtocol = await insertTestProtocol()
     const endpointServer = await insertTestServer()
     await insertTestEndpoint({ serverId: endpointServer.id, protocolId: endpointProtocol.id })
+
     const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints).toHaveLength(1)
@@ -75,60 +78,6 @@ describe("GET /endpoints", () => {
   })
 
   it.todo("returns one entry per active endpoint when a server hosts several protocols")
-
-  it("returns only the active endpoint when a deleted endpoint shares its server and protocol", async () => {
-    const endpointProtocol = await insertTestProtocol()
-    const endpointServer = await insertTestServer()
-    await insertTestEndpoint({
-      serverId: endpointServer.id,
-      protocolId: endpointProtocol.id,
-      port: 51820,
-      status: "deleted",
-    })
-    const activeEndpoint = await insertTestEndpoint({
-      serverId: endpointServer.id,
-      protocolId: endpointProtocol.id,
-      port: 51821,
-    })
-    const endpoints = await callGetEndpoints(await signInTestUser())
-
-    expect(endpoints.map((entry) => entry.id)).toEqual([activeEndpoint.id])
-  })
-
-  it("omits endpoints with status deleted", async () => {
-    const endpointProtocol = await insertTestProtocol()
-    const controlServer = await insertTestServer()
-    const controlEndpoint = await insertTestEndpoint({
-      serverId: controlServer.id,
-      protocolId: endpointProtocol.id,
-    })
-    const endpointServer = await insertTestServer()
-    await insertTestEndpoint({
-      serverId: endpointServer.id,
-      protocolId: endpointProtocol.id,
-      status: "deleted",
-    })
-    const endpoints = await callGetEndpoints(await signInTestUser())
-
-    expect(endpoints.map((entry) => entry.id)).toEqual([controlEndpoint.id])
-  })
-
-  it("omits endpoints of servers with status deleted", async () => {
-    const endpointProtocol = await insertTestProtocol()
-    const controlServer = await insertTestServer()
-    const controlEndpoint = await insertTestEndpoint({
-      serverId: controlServer.id,
-      protocolId: endpointProtocol.id,
-    })
-    const deletedServer = await insertTestServer({ status: "deleted" })
-    await insertTestEndpoint({
-      serverId: deletedServer.id,
-      protocolId: endpointProtocol.id,
-    })
-    const endpoints = await callGetEndpoints(await signInTestUser())
-
-    expect(endpoints.map((entry) => entry.id)).toEqual([controlEndpoint.id])
-  })
 
   it("omits endpoints of servers with status provisioning", async () => {
     const endpointProtocol = await insertTestProtocol()
@@ -142,6 +91,7 @@ describe("GET /endpoints", () => {
       serverId: provisioningServer.id,
       protocolId: endpointProtocol.id,
     })
+
     const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.id)).toEqual([controlEndpoint.id])
@@ -159,6 +109,7 @@ describe("GET /endpoints", () => {
       serverId: failedServer.id,
       protocolId: endpointProtocol.id,
     })
+
     const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.id)).toEqual([controlEndpoint.id])
@@ -171,6 +122,7 @@ describe("GET /endpoints", () => {
       serverId: endpointServer.id,
       protocolId: disabledProtocol.id,
     })
+
     const endpoints = await callGetEndpoints(await signInTestUser())
 
     const parsed = z.array(EndpointSchema).parse(endpoints)
@@ -194,6 +146,7 @@ describe("GET /endpoints", () => {
     await insertTestEndpoint({ serverId: bravoServer.id, protocolId: endpointProtocol.id })
     await insertTestEndpoint({ serverId: charlieServer.id, protocolId: endpointProtocol.id })
     await insertTestEndpoint({ serverId: alphaServer.id, protocolId: endpointProtocol.id })
+
     const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.server.name)).toEqual([
@@ -218,31 +171,13 @@ describe("GET /endpoints", () => {
       protocolId: endpointProtocol.id,
       port: 51820,
     })
+
     const endpoints = await callGetEndpoints(await signInTestUser())
 
     expect(endpoints.map((entry) => entry.id)).toEqual([
       lowerPortEndpoint.id,
       higherPortEndpoint.id,
     ])
-  })
-
-  it("returns an empty array when every endpoint is deleted", async () => {
-    const endpointProtocol = await insertTestProtocol()
-    const firstServer = await insertTestServer()
-    const secondServer = await insertTestServer()
-    await insertTestEndpoint({
-      serverId: firstServer.id,
-      protocolId: endpointProtocol.id,
-      status: "deleted",
-    })
-    await insertTestEndpoint({
-      serverId: secondServer.id,
-      protocolId: endpointProtocol.id,
-      status: "deleted",
-    })
-    const endpoints = await callGetEndpoints(await signInTestUser())
-
-    expect(endpoints).toEqual([])
   })
 
   it("returns an empty array when no endpoints exist", async () => {
@@ -258,6 +193,7 @@ describe("GET /endpoints", () => {
       serverId: endpointServer.id,
       protocolId: endpointProtocol.id,
     })
+
     const endpoints = await callGetEndpoints(await signInTestAdmin())
 
     expect(endpoints.map((entry) => entry.id)).toEqual([activeEndpoint.id])

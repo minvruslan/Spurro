@@ -17,8 +17,6 @@ export async function insertTestServer(
         facts: { sshHostKeys: ["ssh-ed25519 AAAATestServerHostKey"] },
         actualState: {
           ssh: { type: "privateKey", username: "spurro", port: 22 },
-          host: "192.0.2.1",
-          dns: "1.1.1.1",
           baseDirectory: "/opt/spurro",
           appliedAt: "2026-01-01T00:00:00.000Z",
         },

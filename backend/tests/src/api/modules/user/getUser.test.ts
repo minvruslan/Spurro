@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { UserSchema } from "@spurro/api-contract"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
 import { userRouter } from "@/api/modules/user/index.js"
@@ -48,6 +49,7 @@ describe("GET /users/{id}", () => {
 
   it("returns the requested user matching the contract schema", async () => {
     const requestedUser = await insertTestUser()
+
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     const parsed = UserSchema.parse(foundUser)
@@ -58,7 +60,12 @@ describe("GET /users/{id}", () => {
 
   it("returns every contract field at every nesting level", async () => {
     const requestedUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: requestedUser.id })
+    await insertTestConfigLimit({
+      userId: requestedUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 3,
+    })
+
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(Object.keys(foundUser).sort()).toEqual([
@@ -87,7 +94,11 @@ describe("GET /users/{id}", () => {
   it("returns the user's limits with used counting their slot-reserving configs of the matching protocol family", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestedUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: requestedUser.id, maxCount: 5 })
+    await insertTestConfigLimit({
+      userId: requestedUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 5,
+    })
     for (const status of ["active", "pending", "deleting", "deleted"] as const) {
       await insertTestConfig({
         userId: requestedUser.id,
@@ -96,11 +107,12 @@ describe("GET /users/{id}", () => {
         status,
       })
     }
+
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
     for (const limit of foundUser.limits) {
-      expect(limit.protocolFamily).toBe("amneziawg")
+      expect(limit.protocolFamily).toBe(ProtocolRegistry.amneziawg2.family)
       expect(limit.maxCount).toBe(5)
       expect(limit.used).toBe(2)
     }
@@ -109,7 +121,11 @@ describe("GET /users/{id}", () => {
   it("excludes a pending config older than the reservation window from used", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestedUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: requestedUser.id, maxCount: 5 })
+    await insertTestConfigLimit({
+      userId: requestedUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 5,
+    })
     await insertTestConfig({
       userId: requestedUser.id,
       endpointId: configEndpoint.id,
@@ -117,6 +133,7 @@ describe("GET /users/{id}", () => {
       status: "pending",
       createdAt: new Date(Date.now() - 7 * 60 * 1000),
     })
+
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
@@ -127,6 +144,7 @@ describe("GET /users/{id}", () => {
 
   it("returns an empty limits array when the user has no config limits", async () => {
     const requestedUser = await insertTestUser()
+
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toEqual([])
@@ -134,6 +152,7 @@ describe("GET /users/{id}", () => {
 
   it("returns a banned user with banned and banReason populated", async () => {
     const bannedUser = await insertTestUser({ banned: true, banReason: "Violation of terms" })
+
     const foundUser = await callGetUser(bannedUser.id, await signInTestAdmin())
 
     const parsed = UserSchema.parse(foundUser)
@@ -150,17 +169,22 @@ describe("GET /users/{id}", () => {
   it("returns a limit with used exceeding maxCount as-is parsing against the contract schema", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestedUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: requestedUser.id, maxCount: 1 })
-    await insertTestConfig({
+    await insertTestConfigLimit({
       userId: requestedUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 1,
     })
     await insertTestConfig({
       userId: requestedUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+    await insertTestConfig({
+      userId: requestedUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     const parsed = UserSchema.parse(foundUser)
@@ -174,12 +198,17 @@ describe("GET /users/{id}", () => {
   it("returns a limit with maxCount 0 and a positive used count", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const requestedUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: requestedUser.id, maxCount: 0 })
+    await insertTestConfigLimit({
+      userId: requestedUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 0,
+    })
     await insertTestConfig({
       userId: requestedUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
@@ -197,6 +226,7 @@ describe("GET /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toEqual([])
@@ -211,37 +241,23 @@ describe("GET /users/{id}", () => {
     })
     const [configDeviceType] = await db.select().from(deviceType).limit(1)
     const requestedUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: requestedUser.id, maxCount: 2 })
+    await insertTestConfigLimit({
+      userId: requestedUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 2,
+    })
     await insertTestConfig({
       userId: requestedUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
 
     expect(foundUser.limits).toHaveLength(1)
     for (const limit of foundUser.limits) {
-      expect(limit.protocolFamily).toBe("amneziawg")
+      expect(limit.protocolFamily).toBe(ProtocolRegistry.amneziawg2.family)
       expect(limit.maxCount).toBe(2)
-      expect(limit.used).toBe(1)
-    }
-  })
-
-  it("counts non-deleted configs in used even when their server has status deleted", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
-      status: "deleted",
-    })
-    const requestedUser = await insertTestUser()
-    await insertTestConfigLimit({ userId: requestedUser.id, maxCount: 5 })
-    await insertTestConfig({
-      userId: requestedUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
-    })
-    const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
-
-    expect(foundUser.limits).toHaveLength(1)
-    for (const limit of foundUser.limits) {
       expect(limit.used).toBe(1)
     }
   })

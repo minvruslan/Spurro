@@ -1,16 +1,13 @@
 import { sql } from "drizzle-orm"
 import { describe, expect, it } from "vitest"
 import { db } from "@/core/database/index.js"
-import {
-  insertTestEndpoint,
-  insertTestProtocol,
-  insertTestServer,
-} from "@tests/helpers/index.js"
+import { insertTestEndpoint, insertTestProtocol, insertTestServer } from "@tests/helpers/index.js"
 
 describe("encryptedJsonb", () => {
   it("stores the endpoint data column encrypted at rest", async () => {
     const endpointServer = await insertTestServer()
     const endpointProtocol = await insertTestProtocol()
+
     const insertedEndpoint = await insertTestEndpoint({
       serverId: endpointServer.id,
       protocolId: endpointProtocol.id,

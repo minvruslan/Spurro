@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { call, ORPCError } from "@orpc/server"
 import { ConfigSchema, type UpsertConfig } from "@spurro/api-contract"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { RemoteServer } from "@spurro/infrastructure"
 import { type EndpointData, type ServerData } from "@spurro/infrastructure/types"
 import { eq, sql } from "drizzle-orm"
@@ -58,8 +59,6 @@ const validServerData: ServerData = {
   facts: { sshHostKeys: [serverSshHostKey] },
   actualState: {
     ssh: { type: "privateKey", username: "spurro", port: 22 },
-    host: "192.0.2.1",
-    dns: "1.1.1.1",
     baseDirectory: "/opt/spurro",
     appliedAt,
   },
@@ -138,18 +137,17 @@ describe("POST /configs", () => {
       server: {
         ip: "203.0.113.9",
         domainName: "live.example.com",
-        data: {
-          ...validServerData,
-          actualState: { ...validServerData.actualState, host: appliedHost },
-        },
+      },
+      endpoint: {
+        data: { actualState: { ...FakeAmneziawg2EndpointActualState, host: appliedHost } },
       },
     })
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     fakeAmneziawg2Client.createAccess.mockImplementation(
-      async (serverActualState, endpointActualState, clientIdentifier) => ({
+      async (endpointActualState, clientIdentifier) => ({
         configData: { ...fakeNodeConfigData, ip: clientIdentifier },
-        clientConfiguration: `Endpoint = ${serverActualState.host}:${endpointActualState.port}`,
+        clientConfiguration: `Endpoint = ${endpointActualState.host}:${endpointActualState.port}`,
       }),
     )
 
@@ -161,6 +159,7 @@ describe("POST /configs", () => {
       .update(server)
       .set({ domainName: "changed.example.com" })
       .where(eq(server.id, configServer.id))
+
     const recreatedConfig = await callCreateUserConfig(
       {
         name: "Recreated Config",
@@ -305,20 +304,17 @@ describe("POST /configs", () => {
   })
 
   it("adds the peer to the node for the target endpoint", async () => {
-    const targetServerIp = "198.51.100.7"
-    const targetServerDomainName = "target-endpoint.example.test"
+    const targetEndpointHost = "target-endpoint.example.test"
     const targetEndpointPort = 51999
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
-      server: {
-        ip: targetServerIp,
-        domainName: targetServerDomainName,
-        data: {
-          ...validServerData,
-          actualState: { ...validServerData.actualState, host: targetServerDomainName },
-        },
-      },
       endpoint: {
-        data: { actualState: { ...FakeAmneziawg2EndpointActualState, port: targetEndpointPort } },
+        data: {
+          actualState: {
+            ...FakeAmneziawg2EndpointActualState,
+            host: targetEndpointHost,
+            port: targetEndpointPort,
+          },
+        },
       },
     })
     const requestUser = await insertTestUser()
@@ -331,46 +327,13 @@ describe("POST /configs", () => {
 
     expect(getProtocolClientSpy).toHaveBeenCalledWith("amneziawg2")
     expect(fakeAmneziawg2Client.createAccess).toHaveBeenCalledWith(
-      expect.objectContaining({ host: targetServerDomainName }),
-      expect.objectContaining({ port: targetEndpointPort }),
+      expect.objectContaining({ host: targetEndpointHost, port: targetEndpointPort }),
       allocatedClientIp,
     )
   })
 
   describe("amneziawg2", () => {
-    it("reserves the client identifiers of the existing configs on the same server", async () => {
-      const { configServer, configEndpoint, configDeviceType } = await insertConfigInfrastructure()
-      const otherEndpoint = await insertTestEndpoint({
-        serverId: configServer.id,
-        protocolId: configEndpoint.protocolId,
-        port: configEndpoint.port + 1,
-        status: "deleted",
-      })
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-      const existingClientIdentifier = "10.8.0.77"
-      await insertTestConfig({
-        userId: requestUser.id,
-        endpointId: otherEndpoint.id,
-        deviceTypeId: configDeviceType.id,
-        status: "active",
-        clientIdentifier: existingClientIdentifier,
-      })
-
-      await callCreateUserConfig(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
-      )
-
-      expect(fakeAmneziawg2Client.allocateClientIdentifier.mock.calls).toHaveLength(1)
-      expect(fakeAmneziawg2Client.allocateClientIdentifier.mock.calls[0][1]).toContain(
-        existingClientIdentifier,
-      )
-    })
+    it.todo("reserves the client identifiers of configs on the server's other endpoints")
 
     it("reuses the client identifier of a deleted config", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
@@ -438,6 +401,7 @@ describe("POST /configs", () => {
         { name: "First Device", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
         headers,
       )
+
       await callCreateUserConfig(
         { name: "Second Device", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
         headers,
@@ -588,26 +552,6 @@ describe("POST /configs", () => {
     )
   })
 
-  it("rejects an endpoint with status deleted with ENDPOINT_INVALID", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
-      endpoint: { status: "deleted" },
-    })
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-
-    await expectOrpcError(
-      callCreateUserConfig(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
-      ),
-      "ENDPOINT_INVALID",
-    )
-  })
-
   it("rejects an endpoint whose server is not active with ENDPOINT_INVALID", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
       server: { status: "provisioning" },
@@ -688,7 +632,11 @@ describe("POST /configs", () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 2 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 2,
+      })
       await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,
@@ -719,7 +667,11 @@ describe("POST /configs", () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 2 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 2,
+      })
       await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,
@@ -744,7 +696,11 @@ describe("POST /configs", () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 0 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 0,
+      })
 
       await expectOrpcError(
         callCreateUserConfig(
@@ -774,7 +730,11 @@ describe("POST /configs", () => {
       const [configDeviceType] = await db.select().from(deviceType).limit(1)
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 1,
+      })
       const originalInsertUserConfig = vi.mocked(insertUserConfig).getMockImplementation()!
       vi.mocked(insertUserConfig).mockImplementationOnce(async (executor, values) => {
         await new Promise((resolve) => setTimeout(resolve, 500))
@@ -812,7 +772,11 @@ describe("POST /configs", () => {
       const { configServer, configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 1,
+      })
 
       let releaseReservation!: () => void
       let markReservationHeld!: () => void
@@ -850,6 +814,7 @@ describe("POST /configs", () => {
       await waitForDatabaseLockWaiter(createUserConfigResult)
       releaseReservation()
       await reservationTransaction
+
       await expectOrpcError(createUserConfigResult, "LIMIT_REACHED")
 
       const configRows = await db.select().from(config).where(eq(config.userId, requestUser.id))
@@ -890,7 +855,11 @@ describe("POST /configs", () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 1,
+      })
       const stalePendingConfig = await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,
@@ -919,7 +888,11 @@ describe("POST /configs", () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 1,
+      })
       await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,
@@ -944,7 +917,11 @@ describe("POST /configs", () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 1,
+      })
       await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,
@@ -970,7 +947,11 @@ describe("POST /configs", () => {
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
       const otherUser = await insertTestUser()
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 1,
+      })
       await insertTestConfig({
         userId: otherUser.id,
         endpointId: configEndpoint.id,
@@ -996,7 +977,11 @@ describe("POST /configs", () => {
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
       const otherUser = await insertTestUser()
-      await insertTestConfigLimit({ userId: otherUser.id, maxCount: 0 })
+      await insertTestConfigLimit({
+        userId: otherUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 0,
+      })
 
       const createdConfig = await callCreateUserConfig(
         {
@@ -1015,7 +1000,11 @@ describe("POST /configs", () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 1 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 1,
+      })
       const existingConfig = await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,
@@ -1159,25 +1148,9 @@ describe("POST /configs", () => {
       facts: { sshHostKeys: [] },
     }
 
-    const serverDataWithoutDns: ServerData = {
-      facts: { sshHostKeys: [serverSshHostKey] },
-      actualState: {
-        ssh: { type: "privateKey", username: "spurro", port: 22 },
-        host: "192.0.2.1",
-        baseDirectory: "/opt/spurro",
-        appliedAt,
-      },
-    }
+    const endpointActualStateWithoutHost = { ...FakeAmneziawg2EndpointActualState, host: undefined }
 
-    const serverDataWithoutHost: ServerData = {
-      facts: { sshHostKeys: [serverSshHostKey] },
-      actualState: {
-        ssh: { type: "privateKey", username: "spurro", port: 22 },
-        dns: "1.1.1.1",
-        baseDirectory: "/opt/spurro",
-        appliedAt,
-      },
-    }
+    const endpointActualStateWithoutDns = { ...FakeAmneziawg2EndpointActualState, dns: undefined }
 
     const unparsableEndpointData = "not-endpoint-data" as unknown as EndpointData
 
@@ -1221,9 +1194,9 @@ describe("POST /configs", () => {
       )
     })
 
-    it("returns FAILED when the server actual state has no dns", async () => {
+    it("returns FAILED when the endpoint actual state has no dns", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
-        server: { data: serverDataWithoutDns },
+        endpoint: { data: { actualState: endpointActualStateWithoutDns } },
       })
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
@@ -1241,9 +1214,9 @@ describe("POST /configs", () => {
       )
     })
 
-    it("returns FAILED when the server actual state has no host", async () => {
+    it("returns FAILED when the endpoint actual state has no host", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
-        server: { data: serverDataWithoutHost },
+        endpoint: { data: { actualState: endpointActualStateWithoutHost } },
       })
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
@@ -1435,7 +1408,11 @@ describe("POST /configs", () => {
       const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfigLimit({ userId: requestUser.id, maxCount: 0 })
+      await insertTestConfigLimit({
+        userId: requestUser.id,
+        protocolFamily: ProtocolRegistry.amneziawg2.family,
+        maxCount: 0,
+      })
 
       const response = await requestCreateUserConfig(
         {

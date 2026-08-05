@@ -58,6 +58,7 @@ describe("GET /configs", () => {
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
+
     const configs = await callGetUserConfigs(headers)
 
     const parsed = z.array(ConfigSchema).parse(configs)
@@ -86,6 +87,7 @@ describe("GET /configs", () => {
         presharedKey: "test-preshared-key",
       },
     })
+
     const configs = await callGetUserConfigs(headers)
 
     z.array(ConfigSchema).parse(configs)
@@ -133,6 +135,7 @@ describe("GET /configs", () => {
       endpointId: secondEndpoint.id,
       deviceTypeId: configDeviceType.id,
     })
+
     const configs = await callGetUserConfigs(headers)
 
     const serverNamesByConfigId = new Map(
@@ -145,6 +148,7 @@ describe("GET /configs", () => {
   it("returns an empty array when the user has no configs", async () => {
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
+
     const configs = await callGetUserConfigs(headers)
 
     expect(configs).toEqual([])
@@ -160,6 +164,7 @@ describe("GET /configs", () => {
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
+
     const configs = await callGetUserConfigs(headers)
 
     const parsed = z.array(ConfigSchema).parse(configs)
@@ -176,6 +181,7 @@ describe("GET /configs", () => {
       deviceTypeId: configDeviceType.id,
       status: "pending",
     })
+
     const configs = await callGetUserConfigs(headers)
 
     const parsed = z.array(ConfigSchema).parse(configs)
@@ -197,6 +203,7 @@ describe("GET /configs", () => {
       .update(config)
       .set({ createdAt: new Date(Date.now() - 7 * 60 * 1000) })
       .where(eq(config.id, stalePendingConfig.id))
+
     const configs = await callGetUserConfigs(headers)
 
     expect(configs).toEqual([])
@@ -212,6 +219,7 @@ describe("GET /configs", () => {
       deviceTypeId: configDeviceType.id,
       status: "deleting",
     })
+
     const configs = await callGetUserConfigs(headers)
 
     expect(configs).toEqual([])
@@ -227,6 +235,7 @@ describe("GET /configs", () => {
       deviceTypeId: configDeviceType.id,
       status: "deleted",
     })
+
     const configs = await callGetUserConfigs(headers)
 
     expect(configs).toEqual([])
@@ -249,6 +258,7 @@ describe("GET /configs", () => {
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
+
     const configs = await callGetUserConfigs(headers)
 
     const parsed = z.array(ConfigSchema).parse(configs)
@@ -267,28 +277,11 @@ describe("GET /configs", () => {
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
+
     const configs = await callGetUserConfigs(headers)
 
     const parsed = z.array(ConfigSchema).parse(configs)
     expect(parsed.map((entry) => entry.id)).toEqual([disabledProtocolConfig.id])
-  })
-
-  it("lists a config whose server has status deleted", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure({
-      server: { status: "deleted" },
-    })
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const deletedServerConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
-      status: "active",
-    })
-    const configs = await callGetUserConfigs(headers)
-
-    const parsed = z.array(ConfigSchema).parse(configs)
-    expect(parsed.map((entry) => entry.id)).toEqual([deletedServerConfig.id])
   })
 
   it("returns configs ordered by creation date descending", async () => {
@@ -316,6 +309,7 @@ describe("GET /configs", () => {
       status: "active",
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
     })
+
     const configs = await callGetUserConfigs(headers)
 
     const parsed = z.array(ConfigSchema).parse(configs)
@@ -336,6 +330,7 @@ describe("GET /configs", () => {
       deviceTypeId: configDeviceType.id,
       status: "active",
     })
+
     const configs = await callGetUserConfigs(headers)
 
     const parsed = z.array(ConfigSchema).parse(configs)
@@ -351,6 +346,7 @@ describe("GET /configs", () => {
       vi.mocked(findUserConfigs).mockRejectedValueOnce(new Error("Query failure"))
 
       const requestUser = await insertTestUser()
+
       const response = await app.request("/api/configs", {
         headers: await insertTestSession(requestUser),
       })

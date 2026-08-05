@@ -112,6 +112,7 @@ describe("POST /servers", () => {
 
   it("returns every contract field at every nesting level", async () => {
     const serverProtocol = await insertTestProtocol()
+
     const createdServer = await callCreateServer(
       createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 51820 }] }),
       await signInTestAdmin(),
@@ -149,6 +150,7 @@ describe("POST /servers", () => {
       amneziawg2: "amneziawg",
     }
     const serverProtocol = await insertTestProtocol()
+
     const createdServer = await callCreateServer(
       createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 51820 }] }),
       await signInTestAdmin(),
@@ -166,6 +168,7 @@ describe("POST /servers", () => {
   it("does not expose credentials anywhere in the response", async () => {
     const username = `user-${randomUUID()}`
     const password = `password-${randomUUID()}`
+
     const createdServer = await callCreateServer(
       createServerInput({ credentials: { username, password } }),
       await signInTestAdmin(),
@@ -190,6 +193,7 @@ describe("POST /servers", () => {
   it("persists the ssh credentials into the server data column", async () => {
     const username = `user-${randomUUID()}`
     const password = `password-${randomUUID()}`
+
     const createdServer = await callCreateServer(
       createServerInput({ credentials: { username, password } }),
       await signInTestAdmin(),
@@ -209,6 +213,7 @@ describe("POST /servers", () => {
   it("stores the ip and data columns encrypted at rest", async () => {
     const ip = "198.51.100.7"
     const password = `password-${randomUUID()}`
+
     const createdServer = await callCreateServer(
       createServerInput({ ip, credentials: { username: "spurro", password } }),
       await signInTestAdmin(),
@@ -227,6 +232,7 @@ describe("POST /servers", () => {
 
   it("persists an endpoint row for each provided endpoint with its port", async () => {
     const serverProtocol = await insertTestProtocol()
+
     const createdServer = await callCreateServer(
       createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 51821 }] }),
       await signInTestAdmin(),
@@ -243,6 +249,7 @@ describe("POST /servers", () => {
 
   it("uses the protocol registry default port when the endpoint port is omitted", async () => {
     const serverProtocol = await insertTestProtocol()
+
     const createdServer = await callCreateServer(
       createServerInput({ endpoints: [{ protocolId: serverProtocol.id }] }),
       await signInTestAdmin(),
@@ -269,6 +276,7 @@ describe("POST /servers", () => {
 
   it("persists a provided domainName and returns it", async () => {
     const domainName = `node-${randomUUID()}.spurro.test`
+
     const createdServer = await callCreateServer(
       createServerInput({ domainName }),
       await signInTestAdmin(),
@@ -471,6 +479,7 @@ describe("POST /servers", () => {
 
   it("accepts a name of exactly 255 characters", async () => {
     const name = "n".repeat(255)
+
     const createdServer = await callCreateServer(
       createServerInput({ name }),
       await signInTestAdmin(),
@@ -589,6 +598,7 @@ describe("POST /servers", () => {
 
   it("accepts an endpoint with a port of exactly 65535", async () => {
     const serverProtocol = await insertTestProtocol()
+
     const createdServer = await callCreateServer(
       createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 65535 }] }),
       await signInTestAdmin(),

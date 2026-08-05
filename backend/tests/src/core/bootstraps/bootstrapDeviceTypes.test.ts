@@ -46,10 +46,7 @@ describe("bootstrapDeviceTypes", () => {
 
   it("leaves a row whose name diverges from the catalog unchanged", async () => {
     await bootstrapDeviceTypes()
-    const [seededDeviceType] = await db
-      .select()
-      .from(deviceType)
-      .where(eq(deviceType.code, "ios"))
+    const [seededDeviceType] = await db.select().from(deviceType).where(eq(deviceType.code, "ios"))
     await db
       .update(deviceType)
       .set({ name: "Android" })

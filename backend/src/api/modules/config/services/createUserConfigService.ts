@@ -41,7 +41,7 @@ export async function createUserConfigService(
     }
   }
 
-  const { client, serverActualState, endpointActualState } = resolved.data
+  const { client, endpointActualState } = resolved.data
 
   const reserved = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
@@ -82,7 +82,7 @@ export async function createUserConfigService(
 
   let created
   try {
-    created = await client.createAccess(serverActualState, endpointActualState, clientIdentifier)
+    created = await client.createAccess(endpointActualState, clientIdentifier)
 
     const [activated] = await activateConfig(db, configId, created.configData)
     if (!activated) {

@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { ServerDataSchema } from "@spurro/infrastructure/types"
 import { db } from "@/core/database/index.js"
 import { server } from "@/core/database/schemas/domainSchema.js"
@@ -12,7 +12,7 @@ export async function findServer(serverId: string) {
       data: server.data,
     })
     .from(server)
-    .where(and(eq(server.id, serverId), ne(server.status, "deleted")))
+    .where(eq(server.id, serverId))
     .limit(1)
 
   if (!row) return undefined
