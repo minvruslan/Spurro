@@ -1,12 +1,18 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
-import { EndpointSchema, type Protocol } from "@spurro/api-contract"
+import {
+  EndpointSchema,
+  EndpointServerSchema,
+  ProtocolSchema,
+  ServerStatusSchema,
+  type Protocol,
+} from "@spurro/api-contract"
+import { ProtocolCodeSchema, ProtocolRegistry } from "@spurro/infrastructure/types"
 import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
 import { endpointRouter } from "@/api/modules/endpoint/index.js"
 import { findActiveEndpoints } from "@/api/modules/endpoint/queries/findActiveEndpoints.js"
-import { expectOrpcError } from "@tests/assertions/index.js"
 import {
   insertTestEndpoint,
   insertTestProtocol,
@@ -27,6 +33,9 @@ function callGetEndpoints(headers: Headers) {
 
 describe("GET /endpoints", () => {
   it("returns active endpoints of active servers matching the contract schema", async () => {
+    const expectedFamiliesByCode: Record<Protocol["code"], Protocol["family"]> = {
+      [ProtocolCodeSchema.enum.amneziawg2]: ProtocolRegistry.amneziawg2.family,
+    }
     const endpointProtocol = await insertTestProtocol()
     const endpointServer = await insertTestServer()
     const activeEndpoint = await insertTestEndpoint({
@@ -41,38 +50,19 @@ describe("GET /endpoints", () => {
     expect(parsed[0].id).toBe(activeEndpoint.id)
     expect(parsed[0].port).toBe(activeEndpoint.port)
     expect(parsed[0].protocol.id).toBe(endpointProtocol.id)
+    expect(parsed[0].protocol.code).toBe(endpointProtocol.code)
+    expect(parsed[0].protocol.name).toBe(endpointProtocol.name)
     expect(parsed[0].server.id).toBe(endpointServer.id)
     expect(parsed[0].server.name).toBe(endpointServer.name)
     expect(parsed[0].server.country).toBe(endpointServer.country)
-  })
-
-  it("returns every contract field at every nesting level", async () => {
-    const endpointProtocol = await insertTestProtocol()
-    const endpointServer = await insertTestServer()
-    await insertTestEndpoint({ serverId: endpointServer.id, protocolId: endpointProtocol.id })
-
-    const endpoints = await callGetEndpoints(await signInTestUser())
-
-    expect(endpoints).toHaveLength(1)
     for (const entry of endpoints) {
-      expect(Object.keys(entry).sort()).toEqual(["id", "port", "protocol", "server"])
-      expect(Object.keys(entry.protocol).sort()).toEqual(["code", "family", "id", "name"])
-      expect(Object.keys(entry.server).sort()).toEqual(["country", "id", "name"])
+      expect(Object.keys(entry).sort()).toEqual([...EndpointSchema.keyof().options].sort())
+      expect(Object.keys(entry.protocol).sort()).toEqual([...ProtocolSchema.keyof().options].sort())
+      expect(Object.keys(entry.server).sort()).toEqual(
+        [...EndpointServerSchema.keyof().options].sort(),
+      )
     }
-  })
-
-  it("returns each endpoint protocol with the family matching its code", async () => {
-    const expectedFamiliesByCode: Record<Protocol["code"], Protocol["family"]> = {
-      amneziawg2: "amneziawg",
-    }
-    const endpointProtocol = await insertTestProtocol()
-    const endpointServer = await insertTestServer()
-    await insertTestEndpoint({ serverId: endpointServer.id, protocolId: endpointProtocol.id })
-
-    const endpoints = await callGetEndpoints(await signInTestUser())
-
-    expect(endpoints).toHaveLength(1)
-    for (const entry of endpoints) {
+    for (const entry of parsed) {
       expect(entry.protocol.family).toBe(expectedFamiliesByCode[entry.protocol.code])
     }
   })
@@ -86,7 +76,9 @@ describe("GET /endpoints", () => {
       serverId: controlServer.id,
       protocolId: endpointProtocol.id,
     })
-    const provisioningServer = await insertTestServer({ status: "provisioning" })
+    const provisioningServer = await insertTestServer({
+      status: ServerStatusSchema.enum.provisioning,
+    })
     await insertTestEndpoint({
       serverId: provisioningServer.id,
       protocolId: endpointProtocol.id,
@@ -104,7 +96,7 @@ describe("GET /endpoints", () => {
       serverId: controlServer.id,
       protocolId: endpointProtocol.id,
     })
-    const failedServer = await insertTestServer({ status: "failed" })
+    const failedServer = await insertTestServer({ status: ServerStatusSchema.enum.failed })
     await insertTestEndpoint({
       serverId: failedServer.id,
       protocolId: endpointProtocol.id,
@@ -126,21 +118,21 @@ describe("GET /endpoints", () => {
     const endpoints = await callGetEndpoints(await signInTestUser())
 
     const parsed = z.array(EndpointSchema).parse(endpoints)
-    expect(parsed.map((entry) => entry.id)).toContain(disabledProtocolEndpoint.id)
+    expect(parsed.map((entry) => entry.id)).toEqual([disabledProtocolEndpoint.id])
   })
 
-  it("returns entries ordered by server name ascending", async () => {
+  it("returns entries ordered by server name ascending case-insensitively", async () => {
     const endpointProtocol = await insertTestProtocol()
     const bravoServer = await insertTestServer({
       name: `Bravo Server ${randomUUID()}`,
       country: "BB",
     })
     const charlieServer = await insertTestServer({
-      name: `Charlie Server ${randomUUID()}`,
+      name: `charlie server ${randomUUID()}`,
       country: "AA",
     })
     const alphaServer = await insertTestServer({
-      name: `Alpha Server ${randomUUID()}`,
+      name: `alpha server ${randomUUID()}`,
       country: "CC",
     })
     await insertTestEndpoint({ serverId: bravoServer.id, protocolId: endpointProtocol.id })
@@ -197,10 +189,6 @@ describe("GET /endpoints", () => {
     const endpoints = await callGetEndpoints(await signInTestAdmin())
 
     expect(endpoints.map((entry) => entry.id)).toEqual([activeEndpoint.id])
-  })
-
-  it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expectOrpcError(callGetEndpoints(new Headers()), "UNAUTHORIZED")
   })
 
   describe("technical", () => {

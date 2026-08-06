@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
-import { ConfigSchema, DeleteUserConfigOutputSchema, type UpsertConfig } from "@spurro/api-contract"
+import { ConfigSchema, type UpsertConfig } from "@spurro/api-contract"
 import { ProtocolCodeSchema, ProtocolRegistry } from "@spurro/infrastructure/types"
 import { RemoteServer } from "@spurro/infrastructure"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
+import { z } from "zod"
 import app from "@/api/app.js"
 import { PENDING_CONFIG_RESERVATION_MINUTES } from "@/api/modules/config-limit/queries/constants/PENDING_CONFIG_RESERVATION_MINUTES.js"
 import { configRouter } from "@/api/modules/config/index.js"
@@ -31,6 +32,8 @@ vi.mock("@/api/modules/config/queries/findDeletableUserConfigs.js", async (impor
     >()
   return { findDeletableUserConfigs: vi.fn(original.findDeletableUserConfigs) }
 })
+
+const DeleteUserConfigOutputSchema = z.object({ id: z.uuid() })
 
 let fakeAmneziawg2Client: ReturnType<typeof createFakeAmneziawg2Client>
 let getProtocolClientSpy: MockInstance<RemoteServer["getProtocolClient"]>

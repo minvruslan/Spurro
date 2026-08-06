@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm"
+import { and, asc, eq, sql } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
 import { endpoint, protocol, server } from "@/core/database/schemas/domainSchema.js"
 import { endpointSelection } from "@/core/database/selections/index.js"
@@ -10,5 +10,5 @@ export async function findActiveEndpoints(executor: DbOrTx) {
     .innerJoin(protocol, eq(endpoint.protocolId, protocol.id))
     .innerJoin(server, eq(endpoint.serverId, server.id))
     .where(and(eq(endpoint.status, "active"), eq(server.status, "active")))
-    .orderBy(asc(server.name), asc(endpoint.port))
+    .orderBy(asc(sql`lower(${server.name})`), asc(endpoint.port))
 }

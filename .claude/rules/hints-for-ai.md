@@ -17,7 +17,7 @@ This repo is a **pnpm workspace monorepo** — always use `pnpm`, never `npm` or
 - Protocol identifiers only via `ProtocolCodeSchema.enum.*` / `ProtocolRegistry.*` — never string literals. Time offsets derive from the implementation constant (`CONSTANT + 1` minute), never magic numbers.
 - Concurrency tests synchronize with deferred promises + `waitForDatabaseLockWaiter` — never `setTimeout`.
 - HTTP-status tests exist only for statuses declared in the contract `.errors()`. Trivial oRPC codes are never tested per route: BAD_REQUEST from input-schema validation (non-uuid, missing/empty/too-long fields) and UNAUTHORIZED from the auth middleware are framework behavior, not module logic — auth is covered once in `backend/tests/src/api/orpc/authorized.test.ts`, and schema wiring is proven by any case that distinguishes a valid input (e.g. unknown-id NOT_FOUND).
-- Response shapes are parsed with schemas imported from `@spurro/api-contract` — never redeclared locally in a test file; a missing named output schema in the contract is fixed in the contract, not worked around.
+- Response shapes are parsed with entity schemas imported from `@spurro/api-contract` — never redeclared locally in a test file. Route outputs the contract declares inline (e.g. `z.array(ConfigSchema)`, `z.object({ id: z.uuid() })`) are mirrored inline in the test; single-use output wrappers do not get named schemas in the contract.
 
 ## Backend database queries
 

@@ -9,7 +9,6 @@ import { findActiveDeviceTypes } from "@/api/modules/device-type/queries/findAct
 import { bootstrapDeviceTypes } from "@/core/bootstraps/bootstrapDeviceTypes.js"
 import { db } from "@/core/database/index.js"
 import { deviceType } from "@/core/database/schemas/index.js"
-import { expectOrpcError } from "@tests/assertions/index.js"
 import { signInTestAdmin, signInTestUser } from "@tests/helpers/index.js"
 
 vi.mock("@/api/modules/device-type/queries/findActiveDeviceTypes.js", async (importOriginal) => {
@@ -26,33 +25,6 @@ function callGetDeviceTypes(headers: Headers) {
 
 describe("GET /device-types", () => {
   it("returns the seeded device-type catalog matching the contract schema", async () => {
-    await bootstrapDeviceTypes()
-
-    const deviceTypes = await callGetDeviceTypes(await signInTestUser())
-
-    const parsed = z.array(DeviceTypeSchema).parse(deviceTypes)
-    expect(parsed).toHaveLength(5)
-    expect(parsed.map((entry) => entry.code).sort()).toEqual([
-      "android",
-      "ios",
-      "linux",
-      "macos",
-      "windows",
-    ])
-  })
-
-  it("returns every contract field", async () => {
-    await bootstrapDeviceTypes()
-
-    const deviceTypes = await callGetDeviceTypes(await signInTestUser())
-
-    expect(deviceTypes).toHaveLength(5)
-    for (const entry of deviceTypes) {
-      expect(Object.keys(entry).sort()).toEqual(["code", "id", "name"])
-    }
-  })
-
-  it("returns each device type with the name matching its code", async () => {
     const expectedNamesByCode: Record<DeviceType["code"], DeviceType["name"]> = {
       ios: "iOS",
       macos: "macOS",
@@ -64,30 +36,37 @@ describe("GET /device-types", () => {
 
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
-    expect(deviceTypes).toHaveLength(5)
+    const parsed = z.array(DeviceTypeSchema).parse(deviceTypes)
+    expect(parsed.map((entry) => entry.code).sort()).toEqual(
+      [...DeviceTypeSchema.shape.code.options].sort(),
+    )
     for (const entry of deviceTypes) {
+      expect(Object.keys(entry).sort()).toEqual([...DeviceTypeSchema.keyof().options].sort())
+    }
+    for (const entry of parsed) {
       expect(entry.name).toBe(expectedNamesByCode[entry.code])
     }
-  })
-
-  it("returns entries ordered by name ascending", async () => {
-    await bootstrapDeviceTypes()
-
-    const deviceTypes = await callGetDeviceTypes(await signInTestUser())
-
-    const names = deviceTypes.map((entry) => entry.name)
-    expect(names).toEqual(["Android", "Linux", "Windows", "iOS", "macOS"])
+    expect(parsed.map((entry) => entry.name)).toEqual([
+      "Android",
+      "iOS",
+      "Linux",
+      "macOS",
+      "Windows",
+    ])
   })
 
   it("omits disabled device types", async () => {
     await bootstrapDeviceTypes()
-    await db.update(deviceType).set({ isEnabled: false }).where(eq(deviceType.code, "linux"))
+    await db
+      .update(deviceType)
+      .set({ isEnabled: false })
+      .where(eq(deviceType.code, DeviceTypeSchema.shape.code.enum.linux))
 
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     const codes = deviceTypes.map((entry) => entry.code)
-    expect(codes).not.toContain("linux")
-    expect(codes).toHaveLength(4)
+    expect(codes).not.toContain(DeviceTypeSchema.shape.code.enum.linux)
+    expect(codes).toHaveLength(DeviceTypeSchema.shape.code.options.length - 1)
   })
 
   it("returns an empty array when all device types are disabled", async () => {
@@ -110,11 +89,7 @@ describe("GET /device-types", () => {
 
     const deviceTypes = await callGetDeviceTypes(await signInTestAdmin())
 
-    expect(deviceTypes).toHaveLength(5)
-  })
-
-  it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expectOrpcError(callGetDeviceTypes(new Headers()), "UNAUTHORIZED")
+    expect(deviceTypes).toHaveLength(DeviceTypeSchema.shape.code.options.length)
   })
 
   describe("technical", () => {

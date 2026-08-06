@@ -1,4 +1,4 @@
-import { ProtocolRegistry } from "@spurro/infrastructure/types"
+import { ProtocolCodeSchema, ProtocolRegistry } from "@spurro/infrastructure/types"
 import type { DbOrTx } from "@/core/database/index.js"
 import { db } from "@/core/database/index.js"
 import { protocol } from "@/core/database/schemas/index.js"
@@ -10,7 +10,7 @@ export async function insertTestProtocol(
   const [insertedProtocol] = await executor
     .insert(protocol)
     .values({
-      code: "amneziawg2",
+      code: ProtocolCodeSchema.enum.amneziawg2,
       family: ProtocolRegistry.amneziawg2.family,
       name: ProtocolRegistry.amneziawg2.name,
       ...overrides,
