@@ -1,17 +1,20 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { ConfigSchema, type UpdateConfig } from "@spurro/api-contract"
+import { ProtocolCodeSchema } from "@spurro/infrastructure/types"
+import { RemoteServer } from "@spurro/infrastructure"
 import { eq } from "drizzle-orm"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
 import app from "@/api/app.js"
+import { PENDING_CONFIG_RESERVATION_MINUTES } from "@/api/modules/config-limit/queries/constants/PENDING_CONFIG_RESERVATION_MINUTES.js"
 import { configRouter } from "@/api/modules/config/index.js"
 import { updateUserConfig as updateUserConfigQuery } from "@/api/modules/config/queries/updateUserConfig.js"
-import { getEndpointProtocolClientService } from "@/api/modules/config/services/getEndpointProtocolClientService.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/bootstrapDeviceTypes.js"
 import { db } from "@/core/database/index.js"
 import { config, deviceType } from "@/core/database/schemas/index.js"
 import { expectOrpcError } from "@tests/assertions/index.js"
 import {
+  createFakeAmneziawg2Client,
   insertTestConfig,
   insertTestEndpoint,
   insertTestProtocol,
@@ -20,15 +23,13 @@ import {
   insertTestUser,
 } from "@tests/helpers/index.js"
 
-vi.mock("@/api/modules/config/services/getEndpointProtocolClientService.js", () => ({
-  getEndpointProtocolClientService: vi.fn(),
-}))
-
 vi.mock("@/api/modules/config/queries/updateUserConfig.js", async (importOriginal) => {
   const original =
     await importOriginal<typeof import("@/api/modules/config/queries/updateUserConfig.js")>()
   return { updateUserConfig: vi.fn(original.updateUserConfig) }
 })
+
+let getProtocolClientSpy: MockInstance<RemoteServer["getProtocolClient"]>
 
 function callUpdateUserConfig(input: unknown, headers: Headers) {
   return call(configRouter.updateUserConfig, input as UpdateConfig & { id: string }, {
@@ -36,7 +37,7 @@ function callUpdateUserConfig(input: unknown, headers: Headers) {
   })
 }
 
-async function insertConfigInfrastructure() {
+async function insertConfigPrerequisites() {
   const configProtocol = await insertTestProtocol()
   const configServer = await insertTestServer()
   const configEndpoint = await insertTestEndpoint({
@@ -48,86 +49,16 @@ async function insertConfigInfrastructure() {
 }
 
 describe("PUT /configs/{id}", () => {
-  beforeEach(bootstrapDeviceTypes)
-
-  it("updates the name and device type and returns the config matching the contract schema", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const insertedConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: firstDeviceType.id,
-      status: "active",
-    })
-
-    const updatedConfig = await callUpdateUserConfig(
-      { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
-    )
-
-    const parsed = ConfigSchema.parse(updatedConfig)
-    expect(parsed.id).toBe(insertedConfig.id)
-    expect(parsed.name).toBe("Updated Config")
-    expect(parsed.deviceType.id).toBe(secondDeviceType.id)
+  beforeEach(async () => {
+    const fakeAmneziawg2Client = createFakeAmneziawg2Client()
+    getProtocolClientSpy = vi
+      .spyOn(RemoteServer.prototype, "getProtocolClient")
+      .mockReturnValue(fakeAmneziawg2Client.client)
+    await bootstrapDeviceTypes()
   })
 
-  it("returns every contract field at every nesting level", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const insertedConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: firstDeviceType.id,
-      status: "active",
-      data: {
-        protocolCode: "amneziawg2",
-        ip: "10.8.0.2",
-        publicKey: "test-public-key",
-        presharedKey: "test-preshared-key",
-      },
-    })
-
-    const updatedConfig = await callUpdateUserConfig(
-      { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
-    )
-
-    ConfigSchema.parse(updatedConfig)
-    expect(Object.keys(updatedConfig.data).sort()).toEqual([
-      "ip",
-      "presharedKey",
-      "protocolCode",
-      "publicKey",
-    ])
-    expect(updatedConfig.data).not.toHaveProperty("configuration")
-  })
-
-  it("persists the new name and device type in the database", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const insertedConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: firstDeviceType.id,
-      status: "active",
-    })
-
-    await callUpdateUserConfig(
-      { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
-    )
-
-    const configRows = await db.select().from(config).where(eq(config.id, insertedConfig.id))
-    expect(configRows).toHaveLength(1)
-    expect(configRows[0].name).toBe("Updated Config")
-    expect(configRows[0].deviceTypeId).toBe(secondDeviceType.id)
-  })
-
-  it("refreshes updatedAt on a successful update", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
+  it("updates the name and device type, refreshes updatedAt, keeps status, endpoint and data, and does not touch the node", async () => {
+    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
@@ -142,39 +73,28 @@ describe("PUT /configs/{id}", () => {
       .set({ updatedAt: pastUpdatedAt })
       .where(eq(config.id, insertedConfig.id))
 
-    await callUpdateUserConfig(
+    const updatedConfig = await callUpdateUserConfig(
       { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
       headers,
     )
 
+    const parsed = ConfigSchema.parse(updatedConfig)
+    expect(parsed.id).toBe(insertedConfig.id)
+    expect(parsed.name).toBe("Updated Config")
+    expect(parsed.deviceType.id).toBe(secondDeviceType.id)
     const configRows = await db.select().from(config).where(eq(config.id, insertedConfig.id))
+    expect(configRows).toHaveLength(1)
+    expect(configRows[0].name).toBe("Updated Config")
+    expect(configRows[0].deviceTypeId).toBe(secondDeviceType.id)
     expect(configRows[0].updatedAt.getTime()).toBeGreaterThan(pastUpdatedAt.getTime())
-  })
-
-  it("does not change status, endpoint, or data on update", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const insertedConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: firstDeviceType.id,
-      status: "active",
-    })
-
-    await callUpdateUserConfig(
-      { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
-    )
-
-    const configRows = await db.select().from(config).where(eq(config.id, insertedConfig.id))
     expect(configRows[0].status).toBe("active")
     expect(configRows[0].endpointId).toBe(configEndpoint.id)
     expect(configRows[0].data).toEqual(insertedConfig.data)
+    expect(getProtocolClientSpy).not.toHaveBeenCalled()
   })
 
   it("leaves the user's other config untouched on update", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const updatedConfigRow = await insertTestConfig({
@@ -202,27 +122,8 @@ describe("PUT /configs/{id}", () => {
     expect(configRows[0].updatedAt.getTime()).toBe(siblingConfig.updatedAt.getTime())
   })
 
-  it("does not touch the node on update", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const insertedConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: firstDeviceType.id,
-      status: "active",
-    })
-
-    await callUpdateUserConfig(
-      { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-      headers,
-    )
-
-    expect(vi.mocked(getEndpointProtocolClientService)).not.toHaveBeenCalled()
-  })
-
   it("updates a pending config younger than the reservation window", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const pendingConfig = await insertTestConfig({
@@ -243,7 +144,7 @@ describe("PUT /configs/{id}", () => {
   })
 
   it("accepts a name of exactly 255 characters", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
@@ -263,99 +164,8 @@ describe("PUT /configs/{id}", () => {
     expect(parsed.name).toBe(name)
   })
 
-  it("rejects a missing name with BAD_REQUEST", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const insertedConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: firstDeviceType.id,
-      status: "active",
-    })
-
-    await expectOrpcError(
-      callUpdateUserConfig({ id: insertedConfig.id, deviceTypeId: secondDeviceType.id }, headers),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects an empty name with BAD_REQUEST", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const insertedConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: firstDeviceType.id,
-      status: "active",
-    })
-
-    await expectOrpcError(
-      callUpdateUserConfig(
-        { id: insertedConfig.id, name: "", deviceTypeId: secondDeviceType.id },
-        headers,
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a name longer than 255 characters with BAD_REQUEST", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const insertedConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: firstDeviceType.id,
-      status: "active",
-    })
-
-    await expectOrpcError(
-      callUpdateUserConfig(
-        { id: insertedConfig.id, name: "a".repeat(256), deviceTypeId: secondDeviceType.id },
-        headers,
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a non-uuid deviceTypeId with BAD_REQUEST", async () => {
-    const { configEndpoint, firstDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const insertedConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: firstDeviceType.id,
-      status: "active",
-    })
-
-    await expectOrpcError(
-      callUpdateUserConfig(
-        { id: insertedConfig.id, name: "Updated Config", deviceTypeId: "not-a-uuid" },
-        headers,
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a non-uuid id with BAD_REQUEST", async () => {
-    const { secondDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-
-    await expectOrpcError(
-      callUpdateUserConfig(
-        { id: "not-a-uuid", name: "Updated Config", deviceTypeId: secondDeviceType.id },
-        headers,
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
   it("rejects an unknown deviceTypeId with DEVICE_TYPE_INVALID", async () => {
-    const { configEndpoint, firstDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, firstDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
@@ -372,10 +182,15 @@ describe("PUT /configs/{id}", () => {
       ),
       "DEVICE_TYPE_INVALID",
     )
+
+    const configRows = await db.select().from(config).where(eq(config.id, insertedConfig.id))
+    expect(configRows[0].name).toBe(insertedConfig.name)
+    expect(configRows[0].deviceTypeId).toBe(firstDeviceType.id)
+    expect(configRows[0].updatedAt.getTime()).toBe(insertedConfig.updatedAt.getTime())
   })
 
   it("rejects a disabled device type with DEVICE_TYPE_INVALID", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
@@ -396,10 +211,15 @@ describe("PUT /configs/{id}", () => {
       ),
       "DEVICE_TYPE_INVALID",
     )
+
+    const configRows = await db.select().from(config).where(eq(config.id, insertedConfig.id))
+    expect(configRows[0].name).toBe(insertedConfig.name)
+    expect(configRows[0].deviceTypeId).toBe(firstDeviceType.id)
+    expect(configRows[0].updatedAt.getTime()).toBe(insertedConfig.updatedAt.getTime())
   })
 
   it("responds with HTTP 400 when the deviceTypeId is unknown", async () => {
-    const { configEndpoint, firstDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, firstDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
@@ -420,7 +240,7 @@ describe("PUT /configs/{id}", () => {
   })
 
   it("rejects an unknown id with NOT_FOUND", async () => {
-    const { secondDeviceType } = await insertConfigInfrastructure()
+    const { secondDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
 
@@ -434,7 +254,7 @@ describe("PUT /configs/{id}", () => {
   })
 
   it("rejects another user's config with NOT_FOUND", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const otherUser = await insertTestUser()
@@ -452,10 +272,15 @@ describe("PUT /configs/{id}", () => {
       ),
       "NOT_FOUND",
     )
+
+    const configRows = await db.select().from(config).where(eq(config.id, otherUserConfig.id))
+    expect(configRows[0].name).toBe(otherUserConfig.name)
+    expect(configRows[0].deviceTypeId).toBe(firstDeviceType.id)
+    expect(configRows[0].updatedAt.getTime()).toBe(otherUserConfig.updatedAt.getTime())
   })
 
   it("rejects a pending config older than the reservation window with NOT_FOUND", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const stalePendingConfig = await insertTestConfig({
@@ -466,7 +291,9 @@ describe("PUT /configs/{id}", () => {
     })
     await db
       .update(config)
-      .set({ createdAt: new Date(Date.now() - 7 * 60 * 1000) })
+      .set({
+        createdAt: new Date(Date.now() - (PENDING_CONFIG_RESERVATION_MINUTES + 1) * 60 * 1000),
+      })
       .where(eq(config.id, stalePendingConfig.id))
 
     await expectOrpcError(
@@ -476,10 +303,15 @@ describe("PUT /configs/{id}", () => {
       ),
       "NOT_FOUND",
     )
+
+    const configRows = await db.select().from(config).where(eq(config.id, stalePendingConfig.id))
+    expect(configRows[0].name).toBe(stalePendingConfig.name)
+    expect(configRows[0].deviceTypeId).toBe(firstDeviceType.id)
+    expect(configRows[0].status).toBe("pending")
   })
 
   it("rejects a deleting config with NOT_FOUND", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const deletingConfig = await insertTestConfig({
@@ -496,30 +328,16 @@ describe("PUT /configs/{id}", () => {
       ),
       "NOT_FOUND",
     )
-  })
 
-  it("rejects a deleted config with NOT_FOUND", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const deletedConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: firstDeviceType.id,
-      status: "deleted",
-    })
-
-    await expectOrpcError(
-      callUpdateUserConfig(
-        { id: deletedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
-        headers,
-      ),
-      "NOT_FOUND",
-    )
+    const configRows = await db.select().from(config).where(eq(config.id, deletingConfig.id))
+    expect(configRows[0].name).toBe(deletingConfig.name)
+    expect(configRows[0].deviceTypeId).toBe(firstDeviceType.id)
+    expect(configRows[0].status).toBe("deleting")
+    expect(configRows[0].updatedAt.getTime()).toBe(deletingConfig.updatedAt.getTime())
   })
 
   it("allows an admin user as well", async () => {
-    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, firstDeviceType, secondDeviceType } = await insertConfigPrerequisites()
     const adminUser = await insertTestUser({ role: "admin" })
     const headers = await insertTestSession(adminUser)
     const adminConfig = await insertTestConfig({
@@ -538,16 +356,38 @@ describe("PUT /configs/{id}", () => {
     expect(parsed.name).toBe("Updated Config")
   })
 
-  it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    const { secondDeviceType } = await insertConfigInfrastructure()
+  describe("amneziawg2", () => {
+    it("returns the stored data fields", async () => {
+      const { configEndpoint, firstDeviceType, secondDeviceType } =
+        await insertConfigPrerequisites()
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+      const insertedConfig = await insertTestConfig({
+        userId: requestUser.id,
+        endpointId: configEndpoint.id,
+        deviceTypeId: firstDeviceType.id,
+        status: "active",
+        data: {
+          protocolCode: ProtocolCodeSchema.enum.amneziawg2,
+          ip: "10.8.0.2",
+          publicKey: "test-public-key",
+          presharedKey: "test-preshared-key",
+        },
+      })
 
-    await expectOrpcError(
-      callUpdateUserConfig(
-        { id: randomUUID(), name: "Updated Config", deviceTypeId: secondDeviceType.id },
-        new Headers(),
-      ),
-      "UNAUTHORIZED",
-    )
+      const updatedConfig = await callUpdateUserConfig(
+        { id: insertedConfig.id, name: "Updated Config", deviceTypeId: secondDeviceType.id },
+        headers,
+      )
+
+      const parsed = ConfigSchema.parse(updatedConfig)
+      expect(Object.keys(parsed.data).sort()).toEqual([
+        "ip",
+        "presharedKey",
+        "protocolCode",
+        "publicKey",
+      ])
+    })
   })
 
   describe("technical", () => {
@@ -555,7 +395,7 @@ describe("PUT /configs/{id}", () => {
       vi.mocked(updateUserConfigQuery).mockRejectedValueOnce(new Error("Update failure"))
 
       const { configEndpoint, firstDeviceType, secondDeviceType } =
-        await insertConfigInfrastructure()
+        await insertConfigPrerequisites()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
       const insertedConfig = await insertTestConfig({

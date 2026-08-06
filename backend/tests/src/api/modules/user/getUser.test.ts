@@ -99,7 +99,7 @@ describe("GET /users/{id}", () => {
       protocolFamily: ProtocolRegistry.amneziawg2.family,
       maxCount: 5,
     })
-    for (const status of ["active", "pending", "deleting", "deleted"] as const) {
+    for (const status of ["active", "pending", "deleting"] as const) {
       await insertTestConfig({
         userId: requestedUser.id,
         endpointId: configEndpoint.id,

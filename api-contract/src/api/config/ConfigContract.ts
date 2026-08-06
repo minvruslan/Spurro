@@ -1,6 +1,7 @@
 import { oc, userAccess } from "../orpc"
 import { z } from "zod"
 import { ConfigSchema } from "./ConfigSchema"
+import { DeleteUserConfigOutputSchema } from "./DeleteUserConfigOutputSchema"
 import { UpsertConfigSchema } from "./UpsertConfigSchema"
 import { UpdateConfigSchema } from "./UpdateConfigSchema"
 
@@ -38,7 +39,6 @@ export const ConfigContract = oc.prefix("/configs").router({
     .input(z.object({ id: z.uuid() }))
     .errors({
       NOT_FOUND: { message: "Config not found" },
-      DELETE_FAILED: { status: 502, message: "Failed to delete config" },
     })
-    .output(z.object({ id: z.uuid() })),
+    .output(DeleteUserConfigOutputSchema),
 })

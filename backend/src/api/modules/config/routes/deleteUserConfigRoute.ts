@@ -13,9 +13,6 @@ const deleteUserConfigRoute = authorized.configs.deleteUserConfig.handler(
           return result.errorCode satisfies never
       }
     }
-    if (result.data.deleteFailedConfigIds.length > 0) {
-      throw errors.DELETE_FAILED()
-    }
     return { id: input.id }
   },
 )

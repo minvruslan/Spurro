@@ -251,10 +251,10 @@ describe("PUT /users/{id}", () => {
     expect(configLimitRows).toEqual([bystanderConfigLimit])
   })
 
-  it("returns limits with used counting the user's non-deleted configs of the matching protocol family", async () => {
+  it("returns limits with used counting the user's slot-reserving configs of the matching protocol family", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const targetUser = await insertTestUser()
-    for (const status of ["active", "pending", "deleted"] as const) {
+    for (const status of ["active", "pending", "deleting"] as const) {
       await insertTestConfig({
         userId: targetUser.id,
         endpointId: configEndpoint.id,

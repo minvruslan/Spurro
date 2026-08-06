@@ -246,21 +246,6 @@ describe("DELETE /users/{id}", () => {
     expect(fakeAmneziawg2Client.deleteAccesses).not.toHaveBeenCalled()
   })
 
-  it("makes no node calls for configs that are already deleted", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
-    const targetUser = await insertTestUser()
-    await insertTestConfig({
-      userId: targetUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
-      status: "deleted",
-    })
-
-    await callDeleteUser(targetUser.id, await signInTestAdmin())
-
-    expect(fakeAmneziawg2Client.deleteAccesses).not.toHaveBeenCalled()
-  })
-
   it("deletes a user whose used count exceeds their limit's maxCount", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
     const targetUser = await insertTestUser()
@@ -417,7 +402,7 @@ describe("DELETE /users/{id}", () => {
       .select()
       .from(config)
       .where(eq(config.id, reachableConfig.id))
-    expect(reachableConfigRows[0].status).toBe("deleted")
+    expect(reachableConfigRows).toHaveLength(0)
     const unreachableConfigRows = await db
       .select()
       .from(config)

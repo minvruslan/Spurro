@@ -22,7 +22,7 @@ import { user } from "./authSchema"
 
 export const serverStatus = pgEnum("server_status", ["provisioning", "active", "failed"])
 export const endpointStatus = pgEnum("endpoint_status", ["active"])
-export const configStatus = pgEnum("config_status", ["active", "pending", "deleting", "deleted"])
+export const configStatus = pgEnum("config_status", ["active", "pending", "deleting"])
 
 // Catalog
 
@@ -174,9 +174,7 @@ export const config = pgTable(
       .notNull(),
   },
   (t) => [
-    uniqueIndex("config_endpoint_client_identifier_uq")
-      .on(t.endpointId, t.clientIdentifier)
-      .where(sql`${t.status} != 'deleted'`),
+    uniqueIndex("config_endpoint_client_identifier_uq").on(t.endpointId, t.clientIdentifier),
     index("config_user_idx").on(t.userId),
     index("config_endpoint_idx").on(t.endpointId),
     index("config_device_type_idx").on(t.deviceTypeId),

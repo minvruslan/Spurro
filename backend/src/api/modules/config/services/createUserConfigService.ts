@@ -5,7 +5,7 @@ import { isUserConfigLimitReachedService } from "@/api/modules/config-limit/inde
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findActiveEndpointById } from "../queries/findActiveEndpointById.js"
-import { setUserConfigsStatus } from "../queries/setUserConfigsStatus.js"
+import { deleteUserConfigs } from "../queries/deleteUserConfigs.js"
 import { getEndpointProtocolClientService } from "./getEndpointProtocolClientService.js"
 import { findConfigById } from "../queries/findConfigById.js"
 import { findActiveDeviceTypeById } from "../queries/findActiveDeviceTypeById.js"
@@ -102,7 +102,7 @@ export async function createUserConfigService(
       }
     }
 
-    await setUserConfigsStatus(db, userId, [configId], "deleted", "pending")
+    await deleteUserConfigs(db, userId, [configId], "pending")
 
     return { ok: false, errorCode: "failed", error }
   }

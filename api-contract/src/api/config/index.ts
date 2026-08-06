@@ -1,5 +1,6 @@
 export { ConfigStatusSchema } from "./ConfigStatusSchema"
 export { ConfigSchema } from "./ConfigSchema"
+export { DeleteUserConfigOutputSchema } from "./DeleteUserConfigOutputSchema"
 export { UpsertConfigSchema } from "./UpsertConfigSchema"
 export { UpdateConfigSchema } from "./UpdateConfigSchema"
 export type { ConfigStatus } from "./ConfigStatus"

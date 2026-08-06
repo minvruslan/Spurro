@@ -9,6 +9,16 @@ This repo is a **pnpm workspace monorepo** — always use `pnpm`, never `npm` or
 - Install: `pnpm install`. Add a dep: `pnpm --filter @spurro/<pkg> add <dep>`.
 - Lockfile is `pnpm-lock.yaml`; workspace layout in `pnpm-workspace.yaml`. There is no `package-lock.json`.
 
+## Backend tests
+
+- Test file layout: root `describe` = protocol-independent flow; `describe("amneziawg2")` = tests coupled to the protocol implementation (to be mirrored per protocol); `describe("technical")` = states unreachable with honest data, via query-layer mocks. No other `describe` sections.
+- One scenario → one test: identical arrange + act means ONE test asserting every consequence; the condition lives in the test name ("... when the node-side delete fails"). Separate tests are justified only by different arranges or triggers, never by different assertions on the same act.
+- Every rejection path asserts the absence of side effects: no rows written or changed, no node calls (`not.toHaveBeenCalled()`). Every retry/cleanup path asserts the node call actually happened.
+- Protocol identifiers only via `ProtocolCodeSchema.enum.*` / `ProtocolRegistry.*` — never string literals. Time offsets derive from the implementation constant (`CONSTANT + 1` minute), never magic numbers.
+- Concurrency tests synchronize with deferred promises + `waitForDatabaseLockWaiter` — never `setTimeout`.
+- HTTP-status tests exist only for statuses declared in the contract `.errors()`. Trivial oRPC codes are never tested per route: BAD_REQUEST from input-schema validation (non-uuid, missing/empty/too-long fields) and UNAUTHORIZED from the auth middleware are framework behavior, not module logic — auth is covered once in `backend/tests/src/api/orpc/authorized.test.ts`, and schema wiring is proven by any case that distinguishes a valid input (e.g. unknown-id NOT_FOUND).
+- Response shapes are parsed with schemas imported from `@spurro/api-contract` — never redeclared locally in a test file; a missing named output schema in the contract is fixed in the contract, not worked around.
+
 ## Backend database queries
 
 - A query that returns a domain entity must use the shared selection from `backend/src/core/database/selections` and the module's `createXFromDatabaseData` util — never assemble an entity with an ad-hoc projection.

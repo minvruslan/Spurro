@@ -6,11 +6,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
 import { configLimitRouter } from "@/api/modules/config-limit/index.js"
+import { PENDING_CONFIG_RESERVATION_MINUTES } from "@/api/modules/config-limit/queries/constants/PENDING_CONFIG_RESERVATION_MINUTES.js"
 import { findUserConfigLimits } from "@/api/modules/config-limit/queries/findUserConfigLimits.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/bootstrapDeviceTypes.js"
 import { db } from "@/core/database/index.js"
 import { config, deviceType, protocol } from "@/core/database/schemas/index.js"
-import { expectOrpcError } from "@tests/assertions/index.js"
 import {
   insertTestConfig,
   insertTestConfigLimit,
@@ -153,7 +153,9 @@ describe("GET /config-limits", () => {
     })
     await db
       .update(config)
-      .set({ createdAt: new Date(Date.now() - 7 * 60 * 1000) })
+      .set({
+        createdAt: new Date(Date.now() - (PENDING_CONFIG_RESERVATION_MINUTES + 1) * 60 * 1000),
+      })
       .where(eq(config.id, stalePendingConfig.id))
 
     const configLimits = await callGetUserConfigLimits(headers)
@@ -177,29 +179,6 @@ describe("GET /config-limits", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "deleting",
-    })
-
-    const configLimits = await callGetUserConfigLimits(headers)
-
-    const parsed = z.array(ConfigLimitSchema).parse(configLimits)
-    expect(parsed).toHaveLength(1)
-    expect(parsed[0].used).toBe(0)
-  })
-
-  it("excludes deleted configs from used", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    await insertTestConfigLimit({
-      userId: requestUser.id,
-      protocolFamily: ProtocolRegistry.amneziawg2.family,
-      maxCount: 3,
-    })
-    await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
-      status: "deleted",
     })
 
     const configLimits = await callGetUserConfigLimits(headers)
@@ -382,10 +361,6 @@ describe("GET /config-limits", () => {
     const configLimits = await callGetUserConfigLimits(headers)
 
     expect(configLimits.map((entry) => entry.id)).toEqual([adminConfigLimit.id])
-  })
-
-  it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expectOrpcError(callGetUserConfigLimits(new Headers()), "UNAUTHORIZED")
   })
 
   describe("technical", () => {
