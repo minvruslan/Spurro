@@ -36,6 +36,14 @@ describe("EnvSchema", () => {
     expect(parsed.data?.ADMIN_NAME).toBe("Admin")
   })
 
+  it("rejects an empty HOST instead of applying the default", () => {
+    expect(parseEnv({ HOST: "" }).success).toBe(false)
+  })
+
+  it("rejects an empty ADMIN_NAME instead of applying the default", () => {
+    expect(parseEnv({ ADMIN_NAME: "" }).success).toBe(false)
+  })
+
   it("defaults LOG_LEVEL to info", () => {
     expect(parseEnv().data?.LOG_LEVEL).toBe("info")
   })
@@ -95,6 +103,14 @@ describe("EnvSchema", () => {
     expect(parseEnv({ DATABASE_URL: "" }).success).toBe(false)
   })
 
+  it("rejects a QUEUE_URL that is not a url", () => {
+    expect(parseEnv({ QUEUE_URL: "not a url" }).success).toBe(false)
+  })
+
+  it("rejects a BETTER_AUTH_URL that is not a url", () => {
+    expect(parseEnv({ BETTER_AUTH_URL: "not a url" }).success).toBe(false)
+  })
+
   it("rejects an empty BETTER_AUTH_SECRET", () => {
     expect(parseEnv({ BETTER_AUTH_SECRET: "" }).success).toBe(false)
   })
@@ -121,6 +137,13 @@ describe("EnvSchema", () => {
     })
 
     expect(parsed.data?.APP_SSH_PRIVATE_KEY.endsWith("\n")).toBe(true)
+  })
+
+  it("keeps a single trailing newline on an APP_SSH_PRIVATE_KEY that already ends with one", () => {
+    const parsed = parseEnv({ APP_SSH_PRIVATE_KEY: SSH_PRIVATE_KEY })
+
+    expect(parsed.data?.APP_SSH_PRIVATE_KEY.endsWith("\n")).toBe(true)
+    expect(parsed.data?.APP_SSH_PRIVATE_KEY.endsWith("\n\n")).toBe(false)
   })
 
   it("rejects an APP_SSH_PRIVATE_KEY without the OpenSSH header", () => {

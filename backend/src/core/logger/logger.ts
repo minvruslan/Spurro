@@ -1,20 +1,16 @@
 import { env } from "@/core/env/index.js"
 import { pino, stdSerializers } from "pino"
 
-const REDACTED_PATHS = [
+const SECRET_FIELD_NAMES = [
   "clientConfiguration",
-  "*.clientConfiguration",
   "privateKey",
-  "*.privateKey",
   "presharedKey",
-  "*.presharedKey",
   "publicKey",
-  "*.publicKey",
   "password",
-  "*.password",
   "serverAccess",
-  "*.serverAccess",
 ]
+
+const REDACTED_PATHS = SECRET_FIELD_NAMES.flatMap((field) => [field, `*.${field}`, `*.*.${field}`])
 
 export const logger = pino({
   level: env.LOG_LEVEL,

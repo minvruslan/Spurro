@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm"
 import { describe, expect, it } from "vitest"
-import { bootstrapAdmin } from "@/core/bootstraps/index.js"
+import { bootstrapAdmin } from "@/core/bootstraps/bootstrapAdmin.js"
 import { db } from "@/core/database/index.js"
 import { user } from "@/core/database/schemas/index.js"
 import { env } from "@/core/env/index.js"
@@ -66,6 +66,31 @@ describe("bootstrapAdmin", () => {
     const userRows = await db.select().from(user)
     expect(userRows).toHaveLength(1)
     expect(userRows[0].id).toBe(createdAdmin.id)
+  })
+
+  it("creates no second admin when ADMIN_EMAIL changes to a new address", async () => {
+    await bootstrapAdmin()
+    const originalAdminEmail = env.ADMIN_EMAIL
+    env.ADMIN_EMAIL = "changed-admin@test.local"
+
+    try {
+      await bootstrapAdmin()
+
+      const userRows = await db.select().from(user)
+      expect(userRows).toHaveLength(1)
+      expect(userRows[0].email).toBe(originalAdminEmail.toLowerCase())
+    } finally {
+      env.ADMIN_EMAIL = originalAdminEmail
+    }
+  })
+
+  it("inserts nothing when an admin already exists under a different email", async () => {
+    const existingAdmin = await insertTestUser({ role: "admin" })
+
+    await bootstrapAdmin()
+
+    const userRows = await db.select().from(user)
+    expect(userRows).toEqual([existingAdmin])
   })
 
   it("leaves an existing user with the admin email unchanged", async () => {

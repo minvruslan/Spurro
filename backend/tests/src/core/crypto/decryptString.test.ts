@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { decryptString, encryptString } from "@/core/crypto/index.js"
 
 const OTHER_ENCRYPTION_KEY = Buffer.alloc(32, "other").toString("base64")
+const AUTH_TAG_LENGTH = 16
 
 function replacePayloadByte(ciphertext: string, byteIndexFromEnd: number) {
   const [version, initializationVector, payloadEncoded] = ciphertext.split(":")
@@ -67,10 +68,16 @@ describe("decryptString", () => {
     )
   })
 
+  it("rejects a ciphertext whose initialization vector is not base64", () => {
+    const [, , payloadEncoded] = encryptString("secret value").split(":")
+
+    expect(() => decryptString(`v1:%%%:${payloadEncoded}`)).toThrow()
+  })
+
   it("rejects a ciphertext whose encrypted body was tampered with", () => {
     const ciphertext = encryptString("secret value")
 
-    expect(() => decryptString(replacePayloadByte(ciphertext, 17))).toThrow()
+    expect(() => decryptString(replacePayloadByte(ciphertext, AUTH_TAG_LENGTH + 1))).toThrow()
   })
 
   it("rejects a ciphertext whose auth tag was tampered with", () => {

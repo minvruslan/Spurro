@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 const INVALID_KEY_MESSAGE = "APP_ENCRYPTION_KEY must be 32 bytes encoded as base64"
 
@@ -9,10 +9,6 @@ async function importReadEncryptionKey() {
 }
 
 describe("readEncryptionKey", () => {
-  beforeEach(() => {
-    vi.resetModules()
-  })
-
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.resetModules()

@@ -1,68 +1,65 @@
 import { eq } from "drizzle-orm"
 import { describe, expect, it } from "vitest"
-import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
+import { DEVICE_TYPES } from "@/core/bootstraps/constants/index.js"
+import { bootstrapDeviceTypes } from "@/core/bootstraps/bootstrapDeviceTypes.js"
 import { db } from "@/core/database/index.js"
 import { deviceType } from "@/core/database/schemas/index.js"
 
+function sortByCode<Row extends { code: string }>(rows: Row[]) {
+  return [...rows].sort((left, right) => left.code.localeCompare(right.code))
+}
+
 describe("bootstrapDeviceTypes", () => {
-  it("seeds enabled device types with unique codes", async () => {
+  it("seeds every device type from the catalog enabled", async () => {
     await bootstrapDeviceTypes()
 
     const deviceTypeRows = await db.select().from(deviceType)
-    expect(deviceTypeRows.length).toBeGreaterThan(0)
-    expect(new Set(deviceTypeRows.map((row) => row.code)).size).toBe(deviceTypeRows.length)
+    expect(sortByCode(deviceTypeRows.map(({ code, name }) => ({ code, name })))).toEqual(
+      sortByCode(DEVICE_TYPES),
+    )
     expect(deviceTypeRows.every((row) => row.isEnabled)).toBe(true)
   })
 
-  it("inserts nothing on a second run", async () => {
+  it("touches nothing on a second run", async () => {
     await bootstrapDeviceTypes()
     const seededRows = await db.select().from(deviceType)
 
     await bootstrapDeviceTypes()
 
     const deviceTypeRows = await db.select().from(deviceType)
-    expect(deviceTypeRows.map((row) => row.id).sort()).toEqual(
-      seededRows.map((row) => row.id).sort(),
-    )
+    expect(sortByCode(deviceTypeRows)).toEqual(sortByCode(seededRows))
   })
 
   it("adds the missing device types to a partially seeded catalog keeping existing rows", async () => {
-    await db.insert(deviceType).values({ code: "ios", name: "iOS" })
+    const catalogEntry = DEVICE_TYPES[0]
+    await db.insert(deviceType).values(catalogEntry)
     const [existingDeviceType] = await db.select().from(deviceType)
 
     await bootstrapDeviceTypes()
 
     const deviceTypeRows = await db.select().from(deviceType)
-    expect(deviceTypeRows.map((row) => row.code).sort()).toEqual([
-      "android",
-      "ios",
-      "linux",
-      "macos",
-      "windows",
-    ])
-    const existingRows = deviceTypeRows.filter((row) => row.code === "ios")
+    expect(sortByCode(deviceTypeRows).map((row) => row.code)).toEqual(
+      sortByCode(DEVICE_TYPES).map((entry) => entry.code),
+    )
+    const existingRows = deviceTypeRows.filter((row) => row.code === catalogEntry.code)
     expect(existingRows).toEqual([existingDeviceType])
   })
 
-  it("leaves a row whose name diverges from the catalog unchanged", async () => {
+  it("restores the catalog name of a renamed device type", async () => {
     await bootstrapDeviceTypes()
-    const [seededDeviceType] = await db.select().from(deviceType).where(eq(deviceType.code, "ios"))
+    const [catalogEntry, otherCatalogEntry] = DEVICE_TYPES
     await db
       .update(deviceType)
-      .set({ name: "Android" })
-      .where(eq(deviceType.id, seededDeviceType.id))
-    const [staleDeviceType] = await db
-      .select()
-      .from(deviceType)
-      .where(eq(deviceType.id, seededDeviceType.id))
+      .set({ name: otherCatalogEntry.name })
+      .where(eq(deviceType.code, catalogEntry.code))
 
     await bootstrapDeviceTypes()
 
-    const deviceTypeRows = await db
+    const [restoredDeviceType] = await db
       .select()
       .from(deviceType)
-      .where(eq(deviceType.id, seededDeviceType.id))
-    expect(deviceTypeRows).toEqual([staleDeviceType])
+      .where(eq(deviceType.code, catalogEntry.code))
+    expect(restoredDeviceType.name).toBe(catalogEntry.name)
   })
 
   it("keeps a device type disabled by an operator on a later run", async () => {

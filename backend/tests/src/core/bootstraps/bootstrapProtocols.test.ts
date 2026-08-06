@@ -1,9 +1,13 @@
 import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { eq } from "drizzle-orm"
 import { describe, expect, it } from "vitest"
-import { bootstrapProtocols } from "@/core/bootstraps/index.js"
+import { bootstrapProtocols } from "@/core/bootstraps/bootstrapProtocols.js"
 import { db } from "@/core/database/index.js"
 import { protocol } from "@/core/database/schemas/index.js"
+
+function sortByCode<Row extends { code: string }>(rows: Row[]) {
+  return [...rows].sort((left, right) => left.code.localeCompare(right.code))
+}
 
 describe("bootstrapProtocols", () => {
   it("seeds one enabled protocol per registry entry", async () => {
@@ -26,29 +30,29 @@ describe("bootstrapProtocols", () => {
     }
   })
 
-  it("inserts nothing on a second run", async () => {
+  it("touches nothing on a second run", async () => {
     await bootstrapProtocols()
     const seededRows = await db.select().from(protocol)
 
     await bootstrapProtocols()
 
     const protocolRows = await db.select().from(protocol)
-    expect(protocolRows.map((row) => row.id).sort()).toEqual(seededRows.map((row) => row.id).sort())
+    expect(sortByCode(protocolRows)).toEqual(sortByCode(seededRows))
   })
 
-  it("leaves a row whose name diverges from the registry unchanged", async () => {
+  it("restores the registry name of a renamed protocol", async () => {
     await bootstrapProtocols()
     const [seededProtocol] = await db.select().from(protocol).limit(1)
     await db.update(protocol).set({ name: "Stale Name" }).where(eq(protocol.id, seededProtocol.id))
-    const [staleProtocol] = await db
-      .select()
-      .from(protocol)
-      .where(eq(protocol.id, seededProtocol.id))
 
     await bootstrapProtocols()
 
-    const protocolRows = await db.select().from(protocol).where(eq(protocol.id, seededProtocol.id))
-    expect(protocolRows).toEqual([staleProtocol])
+    const [restoredProtocol] = await db
+      .select()
+      .from(protocol)
+      .where(eq(protocol.id, seededProtocol.id))
+    const registryEntry = ProtocolRegistry[restoredProtocol.code as keyof typeof ProtocolRegistry]
+    expect(restoredProtocol.name).toBe(registryEntry.name)
   })
 
   it("keeps a protocol disabled by an operator on a later run", async () => {

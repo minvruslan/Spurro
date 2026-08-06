@@ -60,6 +60,24 @@ describe("queueConnection", () => {
     expect(queueConnection.db).toBe(2)
   })
 
+  it("rejects a url with a non-redis scheme", async () => {
+    await expect(importQueueConnection("http://redis.internal:6379")).rejects.toThrow(
+      "QUEUE_URL must use the redis:// or rediss:// scheme",
+    )
+  })
+
+  it("rejects a non-numeric database path", async () => {
+    await expect(importQueueConnection("redis://redis.internal:6379/abc")).rejects.toThrow(
+      "QUEUE_URL path must be a numeric database index",
+    )
+  })
+
+  it("rejects a multi-segment database path", async () => {
+    await expect(importQueueConnection("redis://redis.internal:6379/2/extra")).rejects.toThrow(
+      "QUEUE_URL path must be a numeric database index",
+    )
+  })
+
   it("enables tls for a rediss url", async () => {
     const queueConnection = await importQueueConnection("rediss://redis.internal:6380")
 

@@ -8,7 +8,7 @@ import { z } from "zod"
 import app from "@/api/app.js"
 import { userRouter } from "@/api/modules/user/index.js"
 import { deleteUser } from "@/api/modules/user/queries/deleteUser.js"
-import { bootstrapDeviceTypes } from "@/core/bootstraps/index.js"
+import { bootstrapDeviceTypes } from "@/core/bootstraps/bootstrapDeviceTypes.js"
 import { db } from "@/core/database/index.js"
 import {
   config,

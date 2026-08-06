@@ -1,23 +1,23 @@
 import { bootstrapLogger } from "@/core/logger/index.js"
+import { sql } from "drizzle-orm"
 import { db } from "@/core/database/index.js"
 import { deviceType } from "@/core/database/schemas/domainSchema.js"
-
-const DEVICE_TYPES = [
-  { code: "ios", name: "iOS" },
-  { code: "macos", name: "macOS" },
-  { code: "windows", name: "Windows" },
-  { code: "linux", name: "Linux" },
-  { code: "android", name: "Android" },
-]
+import { DEVICE_TYPES } from "./constants/index.js"
 
 export async function bootstrapDeviceTypes() {
-  const inserted = await db
+  const upserted = await db
     .insert(deviceType)
     .values(DEVICE_TYPES)
-    .onConflictDoNothing({ target: deviceType.code })
+    .onConflictDoUpdate({
+      target: deviceType.code,
+      set: { name: sql`excluded.name` },
+      setWhere: sql`${deviceType.name} is distinct from excluded.name`,
+    })
     .returning({ code: deviceType.code })
 
-  if (inserted.length > 0) {
-    bootstrapLogger.info(`Seeded device types: ${inserted.map((r) => r.code).join(", ")}.`)
+  if (upserted.length > 0) {
+    bootstrapLogger.info(
+      `Seeded or renamed device types: ${upserted.map((r) => r.code).join(", ")}.`,
+    )
   }
 }

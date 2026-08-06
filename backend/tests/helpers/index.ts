@@ -6,6 +6,7 @@ export {
 } from "./createFakeAmneziawg2Client.js"
 export { createTestEmail } from "./createTestEmail.js"
 export { createTestIp } from "./createTestIp.js"
+export { fetchCheckConstraintValues } from "./fetchCheckConstraintValues.js"
 export { insertTestConfig } from "./insertTestConfig.js"
 export { insertTestConfigLimit } from "./insertTestConfigLimit.js"
 export { insertTestEndpoint } from "./insertTestEndpoint.js"

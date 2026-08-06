@@ -4,7 +4,7 @@ import app from "@/api/app.js"
 import { insertTestSession, insertTestUser } from "@tests/helpers/index.js"
 
 describe("GET /api/auth/get-session", () => {
-  it("returns the signed-in admin parseable by the frontend session schema with role admin", async () => {
+  it("returns the signed-in admin matching the contract session schema with role admin", async () => {
     const requestUser = await insertTestUser({ role: "admin" })
     const headers = await insertTestSession(requestUser)
 
@@ -18,7 +18,7 @@ describe("GET /api/auth/get-session", () => {
     expect(parsedUser.role).toBe("admin")
   })
 
-  it("returns an ordinary user parseable by the frontend session schema without the admin role", async () => {
+  it("returns an ordinary user matching the contract session schema without the admin role", async () => {
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
 
@@ -33,7 +33,6 @@ describe("GET /api/auth/get-session", () => {
 
   it("returns no user for an anonymous request", async () => {
     const response = await app.request("/api/auth/get-session")
-
     expect(response.status).toBe(200)
     expect(await response.json()).toBeNull()
   })

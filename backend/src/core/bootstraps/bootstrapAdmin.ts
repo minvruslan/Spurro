@@ -8,6 +8,13 @@ import { env } from "@/core/env/index.js"
 export async function bootstrapAdmin() {
   const email = env.ADMIN_EMAIL.toLowerCase()
 
+  const existingAdmin = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.role, "admin"))
+    .limit(1)
+  if (existingAdmin.length > 0) return
+
   const existing = await db
     .select()
     .from(user)

@@ -8,7 +8,7 @@ describe("encryptString", () => {
     const parts = ciphertext.split(":")
     expect(parts).toHaveLength(3)
     expect(parts[0]).toBe("v1")
-    expect(parts[1]).not.toBe("")
+    expect(Buffer.from(parts[1], "base64")).toHaveLength(12)
     expect(parts[2]).not.toBe("")
   })
 
@@ -22,7 +22,6 @@ describe("encryptString", () => {
     const plaintext = "secret value"
 
     const firstCiphertext = encryptString(plaintext)
-
     const secondCiphertext = encryptString(plaintext)
 
     expect(firstCiphertext).not.toBe(secondCiphertext)

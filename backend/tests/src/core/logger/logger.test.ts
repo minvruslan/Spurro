@@ -13,7 +13,7 @@ const SECRET_FIELD_NAMES = [
   "serverAccess",
 ]
 
-async function importPinoOptions() {
+async function importLoggerAndReturnPinoOptions() {
   vi.resetModules()
   const pinoMock = vi.fn((options: Record<string, unknown>) => ({ child: vi.fn(), options }))
   vi.doMock("pino", async (importOriginal) => ({
@@ -24,15 +24,15 @@ async function importPinoOptions() {
   return pinoMock.mock.calls[0][0]
 }
 
-async function createLoggerCapturingLines() {
-  const { redact, serializers } = (await importPinoOptions()) as LoggerOptions
+async function createLoggerAndItsCapturedLines() {
+  const { redact, serializers } = (await importLoggerAndReturnPinoOptions()) as LoggerOptions
   const lines: Record<string, unknown>[] = []
   const destination = {
     write(line: string) {
       lines.push(JSON.parse(line))
     },
   }
-  return { lines, logger: pino({ redact, serializers }, destination) }
+  return { logger: pino({ redact, serializers }, destination), lines }
 }
 
 describe("logger", () => {
@@ -45,7 +45,7 @@ describe("logger", () => {
   it("takes its level from LOG_LEVEL", async () => {
     vi.stubEnv("LOG_LEVEL", "warn")
 
-    const pinoOptions = await importPinoOptions()
+    const pinoOptions = await importLoggerAndReturnPinoOptions()
 
     expect(pinoOptions.level).toBe("warn")
   })
@@ -53,7 +53,7 @@ describe("logger", () => {
   it("falls back to the info level when LOG_LEVEL is unset", async () => {
     vi.stubEnv("LOG_LEVEL", undefined)
 
-    const pinoOptions = await importPinoOptions()
+    const pinoOptions = await importLoggerAndReturnPinoOptions()
 
     expect(pinoOptions.level).toBe("info")
   })
@@ -61,7 +61,7 @@ describe("logger", () => {
   it("uses no transport in production", async () => {
     vi.stubEnv("NODE_ENV", "production")
 
-    const pinoOptions = await importPinoOptions()
+    const pinoOptions = await importLoggerAndReturnPinoOptions()
 
     expect(pinoOptions.transport).toBeUndefined()
   })
@@ -69,13 +69,13 @@ describe("logger", () => {
   it("pretty-prints outside production", async () => {
     vi.stubEnv("NODE_ENV", "development")
 
-    const pinoOptions = await importPinoOptions()
+    const pinoOptions = await importLoggerAndReturnPinoOptions()
 
     expect(pinoOptions.transport).toEqual({ target: "pino-pretty" })
   })
 
   it.each(SECRET_FIELD_NAMES)("hides a top-level %s from the log output", async (secretField) => {
-    const { lines, logger } = await createLoggerCapturingLines()
+    const { logger, lines } = await createLoggerAndItsCapturedLines()
 
     logger.info({ [secretField]: SECRET_VALUE }, "Message.")
 
@@ -84,15 +84,40 @@ describe("logger", () => {
   })
 
   it.each(SECRET_FIELD_NAMES)("hides a nested %s from the log output", async (secretField) => {
-    const { lines, logger } = await createLoggerCapturingLines()
+    const { logger, lines } = await createLoggerAndItsCapturedLines()
 
     logger.info({ credentials: { [secretField]: SECRET_VALUE } }, "Message.")
 
+    const credentials = lines[0].credentials as Record<string, unknown>
+    expect(credentials[secretField]).toBe("[Redacted]")
     expect(JSON.stringify(lines[0])).not.toContain(SECRET_VALUE)
   })
 
+  it.each(SECRET_FIELD_NAMES)(
+    "hides a doubly nested %s from the log output",
+    async (secretField) => {
+      const { logger, lines } = await createLoggerAndItsCapturedLines()
+
+      logger.info({ server: { data: { [secretField]: SECRET_VALUE } } }, "Message.")
+
+      const serverField = lines[0].server as { data: Record<string, unknown> }
+      expect(serverField.data[secretField]).toBe("[Redacted]")
+      expect(JSON.stringify(lines[0])).not.toContain(SECRET_VALUE)
+    },
+  )
+
+  it("does not redact a secret deeper than two nesting levels", async () => {
+    const { logger, lines } = await createLoggerAndItsCapturedLines()
+
+    logger.info({ request: { server: { data: { password: SECRET_VALUE } } } }, "Message.")
+
+    const dataField = (lines[0].request as { server: { data: Record<string, unknown> } }).server
+      .data
+    expect(dataField.password).toBe(SECRET_VALUE)
+  })
+
   it("serializes a logged error with its message and stack", async () => {
-    const { lines, logger } = await createLoggerCapturingLines()
+    const { logger, lines } = await createLoggerAndItsCapturedLines()
 
     logger.error({ error: new Error("Boom.") }, "Message.")
 
@@ -102,7 +127,7 @@ describe("logger", () => {
   })
 
   it("leaves non-secret fields untouched", async () => {
-    const { lines, logger } = await createLoggerCapturingLines()
+    const { logger, lines } = await createLoggerAndItsCapturedLines()
 
     logger.info({ serverId: "server-1", password: SECRET_VALUE }, "Message.")
 

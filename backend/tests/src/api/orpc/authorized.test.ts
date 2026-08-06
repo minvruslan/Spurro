@@ -15,7 +15,7 @@ function callCarrierRoute(headers: Headers) {
   return call(deviceTypeRouter.getDeviceTypes, undefined, { context: { headers } })
 }
 
-async function cookieHeaders(cookieValue: string) {
+async function createCookieHeaders(cookieValue: string) {
   const authContext = await authServer.$context
   return new Headers({ cookie: `${authContext.authCookies.sessionToken.name}=${cookieValue}` })
 }
@@ -33,15 +33,22 @@ async function insertSessionToken(userId: string) {
 }
 
 describe("authorized", () => {
+  it("allows a valid session", async () => {
+    const sessionUser = await insertTestUser()
+    const headers = await insertTestSession(sessionUser)
+
+    await expect(callCarrierRoute(headers)).resolves.toBeDefined()
+  })
+
   it("rejects a garbage cookie value", async () => {
-    await expectOrpcError(callCarrierRoute(await cookieHeaders("garbage")), "UNAUTHORIZED")
+    await expectOrpcError(callCarrierRoute(await createCookieHeaders("garbage")), "UNAUTHORIZED")
   })
 
   it("rejects an unsigned token of an existing session", async () => {
     const sessionUser = await insertTestUser()
     const token = await insertSessionToken(sessionUser.id)
 
-    await expectOrpcError(callCarrierRoute(await cookieHeaders(token)), "UNAUTHORIZED")
+    await expectOrpcError(callCarrierRoute(await createCookieHeaders(token)), "UNAUTHORIZED")
   })
 
   it("rejects an existing session token signed with a wrong secret", async () => {
@@ -50,7 +57,7 @@ describe("authorized", () => {
     const forgedSignature = await makeSignature(token, "wrong-secret")
 
     await expectOrpcError(
-      callCarrierRoute(await cookieHeaders(`${token}.${forgedSignature}`)),
+      callCarrierRoute(await createCookieHeaders(`${token}.${forgedSignature}`)),
       "UNAUTHORIZED",
     )
   })
@@ -61,7 +68,7 @@ describe("authorized", () => {
     const signature = await makeSignature(token, authContext.secret)
 
     await expectOrpcError(
-      callCarrierRoute(await cookieHeaders(`${token}.${signature}`)),
+      callCarrierRoute(await createCookieHeaders(`${token}.${signature}`)),
       "UNAUTHORIZED",
     )
   })
@@ -109,5 +116,14 @@ describe("authorized", () => {
       call(protocolRouter.getProtocols, undefined, { context: { headers } }),
       "FORBIDDEN",
     )
+  })
+
+  it("allows an admin on an admin route", async () => {
+    const sessionUser = await insertTestUser({ role: "admin" })
+    const headers = await insertTestSession(sessionUser)
+
+    await expect(
+      call(protocolRouter.getProtocols, undefined, { context: { headers } }),
+    ).resolves.toBeDefined()
   })
 })
