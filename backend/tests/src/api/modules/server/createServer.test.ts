@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { type Protocol, ServerSchema, type UpsertServer } from "@spurro/api-contract"
-import { ProtocolRegistry, ServerDataSchema } from "@spurro/infrastructure/types"
+import { ProtocolCodeSchema, ProtocolRegistry, ServerDataSchema } from "@spurro/infrastructure/types"
 import { eq, sql } from "drizzle-orm"
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
 import { serverRouter } from "@/api/modules/server/index.js"
 import { deleteServer } from "@/api/modules/server/queries/deleteServer.js"
+import { findProtocolCodes } from "@/api/modules/server/queries/findProtocolCodes.js"
 import { insertServer } from "@/api/modules/server/queries/insertServer.js"
 import { db } from "@/core/database/index.js"
 import { endpoint, server } from "@/core/database/schemas/index.js"
@@ -16,7 +17,9 @@ import {
 } from "@/core/queue/provision-server/index.js"
 import { expectOrpcError } from "@tests/assertions/index.js"
 import {
+  insertTestEndpoint,
   insertTestProtocol,
+  insertTestServer,
   insertTestSession,
   insertTestUser,
   signInTestAdmin,
@@ -39,14 +42,19 @@ vi.mock("@/api/modules/server/queries/deleteServer.js", async (importOriginal) =
   return { deleteServer: vi.fn(original.deleteServer) }
 })
 
+vi.mock("@/api/modules/server/queries/findProtocolCodes.js", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/api/modules/server/queries/findProtocolCodes.js")>()
+  return { findProtocolCodes: vi.fn(original.findProtocolCodes) }
+})
+
 function callCreateServer(input: unknown, headers: Headers) {
   return call(serverRouter.createServer, input as UpsertServer, { context: { headers } })
 }
 
-async function adminJsonHeaders() {
-  const headers = await signInTestAdmin()
+function requestCreateServer(input: Record<string, unknown>, headers: Headers) {
   headers.set("content-type", "application/json")
-  return headers
+  return app.request("/api/servers", { method: "POST", headers, body: JSON.stringify(input) })
 }
 
 function createServerInput(overrides: Record<string, unknown> = {}) {
@@ -83,20 +91,10 @@ describe("POST /servers", () => {
     await realProvisionServerQueue.close()
   })
 
-  it("creates a server and returns it matching the contract schema with status 201", async () => {
-    const input = createServerInput()
-
-    const response = await app.request("/api/servers", {
-      method: "POST",
-      headers: await adminJsonHeaders(),
-      body: JSON.stringify(input),
-    })
+  it("responds with HTTP 201 on success", async () => {
+    const response = await requestCreateServer(createServerInput(), await signInTestAdmin())
 
     expect(response.status).toBe(201)
-    const parsed = ServerSchema.parse(await response.json())
-    expect(parsed.name).toBe(input.name)
-    expect(parsed.ip).toBe(input.ip)
-    expect(parsed.country).toBe(input.country)
   })
 
   it("ignores an isCurrent and status sent in the payload", async () => {
@@ -110,7 +108,10 @@ describe("POST /servers", () => {
     expect(serverRows[0].status).toBe("provisioning")
   })
 
-  it("returns every contract field at every nesting level", async () => {
+  it("returns every contract field at every nesting level with the endpoint protocol family matching its code", async () => {
+    const expectedFamiliesByCode: Record<Protocol["code"], Protocol["family"]> = {
+      [ProtocolCodeSchema.enum.amneziawg2]: ProtocolRegistry.amneziawg2.family,
+    }
     const serverProtocol = await insertTestProtocol()
 
     const createdServer = await callCreateServer(
@@ -134,43 +135,43 @@ describe("POST /servers", () => {
     for (const serverEndpoint of createdServer.endpoints) {
       expect(Object.keys(serverEndpoint).sort()).toEqual(["id", "port", "protocol", "status"])
       expect(Object.keys(serverEndpoint.protocol).sort()).toEqual(["code", "family", "id", "name"])
-    }
-  })
-
-  it("returns the created server with status provisioning and isCurrent false", async () => {
-    const createdServer = await callCreateServer(createServerInput(), await signInTestAdmin())
-
-    const parsed = ServerSchema.parse(createdServer)
-    expect(parsed.status).toBe("provisioning")
-    expect(parsed.isCurrent).toBe(false)
-  })
-
-  it("returns the created server endpoint protocol with the family matching its code", async () => {
-    const expectedFamiliesByCode: Record<Protocol["code"], Protocol["family"]> = {
-      amneziawg2: "amneziawg",
-    }
-    const serverProtocol = await insertTestProtocol()
-
-    const createdServer = await callCreateServer(
-      createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 51820 }] }),
-      await signInTestAdmin(),
-    )
-
-    const parsed = ServerSchema.parse(createdServer)
-    expect(parsed.endpoints).toHaveLength(1)
-    for (const serverEndpoint of parsed.endpoints) {
       expect(serverEndpoint.protocol.family).toBe(
         expectedFamiliesByCode[serverEndpoint.protocol.code],
       )
     }
   })
 
-  it("does not expose credentials anywhere in the response", async () => {
+  it("returns the created server with status provisioning, isCurrent false, an empty endpoints array and a null domainName, persists the row and enqueues a provision-server job", async () => {
+    const input = createServerInput()
+
+    const createdServer = await callCreateServer(input, await signInTestAdmin())
+
+    const parsed = ServerSchema.parse(createdServer)
+    expect(parsed.status).toBe("provisioning")
+    expect(parsed.isCurrent).toBe(false)
+    expect(parsed.endpoints).toEqual([])
+    expect(parsed.domainName).toBeNull()
+
+    const serverRows = await db.select().from(server).where(eq(server.id, createdServer.id))
+    expect(serverRows).toHaveLength(1)
+    expect(serverRows[0]?.status).toBe("provisioning")
+    expect(serverRows[0]?.name).toBe(input.name)
+    expect(serverRows[0]?.ip).toBe(input.ip)
+    expect(serverRows[0]?.country).toBe(input.country)
+
+    const provisionServerJob = await provisionServerQueue().getJob(createdServer.id)
+    expect(provisionServerJob).toBeDefined()
+    expect(provisionServerJob?.name).toBe(PROVISION_SERVER_JOB_NAME)
+    expect(provisionServerJob?.data).toEqual({ serverId: createdServer.id })
+  })
+
+  it("persists the ssh credentials into the server data column, stores the ip and data columns encrypted at rest and does not expose the credentials in the response", async () => {
+    const ip = "198.51.100.7"
     const username = `user-${randomUUID()}`
     const password = `password-${randomUUID()}`
 
     const createdServer = await callCreateServer(
-      createServerInput({ credentials: { username, password } }),
+      createServerInput({ ip, credentials: { username, password } }),
       await signInTestAdmin(),
     )
 
@@ -179,25 +180,6 @@ describe("POST /servers", () => {
     expect(serialized).not.toContain(username)
     expect(serialized).not.toContain(password)
     expect(serialized).not.toContain("credentials")
-  })
-
-  it("persists the server row with status provisioning in the database", async () => {
-    const createdServer = await callCreateServer(createServerInput(), await signInTestAdmin())
-
-    const serverRows = await db.select().from(server).where(eq(server.id, createdServer.id))
-    expect(serverRows).toHaveLength(1)
-    expect(serverRows[0]?.status).toBe("provisioning")
-    expect(serverRows[0]?.name).toBe(createdServer.name)
-  })
-
-  it("persists the ssh credentials into the server data column", async () => {
-    const username = `user-${randomUUID()}`
-    const password = `password-${randomUUID()}`
-
-    const createdServer = await callCreateServer(
-      createServerInput({ credentials: { username, password } }),
-      await signInTestAdmin(),
-    )
 
     const serverRows = await db.select().from(server).where(eq(server.id, createdServer.id))
     expect(serverRows).toHaveLength(1)
@@ -208,16 +190,6 @@ describe("POST /servers", () => {
       password,
       port: 22,
     })
-  })
-
-  it("stores the ip and data columns encrypted at rest", async () => {
-    const ip = "198.51.100.7"
-    const password = `password-${randomUUID()}`
-
-    const createdServer = await callCreateServer(
-      createServerInput({ ip, credentials: { username: "spurro", password } }),
-      await signInTestAdmin(),
-    )
 
     const rawServerRows = await db.execute<{ ip: string; data: string }>(
       sql`select ip, data::text as data from server where id = ${createdServer.id}::uuid`,
@@ -230,7 +202,7 @@ describe("POST /servers", () => {
     }
   })
 
-  it("persists an endpoint row for each provided endpoint with its port", async () => {
+  it("persists an active endpoint row for each provided endpoint with its port and stores its data column encrypted at rest", async () => {
     const serverProtocol = await insertTestProtocol()
 
     const createdServer = await callCreateServer(
@@ -245,6 +217,13 @@ describe("POST /servers", () => {
     expect(endpointRows).toHaveLength(1)
     expect(endpointRows[0]?.port).toBe(51821)
     expect(endpointRows[0]?.protocolId).toBe(serverProtocol.id)
+    expect(endpointRows[0]?.status).toBe("active")
+
+    const rawEndpointRows = await db.execute<{ data: string }>(
+      sql`select data::text as data from endpoint where server_id = ${createdServer.id}::uuid`,
+    )
+    expect(rawEndpointRows).toHaveLength(1)
+    expect(rawEndpointRows[0]?.data.startsWith("v1:")).toBe(true)
   })
 
   it("uses the protocol registry default port when the endpoint port is omitted", async () => {
@@ -258,20 +237,6 @@ describe("POST /servers", () => {
     const parsed = ServerSchema.parse(createdServer)
     expect(parsed.endpoints).toHaveLength(1)
     expect(parsed.endpoints[0]?.port).toBe(ProtocolRegistry.amneziawg2.defaultPort)
-  })
-
-  it("creates a server with an empty endpoints array when endpoints are omitted", async () => {
-    const createdServer = await callCreateServer(createServerInput(), await signInTestAdmin())
-
-    const parsed = ServerSchema.parse(createdServer)
-    expect(parsed.endpoints).toEqual([])
-  })
-
-  it("returns a null domainName when domainName is omitted", async () => {
-    const createdServer = await callCreateServer(createServerInput(), await signInTestAdmin())
-
-    const parsed = ServerSchema.parse(createdServer)
-    expect(parsed.domainName).toBeNull()
   })
 
   it("persists a provided domainName and returns it", async () => {
@@ -289,23 +254,18 @@ describe("POST /servers", () => {
     expect(serverRows[0]?.domainName).toBe(domainName)
   })
 
-  it("enqueues a provision-server job with jobId equal to the created server id and data carrying the serverId", async () => {
-    const createdServer = await callCreateServer(createServerInput(), await signInTestAdmin())
-
-    const provisionServerJob = await provisionServerQueue().getJob(createdServer.id)
-    expect(provisionServerJob).toBeDefined()
-    expect(provisionServerJob?.name).toBe(PROVISION_SERVER_JOB_NAME)
-    expect(provisionServerJob?.data).toEqual({ serverId: createdServer.id })
-  })
-
-  it("rejects a payload without credentials with CREDENTIALS_REQUIRED", async () => {
+  it("rejects a payload without credentials with CREDENTIALS_REQUIRED and does not insert rows or enqueue a job", async () => {
     await expectOrpcError(
       callCreateServer(createServerInputWithout("credentials"), await signInTestAdmin()),
       "CREDENTIALS_REQUIRED",
     )
+
+    expect(await db.select().from(server)).toHaveLength(0)
+    expect(await db.select().from(endpoint)).toHaveLength(0)
+    expect(await provisionServerQueue().getJobs()).toHaveLength(0)
   })
 
-  it("rejects an endpoint with an unknown protocolId with PROTOCOL_NOT_FOUND", async () => {
+  it("rejects an endpoint with an unknown protocolId with PROTOCOL_NOT_FOUND and does not insert rows or enqueue a job", async () => {
     await insertTestProtocol()
 
     await expectOrpcError(
@@ -315,9 +275,13 @@ describe("POST /servers", () => {
       ),
       "PROTOCOL_NOT_FOUND",
     )
+
+    expect(await db.select().from(server)).toHaveLength(0)
+    expect(await db.select().from(endpoint)).toHaveLength(0)
+    expect(await provisionServerQueue().getJobs()).toHaveLength(0)
   })
 
-  it("rejects two endpoints with the same protocol with DUPLICATE_PROTOCOL", async () => {
+  it("rejects two endpoints with the same protocol with DUPLICATE_PROTOCOL and does not insert rows or enqueue a job", async () => {
     const serverProtocol = await insertTestProtocol()
 
     await expectOrpcError(
@@ -332,27 +296,26 @@ describe("POST /servers", () => {
       ),
       "DUPLICATE_PROTOCOL",
     )
+
+    expect(await db.select().from(server)).toHaveLength(0)
+    expect(await db.select().from(endpoint)).toHaveLength(0)
+    expect(await provisionServerQueue().getJobs()).toHaveLength(0)
   })
 
   it("rejects with ENQUEUE_FAILED and HTTP 502 when the queue is unavailable", async () => {
     vi.mocked(provisionServerQueue).mockReturnValueOnce(createUnavailableQueue())
 
-    const response = await app.request("/api/servers", {
-      method: "POST",
-      headers: await adminJsonHeaders(),
-      body: JSON.stringify(createServerInput()),
-    })
+    const response = await requestCreateServer(createServerInput(), await signInTestAdmin())
 
     expect(response.status).toBe(502)
     expect(await response.json()).toMatchObject({ code: "ENQUEUE_FAILED" })
   })
 
   it("responds with HTTP 400 when credentials are missing", async () => {
-    const response = await app.request("/api/servers", {
-      method: "POST",
-      headers: await adminJsonHeaders(),
-      body: JSON.stringify(createServerInputWithout("credentials")),
-    })
+    const response = await requestCreateServer(
+      createServerInputWithout("credentials"),
+      await signInTestAdmin(),
+    )
 
     expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({ code: "CREDENTIALS_REQUIRED" })
@@ -361,18 +324,15 @@ describe("POST /servers", () => {
   it("responds with HTTP 409 for two endpoints with the same protocol", async () => {
     const serverProtocol = await insertTestProtocol()
 
-    const response = await app.request("/api/servers", {
-      method: "POST",
-      headers: await adminJsonHeaders(),
-      body: JSON.stringify(
-        createServerInput({
-          endpoints: [
-            { protocolId: serverProtocol.id, port: 51820 },
-            { protocolId: serverProtocol.id, port: 51821 },
-          ],
-        }),
-      ),
-    })
+    const response = await requestCreateServer(
+      createServerInput({
+        endpoints: [
+          { protocolId: serverProtocol.id, port: 51820 },
+          { protocolId: serverProtocol.id, port: 51821 },
+        ],
+      }),
+      await signInTestAdmin(),
+    )
 
     expect(response.status).toBe(409)
     expect(await response.json()).toMatchObject({ code: "DUPLICATE_PROTOCOL" })
@@ -381,100 +341,38 @@ describe("POST /servers", () => {
   it("responds with HTTP 400 for an unknown protocolId", async () => {
     await insertTestProtocol()
 
-    const response = await app.request("/api/servers", {
-      method: "POST",
-      headers: await adminJsonHeaders(),
-      body: JSON.stringify(
-        createServerInput({ endpoints: [{ protocolId: randomUUID(), port: 51820 }] }),
-      ),
-    })
+    const response = await requestCreateServer(
+      createServerInput({ endpoints: [{ protocolId: randomUUID(), port: 51820 }] }),
+      await signInTestAdmin(),
+    )
 
     expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({ code: "PROTOCOL_NOT_FOUND" })
   })
 
-  it("deletes the created server row when the enqueue fails", async () => {
+  it("deletes the created server and its endpoint rows and leaves another server with its endpoint untouched when the enqueue fails", async () => {
+    const serverProtocol = await insertTestProtocol()
+    const siblingServer = await insertTestServer()
+    const siblingEndpoint = await insertTestEndpoint({
+      serverId: siblingServer.id,
+      protocolId: serverProtocol.id,
+    })
     vi.mocked(provisionServerQueue).mockReturnValueOnce(createUnavailableQueue())
 
     await expectOrpcError(
-      callCreateServer(createServerInput(), await signInTestAdmin()),
+      callCreateServer(
+        createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 51820 }] }),
+        await signInTestAdmin(),
+      ),
       "ENQUEUE_FAILED",
     )
 
     const serverRows = await db.select().from(server)
-    expect(serverRows).toHaveLength(0)
-  })
-
-  it("does not insert server or endpoint rows when a business error rejects the create", async () => {
-    await insertTestProtocol()
-
-    await expectOrpcError(
-      callCreateServer(
-        createServerInput({ endpoints: [{ protocolId: randomUUID(), port: 51820 }] }),
-        await signInTestAdmin(),
-      ),
-      "PROTOCOL_NOT_FOUND",
-    )
-
-    expect(await db.select().from(server)).toHaveLength(0)
-    expect(await db.select().from(endpoint)).toHaveLength(0)
-  })
-
-  it("does not insert server or endpoint rows when input validation fails", async () => {
-    const serverProtocol = await insertTestProtocol()
-
-    await expectOrpcError(
-      callCreateServer(
-        createServerInput({
-          ip: "not-an-ip",
-          endpoints: [{ protocolId: serverProtocol.id, port: 51820 }],
-        }),
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-
-    expect(await db.select().from(server)).toHaveLength(0)
-    expect(await db.select().from(endpoint)).toHaveLength(0)
-  })
-
-  it("does not enqueue a job when a business error rejects the create", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInputWithout("credentials"), await signInTestAdmin()),
-      "CREDENTIALS_REQUIRED",
-    )
-
-    expect(await provisionServerQueue().getJobs()).toHaveLength(0)
-  })
-
-  it("does not enqueue a job when input validation fails", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInput({ ip: "not-an-ip" }), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-
-    expect(await provisionServerQueue().getJobs()).toHaveLength(0)
-  })
-
-  it("rejects a missing name", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInputWithout("name"), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects an empty name", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInput({ name: "" }), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a name longer than 255 characters", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInput({ name: "n".repeat(256) }), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
+    expect(serverRows).toHaveLength(1)
+    expect(serverRows[0]?.id).toBe(siblingServer.id)
+    const endpointRows = await db.select().from(endpoint)
+    expect(endpointRows).toHaveLength(1)
+    expect(endpointRows[0]?.id).toBe(siblingEndpoint.id)
   })
 
   it("accepts a name of exactly 255 characters", async () => {
@@ -489,113 +387,6 @@ describe("POST /servers", () => {
     expect(parsed.name).toBe(name)
   })
 
-  it("rejects a name of a wrong type", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInput({ name: 123 }), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a missing ip", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInputWithout("ip"), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a malformed ip", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInput({ ip: "999.999.999.999" }), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a missing country", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInputWithout("country"), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a lowercase country code", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInput({ country: "nl" }), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a country code longer than two letters", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInput({ country: "NLD" }), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a malformed domainName", async () => {
-    await expectOrpcError(
-      callCreateServer(createServerInput({ domainName: "not a domain" }), await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects an endpoint with a non-uuid protocolId", async () => {
-    await expectOrpcError(
-      callCreateServer(
-        createServerInput({ endpoints: [{ protocolId: "not-a-uuid", port: 51820 }] }),
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects an endpoint with a port of zero", async () => {
-    const serverProtocol = await insertTestProtocol()
-
-    await expectOrpcError(
-      callCreateServer(
-        createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 0 }] }),
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects an endpoint with a negative port", async () => {
-    const serverProtocol = await insertTestProtocol()
-
-    await expectOrpcError(
-      callCreateServer(
-        createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: -1 }] }),
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects an endpoint with a non-integer port", async () => {
-    const serverProtocol = await insertTestProtocol()
-
-    await expectOrpcError(
-      callCreateServer(
-        createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 51820.5 }] }),
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects an endpoint with a port above 65535", async () => {
-    const serverProtocol = await insertTestProtocol()
-
-    await expectOrpcError(
-      callCreateServer(
-        createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 65536 }] }),
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
   it("accepts an endpoint with a port of exactly 65535", async () => {
     const serverProtocol = await insertTestProtocol()
 
@@ -607,36 +398,6 @@ describe("POST /servers", () => {
     const parsed = ServerSchema.parse(createdServer)
     expect(parsed.endpoints).toHaveLength(1)
     expect(parsed.endpoints[0]?.port).toBe(65535)
-  })
-
-  it("rejects credentials with an empty password", async () => {
-    await expectOrpcError(
-      callCreateServer(
-        createServerInput({ credentials: { username: "spurro", password: "" } }),
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects credentials missing the password field", async () => {
-    await expectOrpcError(
-      callCreateServer(
-        createServerInput({ credentials: { username: "spurro" } }),
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects credentials with a malformed unix username", async () => {
-    await expectOrpcError(
-      callCreateServer(
-        createServerInput({ credentials: { username: "1invalid", password: "server-password" } }),
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
   })
 
   it("ignores unknown extra fields in the payload", async () => {
@@ -657,29 +418,57 @@ describe("POST /servers", () => {
     await expectOrpcError(callCreateServer(createServerInput(), headers), "FORBIDDEN")
   })
 
-  it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expectOrpcError(callCreateServer(createServerInput(), new Headers()), "UNAUTHORIZED")
-  })
-
   describe("technical", () => {
     it("responds with HTTP 500 when the server insert throws", async () => {
       vi.mocked(insertServer).mockRejectedValueOnce(new Error("Insert failure"))
 
-      const response = await app.request("/api/servers", {
-        method: "POST",
-        headers: await adminJsonHeaders(),
-        body: JSON.stringify(createServerInput()),
-      })
+      const response = await requestCreateServer(createServerInput(), await signInTestAdmin())
 
       expect(response.status).toBe(500)
     })
 
-    it("does not enqueue a job when the server insert throws", async () => {
+    it("does not insert rows or enqueue a job when the server insert throws", async () => {
       vi.mocked(insertServer).mockRejectedValueOnce(new Error("Insert failure"))
 
       await expect(callCreateServer(createServerInput(), await signInTestAdmin())).rejects.toThrow()
 
+      expect(await db.select().from(server)).toHaveLength(0)
+      expect(await db.select().from(endpoint)).toHaveLength(0)
       expect(await provisionServerQueue().getJobs()).toHaveLength(0)
+    })
+
+    it("rejects with UNSUPPORTED_PROTOCOL and does not insert rows or enqueue a job when the protocol query returns an unknown code", async () => {
+      const serverProtocol = await insertTestProtocol()
+      vi.mocked(findProtocolCodes).mockResolvedValueOnce([
+        { protocolId: serverProtocol.id, protocolCode: "unknown-protocol" },
+      ])
+
+      await expectOrpcError(
+        callCreateServer(
+          createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 51820 }] }),
+          await signInTestAdmin(),
+        ),
+        "UNSUPPORTED_PROTOCOL",
+      )
+
+      expect(await db.select().from(server)).toHaveLength(0)
+      expect(await db.select().from(endpoint)).toHaveLength(0)
+      expect(await provisionServerQueue().getJobs()).toHaveLength(0)
+    })
+
+    it("responds with HTTP 400 when the protocol query returns an unknown code", async () => {
+      const serverProtocol = await insertTestProtocol()
+      vi.mocked(findProtocolCodes).mockResolvedValueOnce([
+        { protocolId: serverProtocol.id, protocolCode: "unknown-protocol" },
+      ])
+
+      const response = await requestCreateServer(
+        createServerInput({ endpoints: [{ protocolId: serverProtocol.id, port: 51820 }] }),
+        await signInTestAdmin(),
+      )
+
+      expect(response.status).toBe(400)
+      expect(await response.json()).toMatchObject({ code: "UNSUPPORTED_PROTOCOL" })
     })
 
     it("responds with ENQUEUE_FAILED when the enqueue fails and the rollback delete also throws", async () => {

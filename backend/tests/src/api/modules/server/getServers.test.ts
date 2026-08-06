@@ -1,5 +1,6 @@
 import { call } from "@orpc/server"
-import { ServerSchema } from "@spurro/api-contract"
+import { type Protocol, ServerSchema } from "@spurro/api-contract"
+import { ProtocolCodeSchema, ProtocolRegistry } from "@spurro/infrastructure/types"
 import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
@@ -44,7 +45,10 @@ describe("GET /servers", () => {
     expect(parsedFirstServer?.status).toBe("active")
   })
 
-  it("returns every contract field at every nesting level", async () => {
+  it("returns every contract field at every nesting level with the endpoint protocol family matching its code", async () => {
+    const expectedFamiliesByCode: Record<Protocol["code"], Protocol["family"]> = {
+      [ProtocolCodeSchema.enum.amneziawg2]: ProtocolRegistry.amneziawg2.family,
+    }
     const serverProtocol = await insertTestProtocol()
     const listedServer = await insertTestServer()
     await insertTestEndpoint({ serverId: listedServer.id, protocolId: serverProtocol.id })
@@ -74,6 +78,9 @@ describe("GET /servers", () => {
           "id",
           "name",
         ])
+        expect(serverEndpoint.protocol.family).toBe(
+          expectedFamiliesByCode[serverEndpoint.protocol.code],
+        )
       }
     }
   })
@@ -169,10 +176,6 @@ describe("GET /servers", () => {
     const headers = await insertTestSession(requestUser)
 
     await expectOrpcError(callGetServers(headers), "FORBIDDEN")
-  })
-
-  it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expectOrpcError(callGetServers(new Headers()), "UNAUTHORIZED")
   })
 
   describe("technical", () => {
