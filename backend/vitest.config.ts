@@ -5,7 +5,7 @@ const FullCoverageThresholds = { statements: 100, branches: 100, functions: 100,
 
 const filesWithoutCoverageRequirement: string[] = [
   "src/api/index.ts",
-  "src/worker/index.ts",
+  "src/worker/**",
   "src/core/database/schemas/**",
   "src/core/database/checkDatabaseConnection.ts",
   "src/core/mailer/**",
@@ -14,7 +14,6 @@ const filesWithoutCoverageRequirement: string[] = [
 
 const integrationTestGlobs = [
   "tests/src/api/**/*.test.ts",
-  "tests/src/worker/**/*.test.ts",
   "tests/src/core/bootstraps/**/*.test.ts",
   "tests/src/core/database/**/*.test.ts",
   "tests/helpers/**/*.test.ts",
