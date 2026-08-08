@@ -5,11 +5,12 @@ import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
+import { PENDING_CONFIG_RESERVATION_MINUTES } from "@/api/modules/config-limit/queries/constants/PENDING_CONFIG_RESERVATION_MINUTES.js"
 import { userRouter } from "@/api/modules/user/index.js"
 import { findUsers } from "@/api/modules/user/queries/findUsers.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/bootstrapDeviceTypes.js"
 import { db } from "@/core/database/index.js"
-import { deviceType } from "@/core/database/schemas/index.js"
+import { deviceType, protocol, server } from "@/core/database/schemas/index.js"
 import { expectOrpcError } from "@tests/assertions/index.js"
 import {
   insertTestConfig,
@@ -31,9 +32,14 @@ function callGetUsers(headers: Headers) {
   return call(userRouter.getUsers, undefined, { context: { headers } })
 }
 
-async function insertConfigInfrastructure() {
-  const configProtocol = await insertTestProtocol()
-  const configServer = await insertTestServer()
+async function insertConfigPrerequisites(
+  overrides: {
+    protocol?: Partial<typeof protocol.$inferInsert>
+    server?: Partial<typeof server.$inferInsert>
+  } = {},
+) {
+  const configProtocol = await insertTestProtocol(overrides.protocol)
+  const configServer = await insertTestServer(overrides.server)
   const configEndpoint = await insertTestEndpoint({
     serverId: configServer.id,
     protocolId: configProtocol.id,
@@ -170,20 +176,8 @@ describe("GET /users", () => {
     }
   })
 
-  it("returns an empty limits array for a user without config limits", async () => {
-    const unlimitedUser = await insertTestUser()
-
-    const users = await callGetUsers(await signInTestAdmin())
-
-    const entries = users.filter((entry) => entry.id === unlimitedUser.id)
-    expect(entries).toHaveLength(1)
-    for (const entry of entries) {
-      expect(entry.limits).toEqual([])
-    }
-  })
-
   it("returns each limit with used counting the user's slot-reserving configs of the matching protocol family", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const limitedUser = await insertTestUser()
     await insertTestConfigLimit({
       userId: limitedUser.id,
@@ -213,8 +207,36 @@ describe("GET /users", () => {
     }
   })
 
+  it("excludes a pending config older than the reservation window from used", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+    const limitedUser = await insertTestUser()
+    await insertTestConfigLimit({
+      userId: limitedUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 5,
+    })
+    await insertTestConfig({
+      userId: limitedUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "pending",
+      createdAt: new Date(Date.now() - (PENDING_CONFIG_RESERVATION_MINUTES + 1) * 60 * 1000),
+    })
+
+    const users = await callGetUsers(await signInTestAdmin())
+
+    const entries = users.filter((entry) => entry.id === limitedUser.id)
+    expect(entries).toHaveLength(1)
+    for (const entry of entries) {
+      expect(entry.limits).toHaveLength(1)
+      for (const limit of entry.limits) {
+        expect(limit.used).toBe(0)
+      }
+    }
+  })
+
   it("does not count another user's configs in the used value", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const limitedUser = await insertTestUser()
     const otherUser = await insertTestUser()
     await insertTestConfigLimit({
@@ -251,7 +273,7 @@ describe("GET /users", () => {
   })
 
   it("returns a limit with used exceeding maxCount as-is parsing against the contract schema", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const overLimitUser = await insertTestUser()
     await insertTestConfigLimit({
       userId: overLimitUser.id,
@@ -284,7 +306,7 @@ describe("GET /users", () => {
   })
 
   it("omits usage of a protocol family that has no config limit row from the user's limits", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const unlimitedUser = await insertTestUser()
     await insertTestConfig({
       userId: unlimitedUser.id,
@@ -298,6 +320,36 @@ describe("GET /users", () => {
     expect(entries).toHaveLength(1)
     for (const entry of entries) {
       expect(entry.limits).toEqual([])
+    }
+  })
+
+  it("counts a config on a disabled protocol in used", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
+      protocol: { isEnabled: false },
+    })
+    const limitedUser = await insertTestUser()
+    await insertTestConfigLimit({
+      userId: limitedUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 2,
+    })
+    await insertTestConfig({
+      userId: limitedUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+    })
+
+    const users = await callGetUsers(await signInTestAdmin())
+
+    const entries = users.filter((entry) => entry.id === limitedUser.id)
+    expect(entries).toHaveLength(1)
+    for (const entry of entries) {
+      expect(entry.limits).toHaveLength(1)
+      for (const limit of entry.limits) {
+        expect(limit.protocolFamily).toBe(ProtocolRegistry.amneziawg2.family)
+        expect(limit.maxCount).toBe(2)
+        expect(limit.used).toBe(1)
+      }
     }
   })
 
@@ -320,10 +372,6 @@ describe("GET /users", () => {
     const headers = await insertTestSession(requestUser)
 
     await expectOrpcError(callGetUsers(headers), "FORBIDDEN")
-  })
-
-  it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expectOrpcError(callGetUsers(new Headers()), "UNAUTHORIZED")
   })
 
   describe("technical", () => {

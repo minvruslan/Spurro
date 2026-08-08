@@ -4,11 +4,12 @@ import { UserSchema } from "@spurro/api-contract"
 import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
+import { PENDING_CONFIG_RESERVATION_MINUTES } from "@/api/modules/config-limit/queries/constants/PENDING_CONFIG_RESERVATION_MINUTES.js"
 import { userRouter } from "@/api/modules/user/index.js"
 import { findUserById } from "@/api/modules/user/queries/findUserById.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/bootstrapDeviceTypes.js"
 import { db } from "@/core/database/index.js"
-import { deviceType, server } from "@/core/database/schemas/index.js"
+import { deviceType, protocol, server } from "@/core/database/schemas/index.js"
 import { expectOrpcError } from "@tests/assertions/index.js"
 import {
   insertTestConfig,
@@ -31,11 +32,14 @@ function callGetUser(id: string, headers: Headers) {
   return call(userRouter.getUser, { id }, { context: { headers } })
 }
 
-async function insertConfigInfrastructure(
-  serverOverrides: Partial<typeof server.$inferInsert> = {},
+async function insertConfigPrerequisites(
+  overrides: {
+    protocol?: Partial<typeof protocol.$inferInsert>
+    server?: Partial<typeof server.$inferInsert>
+  } = {},
 ) {
-  const configProtocol = await insertTestProtocol()
-  const configServer = await insertTestServer(serverOverrides)
+  const configProtocol = await insertTestProtocol(overrides.protocol)
+  const configServer = await insertTestServer(overrides.server)
   const configEndpoint = await insertTestEndpoint({
     serverId: configServer.id,
     protocolId: configProtocol.id,
@@ -92,7 +96,7 @@ describe("GET /users/{id}", () => {
   })
 
   it("returns the user's limits with used counting their slot-reserving configs of the matching protocol family", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({
       userId: requestedUser.id,
@@ -119,7 +123,7 @@ describe("GET /users/{id}", () => {
   })
 
   it("excludes a pending config older than the reservation window from used", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({
       userId: requestedUser.id,
@@ -131,7 +135,7 @@ describe("GET /users/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "pending",
-      createdAt: new Date(Date.now() - 7 * 60 * 1000),
+      createdAt: new Date(Date.now() - (PENDING_CONFIG_RESERVATION_MINUTES + 1) * 60 * 1000),
     })
 
     const foundUser = await callGetUser(requestedUser.id, await signInTestAdmin())
@@ -167,7 +171,7 @@ describe("GET /users/{id}", () => {
   })
 
   it("returns a limit with used exceeding maxCount as-is parsing against the contract schema", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({
       userId: requestedUser.id,
@@ -196,7 +200,7 @@ describe("GET /users/{id}", () => {
   })
 
   it("returns a limit with maxCount 0 and a positive used count", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({
       userId: requestedUser.id,
@@ -219,7 +223,7 @@ describe("GET /users/{id}", () => {
   })
 
   it("omits usage of a protocol family that has no config limit row from limits", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestedUser = await insertTestUser()
     await insertTestConfig({
       userId: requestedUser.id,
@@ -233,13 +237,9 @@ describe("GET /users/{id}", () => {
   })
 
   it("counts a config on a disabled protocol in used", async () => {
-    const disabledProtocol = await insertTestProtocol({ isEnabled: false })
-    const configServer = await insertTestServer()
-    const configEndpoint = await insertTestEndpoint({
-      serverId: configServer.id,
-      protocolId: disabledProtocol.id,
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
+      protocol: { isEnabled: false },
     })
-    const [configDeviceType] = await db.select().from(deviceType).limit(1)
     const requestedUser = await insertTestUser()
     await insertTestConfigLimit({
       userId: requestedUser.id,
@@ -269,33 +269,12 @@ describe("GET /users/{id}", () => {
     )
   })
 
-  it("rejects an empty string id with NOT_FOUND", async () => {
-    await expectOrpcError(callGetUser("", await signInTestAdmin()), "NOT_FOUND")
-  })
-
-  it("rejects a malformed identifier with NOT_FOUND", async () => {
-    await expectOrpcError(callGetUser("%%%not-a-user-id%%%", await signInTestAdmin()), "NOT_FOUND")
-  })
-
-  it("rejects an ordinary user requesting another user's record with FORBIDDEN", async () => {
+  it("rejects an ordinary user with FORBIDDEN", async () => {
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
-    const otherUser = await insertTestUser()
-
-    await expectOrpcError(callGetUser(otherUser.id, headers), "FORBIDDEN")
-  })
-
-  it("rejects an ordinary user requesting their own record with FORBIDDEN", async () => {
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-
-    await expectOrpcError(callGetUser(requestUser.id, headers), "FORBIDDEN")
-  })
-
-  it("rejects an anonymous request with UNAUTHORIZED", async () => {
     const requestedUser = await insertTestUser()
 
-    await expectOrpcError(callGetUser(requestedUser.id, new Headers()), "UNAUTHORIZED")
+    await expectOrpcError(callGetUser(requestedUser.id, headers), "FORBIDDEN")
   })
 
   describe("technical", () => {

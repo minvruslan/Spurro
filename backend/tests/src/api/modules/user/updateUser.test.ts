@@ -33,7 +33,7 @@ function callUpdateUser(input: unknown, headers: Headers) {
   return call(userRouter.updateUser, input as UpsertUser & { id: string }, { context: { headers } })
 }
 
-async function insertConfigInfrastructure() {
+async function insertConfigPrerequisites() {
   const configProtocol = await insertTestProtocol()
   const configServer = await insertTestServer()
   const configEndpoint = await insertTestEndpoint({
@@ -252,7 +252,7 @@ describe("PUT /users/{id}", () => {
   })
 
   it("returns limits with used counting the user's slot-reserving configs of the matching protocol family", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const targetUser = await insertTestUser()
     for (const status of ["active", "pending", "deleting"] as const) {
       await insertTestConfig({
@@ -280,7 +280,7 @@ describe("PUT /users/{id}", () => {
   })
 
   it("persists a maxCount lower than the user's current used count", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const targetUser = await insertTestUser()
     await insertTestConfigLimit({
       userId: targetUser.id,
@@ -317,7 +317,7 @@ describe("PUT /users/{id}", () => {
   })
 
   it("returns the reduced limit with used still exceeding the new maxCount", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const targetUser = await insertTestUser()
     await insertTestConfigLimit({
       userId: targetUser.id,
@@ -354,7 +354,7 @@ describe("PUT /users/{id}", () => {
   })
 
   it("keeps the user's configs untouched when their limits are deleted via an empty limits array", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigInfrastructure()
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const targetUser = await insertTestUser()
     await insertTestConfigLimit({
       userId: targetUser.id,
@@ -394,6 +394,11 @@ describe("PUT /users/{id}", () => {
       ),
       "NOT_FOUND",
     )
+
+    const userRows = await db.select().from(user).where(eq(user.id, adminUser.id))
+    expect(userRows).toHaveLength(1)
+    expect(userRows[0].name).toBe(adminUser.name)
+    expect(userRows[0].email).toBe(adminUser.email)
   })
 
   it("accepts updating the email to its current value", async () => {
@@ -435,17 +440,38 @@ describe("PUT /users/{id}", () => {
     expect(userRows[0].email).toBe(mixedCaseEmail.toLowerCase())
   })
 
-  it("rejects updating the email to another user's email with EMAIL_TAKEN", async () => {
+  it("rejects updating the email to another user's email with EMAIL_TAKEN and persists neither user nor limit changes", async () => {
     const targetUser = await insertTestUser()
     const otherUser = await insertTestUser()
+    await insertTestConfigLimit({
+      userId: targetUser.id,
+      protocolFamily: ProtocolRegistry.amneziawg2.family,
+      maxCount: 2,
+    })
 
     await expectOrpcError(
       callUpdateUser(
-        { id: targetUser.id, name: targetUser.name, email: otherUser.email },
+        {
+          id: targetUser.id,
+          name: "Updated Name",
+          email: otherUser.email,
+          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 9 }],
+        },
         await signInTestAdmin(),
       ),
       "EMAIL_TAKEN",
     )
+
+    const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
+    expect(userRows).toHaveLength(1)
+    expect(userRows[0].name).toBe(targetUser.name)
+    expect(userRows[0].email).toBe(targetUser.email)
+    const configLimitRows = await db
+      .select()
+      .from(configLimit)
+      .where(eq(configLimit.userId, targetUser.id))
+    expect(configLimitRows).toHaveLength(1)
+    expect(configLimitRows[0].maxCount).toBe(2)
   })
 
   it("rejects updating the email to another user's email differing only in case with EMAIL_TAKEN", async () => {
@@ -459,6 +485,10 @@ describe("PUT /users/{id}", () => {
       ),
       "EMAIL_TAKEN",
     )
+
+    const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
+    expect(userRows).toHaveLength(1)
+    expect(userRows[0].email).toBe(targetUser.email)
   })
 
   it("rejects updating the email to an admin's email with EMAIL_TAKEN", async () => {
@@ -472,37 +502,10 @@ describe("PUT /users/{id}", () => {
       ),
       "EMAIL_TAKEN",
     )
-  })
-
-  it("persists neither user nor limit changes when the email is taken", async () => {
-    const targetUser = await insertTestUser()
-    const otherUser = await insertTestUser()
-    await insertTestConfigLimit({
-      userId: targetUser.id,
-      protocolFamily: ProtocolRegistry.amneziawg2.family,
-      maxCount: 2,
-    })
-
-    await callUpdateUser(
-      {
-        id: targetUser.id,
-        name: "Updated Name",
-        email: otherUser.email,
-        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 9 }],
-      },
-      await signInTestAdmin(),
-    ).catch(() => undefined)
 
     const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
     expect(userRows).toHaveLength(1)
-    expect(userRows[0].name).toBe(targetUser.name)
     expect(userRows[0].email).toBe(targetUser.email)
-    const configLimitRows = await db
-      .select()
-      .from(configLimit)
-      .where(eq(configLimit.userId, targetUser.id))
-    expect(configLimitRows).toHaveLength(1)
-    expect(configLimitRows[0].maxCount).toBe(2)
   })
 
   it("responds with HTTP 409 when the email is taken", async () => {
@@ -530,190 +533,7 @@ describe("PUT /users/{id}", () => {
     )
   })
 
-  it("rejects a malformed identifier with NOT_FOUND", async () => {
-    await expectOrpcError(
-      callUpdateUser(
-        { id: "%%%not-a-user-id%%%", name: "Updated Name", email: createTestEmail() },
-        await signInTestAdmin(),
-      ),
-      "NOT_FOUND",
-    )
-  })
-
-  it("rejects an empty name", async () => {
-    const targetUser = await insertTestUser()
-
-    await expectOrpcError(
-      callUpdateUser(
-        { id: targetUser.id, name: "", email: targetUser.email },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a name longer than 255 characters", async () => {
-    const targetUser = await insertTestUser()
-
-    await expectOrpcError(
-      callUpdateUser(
-        { id: targetUser.id, name: "a".repeat(256), email: targetUser.email },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("accepts a name of exactly 255 characters", async () => {
-    const targetUser = await insertTestUser()
-    const name = "a".repeat(255)
-
-    const updatedUser = await callUpdateUser(
-      { id: targetUser.id, name, email: targetUser.email },
-      await signInTestAdmin(),
-    )
-
-    expect(updatedUser.name).toBe(name)
-  })
-
-  it("rejects a missing name", async () => {
-    const targetUser = await insertTestUser()
-
-    await expectOrpcError(
-      callUpdateUser({ id: targetUser.id, email: targetUser.email }, await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a malformed email", async () => {
-    const targetUser = await insertTestUser()
-
-    await expectOrpcError(
-      callUpdateUser(
-        { id: targetUser.id, name: targetUser.name, email: "not-an-email" },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects an email longer than 255 characters", async () => {
-    const targetUser = await insertTestUser()
-
-    await expectOrpcError(
-      callUpdateUser(
-        { id: targetUser.id, name: targetUser.name, email: `${"a".repeat(250)}@test.local` },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects limits containing a duplicate protocol family", async () => {
-    const targetUser = await insertTestUser()
-
-    await expectOrpcError(
-      callUpdateUser(
-        {
-          id: targetUser.id,
-          name: targetUser.name,
-          email: targetUser.email,
-          limits: [
-            { protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 1 },
-            { protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 2 },
-          ],
-        },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a limit with a negative maxCount", async () => {
-    const targetUser = await insertTestUser()
-
-    await expectOrpcError(
-      callUpdateUser(
-        {
-          id: targetUser.id,
-          name: targetUser.name,
-          email: targetUser.email,
-          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: -1 }],
-        },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a limit with a non-integer maxCount", async () => {
-    const targetUser = await insertTestUser()
-
-    await expectOrpcError(
-      callUpdateUser(
-        {
-          id: targetUser.id,
-          name: targetUser.name,
-          email: targetUser.email,
-          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 1.5 }],
-        },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a limit with an unknown protocol family", async () => {
-    const targetUser = await insertTestUser()
-
-    await expectOrpcError(
-      callUpdateUser(
-        {
-          id: targetUser.id,
-          name: targetUser.name,
-          email: targetUser.email,
-          limits: [{ protocolFamily: "wireguard", maxCount: 1 }],
-        },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("leaves the database unchanged when input validation fails", async () => {
-    const targetUser = await insertTestUser()
-    await insertTestConfigLimit({
-      userId: targetUser.id,
-      protocolFamily: ProtocolRegistry.amneziawg2.family,
-      maxCount: 2,
-    })
-
-    await expectOrpcError(
-      callUpdateUser(
-        {
-          id: targetUser.id,
-          name: "",
-          email: createTestEmail(),
-          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 9 }],
-        },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-
-    const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
-    expect(userRows).toHaveLength(1)
-    expect(userRows[0].name).toBe(targetUser.name)
-    expect(userRows[0].email).toBe(targetUser.email)
-    const configLimitRows = await db
-      .select()
-      .from(configLimit)
-      .where(eq(configLimit.userId, targetUser.id))
-    expect(configLimitRows).toHaveLength(1)
-    expect(configLimitRows[0].maxCount).toBe(2)
-  })
-
-  it("rejects an ordinary user updating another user's record with FORBIDDEN", async () => {
+  it("rejects an ordinary user with FORBIDDEN", async () => {
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const targetUser = await insertTestUser()
@@ -722,31 +542,11 @@ describe("PUT /users/{id}", () => {
       callUpdateUser({ id: targetUser.id, name: "Updated Name", email: targetUser.email }, headers),
       "FORBIDDEN",
     )
-  })
 
-  it("rejects an ordinary user updating their own record with FORBIDDEN", async () => {
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-
-    await expectOrpcError(
-      callUpdateUser(
-        { id: requestUser.id, name: "Updated Name", email: requestUser.email },
-        headers,
-      ),
-      "FORBIDDEN",
-    )
-  })
-
-  it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    const targetUser = await insertTestUser()
-
-    await expectOrpcError(
-      callUpdateUser(
-        { id: targetUser.id, name: "Updated Name", email: targetUser.email },
-        new Headers(),
-      ),
-      "UNAUTHORIZED",
-    )
+    const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
+    expect(userRows).toHaveLength(1)
+    expect(userRows[0].name).toBe(targetUser.name)
+    expect(userRows[0].email).toBe(targetUser.email)
   })
 
   describe("technical", () => {

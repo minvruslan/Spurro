@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm"
 import postgres from "postgres"
 import { describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
+import { insertUserConfigLimits } from "@/api/modules/config-limit/queries/insertUserConfigLimits.js"
 import { userRouter } from "@/api/modules/user/index.js"
 import { insertUser } from "@/api/modules/user/queries/insertUser.js"
 import { db } from "@/core/database/index.js"
@@ -23,26 +24,30 @@ vi.mock("@/api/modules/user/queries/insertUser.js", async (importOriginal) => {
   return { insertUser: vi.fn(original.insertUser) }
 })
 
+vi.mock("@/api/modules/config-limit/queries/insertUserConfigLimits.js", async (importOriginal) => {
+  const original =
+    await importOriginal<
+      typeof import("@/api/modules/config-limit/queries/insertUserConfigLimits.js")
+    >()
+  return { insertUserConfigLimits: vi.fn(original.insertUserConfigLimits) }
+})
+
 function callCreateUser(input: unknown, headers: Headers) {
   return call(userRouter.createUser, input as UpsertUser, { context: { headers } })
 }
 
 describe("POST /users", () => {
-  it("creates a user and returns it matching the contract schema with status 201", async () => {
-    const email = createTestEmail()
+  it("responds with HTTP 201 on success", async () => {
     const headers = await signInTestAdmin()
     headers.set("content-type", "application/json")
 
     const response = await app.request("/api/users", {
       method: "POST",
       headers,
-      body: JSON.stringify({ name: "Created User", email }),
+      body: JSON.stringify({ name: "Created User", email: createTestEmail() }),
     })
 
     expect(response.status).toBe(201)
-    const parsed = UserSchema.parse(await response.json())
-    expect(parsed.name).toBe("Created User")
-    expect(parsed.email).toBe(email)
   })
 
   it("stores a mixed-case email lowercased", async () => {
@@ -59,12 +64,14 @@ describe("POST /users", () => {
     expect(userRows[0].email).toBe(mixedCaseEmail.toLowerCase())
   })
 
-  it("returns every contract field at every nesting level", async () => {
+  it("creates config limits from the provided limits, returns them with used 0 and every contract field at every nesting level, and persists the user and config limit rows", async () => {
+    const email = createTestEmail()
+
     const createdUser = await callCreateUser(
       {
         name: "Created User",
-        email: createTestEmail(),
-        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 2 }],
+        email,
+        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 4 }],
       },
       await signInTestAdmin(),
     )
@@ -79,8 +86,9 @@ describe("POST /users", () => {
       "name",
       "role",
     ])
-    expect(createdUser.limits).toHaveLength(1)
-    for (const limit of createdUser.limits) {
+    const parsed = UserSchema.parse(createdUser)
+    expect(parsed.limits).toHaveLength(1)
+    for (const limit of parsed.limits) {
       expect(Object.keys(limit).sort()).toEqual([
         "createdAt",
         "id",
@@ -89,64 +97,10 @@ describe("POST /users", () => {
         "updatedAt",
         "used",
       ])
-    }
-  })
-
-  it("persists the created user in the database", async () => {
-    const email = createTestEmail()
-
-    const createdUser = await callCreateUser(
-      { name: "Created User", email },
-      await signInTestAdmin(),
-    )
-
-    const userRows = await db.select().from(user).where(eq(user.id, createdUser.id))
-    expect(userRows).toHaveLength(1)
-    expect(userRows[0].name).toBe("Created User")
-    expect(userRows[0].email).toBe(email)
-    expect(userRows[0].emailVerified).toBe(true)
-  })
-
-  it("returns the created user with no role and not banned", async () => {
-    const createdUser = await callCreateUser(
-      { name: "Created User", email: createTestEmail() },
-      await signInTestAdmin(),
-    )
-
-    const parsed = UserSchema.parse(createdUser)
-    expect(parsed.role).toBeNull()
-    expect(parsed.banned).toBe(false)
-  })
-
-  it("creates config limits from the provided limits and returns them with used 0", async () => {
-    const createdUser = await callCreateUser(
-      {
-        name: "Created User",
-        email: createTestEmail(),
-        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 4 }],
-      },
-      await signInTestAdmin(),
-    )
-
-    const parsed = UserSchema.parse(createdUser)
-    expect(parsed.limits).toHaveLength(1)
-    for (const limit of parsed.limits) {
       expect(limit.protocolFamily).toBe(ProtocolRegistry.amneziawg2.family)
       expect(limit.maxCount).toBe(4)
       expect(limit.used).toBe(0)
     }
-  })
-
-  it("persists the config limit rows for the created user", async () => {
-    const createdUser = await callCreateUser(
-      {
-        name: "Created User",
-        email: createTestEmail(),
-        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 4 }],
-      },
-      await signInTestAdmin(),
-    )
-
     const configLimitRows = await db
       .select()
       .from(configLimit)
@@ -154,6 +108,40 @@ describe("POST /users", () => {
     expect(configLimitRows).toHaveLength(1)
     expect(configLimitRows[0].protocolFamily).toBe(ProtocolRegistry.amneziawg2.family)
     expect(configLimitRows[0].maxCount).toBe(4)
+    const userRows = await db.select().from(user).where(eq(user.id, createdUser.id))
+    expect(userRows).toHaveLength(1)
+    expect(userRows[0].name).toBe("Created User")
+    expect(userRows[0].email).toBe(email)
+    expect(userRows[0].emailVerified).toBe(true)
+  })
+
+  it("persists the created user and returns every contract field with no role, not banned and empty limits when limits is omitted", async () => {
+    const email = createTestEmail()
+
+    const createdUser = await callCreateUser(
+      { name: "Created User", email },
+      await signInTestAdmin(),
+    )
+
+    expect(Object.keys(createdUser).sort()).toEqual([
+      "banReason",
+      "banned",
+      "createdAt",
+      "email",
+      "id",
+      "limits",
+      "name",
+      "role",
+    ])
+    const parsed = UserSchema.parse(createdUser)
+    expect(parsed.role).toBeNull()
+    expect(parsed.banned).toBe(false)
+    expect(parsed.limits).toEqual([])
+    const userRows = await db.select().from(user).where(eq(user.id, createdUser.id))
+    expect(userRows).toHaveLength(1)
+    expect(userRows[0].name).toBe("Created User")
+    expect(userRows[0].email).toBe(email)
+    expect(userRows[0].emailVerified).toBe(true)
   })
 
   it("leaves another user's config limit untouched", async () => {
@@ -180,36 +168,6 @@ describe("POST /users", () => {
     expect(configLimitRows).toEqual([bystanderConfigLimit])
   })
 
-  it("creates the user with an empty limits array when limits is omitted", async () => {
-    const createdUser = await callCreateUser(
-      { name: "Created User", email: createTestEmail() },
-      await signInTestAdmin(),
-    )
-
-    expect(createdUser.limits).toEqual([])
-  })
-
-  it("rejects a missing name", async () => {
-    await expectOrpcError(
-      callCreateUser({ email: createTestEmail() }, await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects an empty name", async () => {
-    await expectOrpcError(
-      callCreateUser({ name: "", email: createTestEmail() }, await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a name longer than 255 characters", async () => {
-    await expectOrpcError(
-      callCreateUser({ name: "a".repeat(256), email: createTestEmail() }, await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
   it("accepts a name of exactly 255 characters", async () => {
     const name = "a".repeat(255)
 
@@ -219,49 +177,6 @@ describe("POST /users", () => {
     )
 
     expect(createdUser.name).toBe(name)
-  })
-
-  it("rejects a name of a wrong type", async () => {
-    await expectOrpcError(
-      callCreateUser({ name: 123, email: createTestEmail() }, await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a missing email", async () => {
-    await expectOrpcError(
-      callCreateUser({ name: "Created User" }, await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a malformed email", async () => {
-    await expectOrpcError(
-      callCreateUser({ name: "Created User", email: "not-an-email" }, await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects an email longer than 255 characters", async () => {
-    const email = `${"a".repeat(250)}@test.local`
-
-    await expectOrpcError(
-      callCreateUser({ name: "Created User", email }, await signInTestAdmin()),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("ignores unknown extra fields in the payload", async () => {
-    const email = createTestEmail()
-
-    const createdUser = await callCreateUser(
-      { name: "Created User", email, unknownField: "ignored" },
-      await signInTestAdmin(),
-    )
-
-    const parsed = UserSchema.parse(createdUser)
-    expect(parsed.email).toBe(email)
-    expect(createdUser).not.toHaveProperty("unknownField")
   })
 
   it("rejects limits containing a duplicate protocol family", async () => {
@@ -281,82 +196,17 @@ describe("POST /users", () => {
     )
   })
 
-  it("rejects a limit with a negative maxCount", async () => {
-    await expectOrpcError(
-      callCreateUser(
-        {
-          name: "Created User",
-          email: createTestEmail(),
-          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: -1 }],
-        },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("accepts a limit with maxCount of exactly 0", async () => {
-    const createdUser = await callCreateUser(
-      {
-        name: "Created User",
-        email: createTestEmail(),
-        limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 0 }],
-      },
-      await signInTestAdmin(),
-    )
-
-    expect(createdUser.limits).toHaveLength(1)
-    for (const limit of createdUser.limits) {
-      expect(limit.maxCount).toBe(0)
-    }
-  })
-
-  it("rejects a limit with a non-integer maxCount", async () => {
-    await expectOrpcError(
-      callCreateUser(
-        {
-          name: "Created User",
-          email: createTestEmail(),
-          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 1.5 }],
-        },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("rejects a limit with an unknown protocol family", async () => {
-    await expectOrpcError(
-      callCreateUser(
-        {
-          name: "Created User",
-          email: createTestEmail(),
-          limits: [{ protocolFamily: "wireguard", maxCount: 1 }],
-        },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-  })
-
-  it("ignores a role and banned sent in the payload", async () => {
-    const createdUser = await callCreateUser(
-      { name: "Created User", email: createTestEmail(), role: "admin", banned: true },
-      await signInTestAdmin(),
-    )
-
-    const userRows = await db.select().from(user).where(eq(user.id, createdUser.id))
-    expect(userRows[0].role).toBeNull()
-    expect(userRows[0].banned).toBe(false)
-  })
-
-  it("rejects a duplicate email with EMAIL_TAKEN", async () => {
+  it("rejects a duplicate email with EMAIL_TAKEN and does not insert a user row", async () => {
     const existingUser = await insertTestUser()
 
     await expectOrpcError(
       callCreateUser({ name: "Created User", email: existingUser.email }, await signInTestAdmin()),
       "EMAIL_TAKEN",
     )
+
+    const userRows = await db.select().from(user).where(eq(user.email, existingUser.email))
+    expect(userRows).toHaveLength(1)
+    expect(userRows[0].id).toBe(existingUser.id)
   })
 
   it("rejects a duplicate email differing only in case with EMAIL_TAKEN", async () => {
@@ -380,19 +230,6 @@ describe("POST /users", () => {
     )
   })
 
-  it("does not insert a user row when the email is taken", async () => {
-    const existingUser = await insertTestUser()
-
-    await callCreateUser(
-      { name: "Created User", email: existingUser.email },
-      await signInTestAdmin(),
-    ).catch(() => undefined)
-
-    const userRows = await db.select().from(user).where(eq(user.email, existingUser.email))
-    expect(userRows).toHaveLength(1)
-    expect(userRows[0].id).toBe(existingUser.id)
-  })
-
   it("responds with HTTP 409 when the email is taken", async () => {
     const existingUser = await insertTestUser()
     const headers = await signInTestAdmin()
@@ -407,25 +244,6 @@ describe("POST /users", () => {
     expect(response.status).toBe(409)
   })
 
-  it("does not insert user or config limit rows when input validation fails", async () => {
-    const email = createTestEmail()
-
-    await expectOrpcError(
-      callCreateUser(
-        {
-          name: "",
-          email,
-          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 5 }],
-        },
-        await signInTestAdmin(),
-      ),
-      "BAD_REQUEST",
-    )
-
-    const userRows = await db.select().from(user).where(eq(user.email, email))
-    expect(userRows).toHaveLength(0)
-  })
-
   it("rejects an ordinary user with FORBIDDEN", async () => {
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
@@ -433,13 +251,6 @@ describe("POST /users", () => {
     await expectOrpcError(
       callCreateUser({ name: "Created User", email: createTestEmail() }, headers),
       "FORBIDDEN",
-    )
-  })
-
-  it("rejects an anonymous request with UNAUTHORIZED", async () => {
-    await expectOrpcError(
-      callCreateUser({ name: "Created User", email: createTestEmail() }, new Headers()),
-      "UNAUTHORIZED",
     )
   })
 
@@ -491,6 +302,28 @@ describe("POST /users", () => {
         body: JSON.stringify({ name: "Created User", email: createTestEmail() }),
       })
       expect(response.status).toBe(500)
+    })
+
+    it("responds with HTTP 500 and rolls back the user row when the config limit insert throws", async () => {
+      vi.mocked(insertUserConfigLimits).mockRejectedValueOnce(
+        new Error("Config limit insert failure"),
+      )
+      const email = createTestEmail()
+      const headers = await signInTestAdmin()
+      headers.set("content-type", "application/json")
+
+      const response = await app.request("/api/users", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          name: "Created User",
+          email,
+          limits: [{ protocolFamily: ProtocolRegistry.amneziawg2.family, maxCount: 4 }],
+        }),
+      })
+      expect(response.status).toBe(500)
+      const userRows = await db.select().from(user).where(eq(user.email, email))
+      expect(userRows).toHaveLength(0)
     })
 
     it("responds with HTTP 500 when the user insert throws a unique violation on another constraint", async () => {

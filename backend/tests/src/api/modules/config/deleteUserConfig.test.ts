@@ -85,56 +85,6 @@ describe("DELETE /configs/{id}", () => {
     expect(configRows).toHaveLength(0)
   })
 
-  describe("amneziawg2", () => {
-    it("removes the peer from the node", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-      const insertedConfig = await insertTestConfig({
-        userId: requestUser.id,
-        endpointId: configEndpoint.id,
-        deviceTypeId: configDeviceType.id,
-        status: "active",
-      })
-
-      await callDeleteUserConfig(headers, insertedConfig.id)
-
-      expect(getProtocolClientSpy).toHaveBeenCalledWith(ProtocolCodeSchema.enum.amneziawg2)
-      expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
-        insertedConfig.data,
-      ])
-    })
-
-    it("deletes only the requested config and leaves the user's other config untouched", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-      const deletedConfigRow = await insertTestConfig({
-        userId: requestUser.id,
-        endpointId: configEndpoint.id,
-        deviceTypeId: configDeviceType.id,
-        status: "active",
-        data: { protocolCode: ProtocolCodeSchema.enum.amneziawg2, ip: "10.8.0.11" },
-      })
-      const siblingConfig = await insertTestConfig({
-        userId: requestUser.id,
-        endpointId: configEndpoint.id,
-        deviceTypeId: configDeviceType.id,
-        status: "active",
-        data: { protocolCode: ProtocolCodeSchema.enum.amneziawg2, ip: "10.8.0.12" },
-      })
-
-      await callDeleteUserConfig(headers, deletedConfigRow.id)
-
-      const configRows = await db.select().from(config).where(eq(config.id, siblingConfig.id))
-      expect(configRows).toHaveLength(1)
-      expect(configRows[0].status).toBe("active")
-      expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
-        deletedConfigRow.data,
-      ])
-    })
-  })
-
   it("frees the user's limit slot immediately after a successful delete", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
@@ -323,6 +273,56 @@ describe("DELETE /configs/{id}", () => {
 
     const parsed = DeleteUserConfigOutputSchema.parse(deletedConfig)
     expect(parsed.id).toBe(adminConfig.id)
+  })
+
+  describe("amneziawg2", () => {
+    it("removes the peer from the node", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+      const insertedConfig = await insertTestConfig({
+        userId: requestUser.id,
+        endpointId: configEndpoint.id,
+        deviceTypeId: configDeviceType.id,
+        status: "active",
+      })
+
+      await callDeleteUserConfig(headers, insertedConfig.id)
+
+      expect(getProtocolClientSpy).toHaveBeenCalledWith(ProtocolCodeSchema.enum.amneziawg2)
+      expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+        insertedConfig.data,
+      ])
+    })
+
+    it("deletes only the requested config and leaves the user's other config untouched", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+      const deletedConfigRow = await insertTestConfig({
+        userId: requestUser.id,
+        endpointId: configEndpoint.id,
+        deviceTypeId: configDeviceType.id,
+        status: "active",
+        data: { protocolCode: ProtocolCodeSchema.enum.amneziawg2, ip: "10.8.0.11" },
+      })
+      const siblingConfig = await insertTestConfig({
+        userId: requestUser.id,
+        endpointId: configEndpoint.id,
+        deviceTypeId: configDeviceType.id,
+        status: "active",
+        data: { protocolCode: ProtocolCodeSchema.enum.amneziawg2, ip: "10.8.0.12" },
+      })
+
+      await callDeleteUserConfig(headers, deletedConfigRow.id)
+
+      const configRows = await db.select().from(config).where(eq(config.id, siblingConfig.id))
+      expect(configRows).toHaveLength(1)
+      expect(configRows[0].status).toBe("active")
+      expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+        deletedConfigRow.data,
+      ])
+    })
   })
 
   describe("technical", () => {

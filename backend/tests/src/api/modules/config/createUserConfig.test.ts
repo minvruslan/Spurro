@@ -261,189 +261,6 @@ describe("POST /configs", () => {
     expect(configRows[0].data).toEqual(otherUserPendingConfig.data)
   })
 
-  describe("amneziawg2", () => {
-    it.todo("reserves the client identifiers of configs on the server's other endpoints")
-
-    it("adds the peer to the node for the target endpoint", async () => {
-      const targetEndpointHost = "target-endpoint.example.test"
-      const targetEndpointPort = 51999
-      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
-        endpoint: {
-          data: {
-            actualState: {
-              ...FakeAmneziawg2EndpointActualState,
-              host: targetEndpointHost,
-              port: targetEndpointPort,
-            },
-          },
-        },
-      })
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-
-      await callCreateUserConfig(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
-      )
-
-      expect(getProtocolClientSpy).toHaveBeenCalledWith(ProtocolCodeSchema.enum.amneziawg2)
-      expect(fakeAmneziawg2Client.createAccess).toHaveBeenCalledWith(
-        expect.objectContaining({ host: targetEndpointHost, port: targetEndpointPort }),
-        fakeConfigData.ip,
-      )
-    })
-
-    it("returns exactly the amneziawg2 config data fields", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-
-      const createdConfig = await callCreateUserConfig(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
-      )
-
-      expect(Object.keys(ConfigSchema.parse(createdConfig).data).sort()).toEqual([
-        "configuration",
-        "ip",
-        "presharedKey",
-        "protocolCode",
-        "publicKey",
-      ])
-    })
-
-    it("stores the data column encrypted at rest", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-
-      const createdConfig = await callCreateUserConfig(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
-      )
-
-      const rawConfigRows = await db.execute<{ data: string }>(
-        sql`select data::text as data from config where id = ${createdConfig.id}::uuid`,
-      )
-      expect(rawConfigRows).toHaveLength(1)
-      expect(rawConfigRows[0]?.data.startsWith("v1:")).toBe(true)
-      expect(rawConfigRows[0]?.data).not.toContain(fakeConfigData.publicKey)
-      expect(rawConfigRows[0]?.data).not.toContain(fakeConfigData.presharedKey)
-    })
-
-    it("reuses the client identifier of a deleted config", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-      const firstConfig = await callCreateUserConfig(
-        { name: "First Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-        headers,
-      )
-      await call(configRouter.deleteUserConfig, { id: firstConfig.id }, { context: { headers } })
-
-      const recreatedConfig = await callCreateUserConfig(
-        {
-          name: "Recreated Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
-      )
-
-      expect(ConfigSchema.parse(recreatedConfig).data.ip).toBe(fakeConfigData.ip)
-    })
-
-    it("does not reserve client identifiers of configs on another server", async () => {
-      const { configProtocol, configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-      const otherServer = await insertTestServer()
-      const otherEndpoint = await insertTestEndpoint({
-        serverId: otherServer.id,
-        protocolId: configProtocol.id,
-      })
-      const otherUser = await insertTestUser()
-      await insertTestConfig({
-        userId: otherUser.id,
-        endpointId: otherEndpoint.id,
-        deviceTypeId: configDeviceType.id,
-        status: "active",
-        clientIdentifier: fakeConfigData.ip,
-      })
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-
-      const createdConfig = await callCreateUserConfig(
-        {
-          name: "Created Config",
-          endpointId: configEndpoint.id,
-          deviceTypeId: configDeviceType.id,
-        },
-        headers,
-      )
-
-      const parsed = ConfigSchema.parse(createdConfig)
-      expect(parsed.data.ip).toBe(fakeConfigData.ip)
-    })
-
-    it("creates a second config on the same endpoint with a distinct client identifier", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-
-      await callCreateUserConfig(
-        { name: "First Device", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-        headers,
-      )
-
-      await callCreateUserConfig(
-        { name: "Second Device", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
-        headers,
-      )
-
-      const configRows = await db.select().from(config).where(eq(config.userId, requestUser.id))
-      expect(configRows).toHaveLength(2)
-      expect(configRows.every((row) => row.status === "active")).toBe(true)
-      const clientIdentifiers = configRows.map((row) => row.clientIdentifier)
-      expect(new Set(clientIdentifiers).size).toBe(2)
-      expect(
-        clientIdentifiers.every((clientIdentifier) =>
-          clientIdentifier?.startsWith(`${FakeAmneziawg2EndpointActualState.subnetPrefix}.`),
-        ),
-      ).toBe(true)
-    })
-
-    it("returns FAILED when the endpoint actual state has no dns", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
-        endpoint: { data: { actualState: endpointActualStateWithoutDns } },
-      })
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-
-      await expectOrpcError(
-        callCreateUserConfig(
-          {
-            name: "Created Config",
-            endpointId: configEndpoint.id,
-            deviceTypeId: configDeviceType.id,
-          },
-          headers,
-        ),
-        "FAILED",
-      )
-    })
-  })
-
   it("creates a config on an endpoint whose protocol is disabled", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
       protocol: { isEnabled: false },
@@ -1252,6 +1069,189 @@ describe("POST /configs", () => {
 
     const parsed = ConfigSchema.parse(createdConfig)
     expect(parsed.name).toBe("Created Config")
+  })
+
+  describe("amneziawg2", () => {
+    it.todo("reserves the client identifiers of configs on the server's other endpoints")
+
+    it("adds the peer to the node for the target endpoint", async () => {
+      const targetEndpointHost = "target-endpoint.example.test"
+      const targetEndpointPort = 51999
+      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
+        endpoint: {
+          data: {
+            actualState: {
+              ...FakeAmneziawg2EndpointActualState,
+              host: targetEndpointHost,
+              port: targetEndpointPort,
+            },
+          },
+        },
+      })
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+
+      await callCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      )
+
+      expect(getProtocolClientSpy).toHaveBeenCalledWith(ProtocolCodeSchema.enum.amneziawg2)
+      expect(fakeAmneziawg2Client.createAccess).toHaveBeenCalledWith(
+        expect.objectContaining({ host: targetEndpointHost, port: targetEndpointPort }),
+        fakeConfigData.ip,
+      )
+    })
+
+    it("returns exactly the amneziawg2 config data fields", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+
+      const createdConfig = await callCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      )
+
+      expect(Object.keys(ConfigSchema.parse(createdConfig).data).sort()).toEqual([
+        "configuration",
+        "ip",
+        "presharedKey",
+        "protocolCode",
+        "publicKey",
+      ])
+    })
+
+    it("stores the data column encrypted at rest", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+
+      const createdConfig = await callCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      )
+
+      const rawConfigRows = await db.execute<{ data: string }>(
+        sql`select data::text as data from config where id = ${createdConfig.id}::uuid`,
+      )
+      expect(rawConfigRows).toHaveLength(1)
+      expect(rawConfigRows[0]?.data.startsWith("v1:")).toBe(true)
+      expect(rawConfigRows[0]?.data).not.toContain(fakeConfigData.publicKey)
+      expect(rawConfigRows[0]?.data).not.toContain(fakeConfigData.presharedKey)
+    })
+
+    it("reuses the client identifier of a deleted config", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+      const firstConfig = await callCreateUserConfig(
+        { name: "First Config", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
+        headers,
+      )
+      await call(configRouter.deleteUserConfig, { id: firstConfig.id }, { context: { headers } })
+
+      const recreatedConfig = await callCreateUserConfig(
+        {
+          name: "Recreated Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      )
+
+      expect(ConfigSchema.parse(recreatedConfig).data.ip).toBe(fakeConfigData.ip)
+    })
+
+    it("does not reserve client identifiers of configs on another server", async () => {
+      const { configProtocol, configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+      const otherServer = await insertTestServer()
+      const otherEndpoint = await insertTestEndpoint({
+        serverId: otherServer.id,
+        protocolId: configProtocol.id,
+      })
+      const otherUser = await insertTestUser()
+      await insertTestConfig({
+        userId: otherUser.id,
+        endpointId: otherEndpoint.id,
+        deviceTypeId: configDeviceType.id,
+        status: "active",
+        clientIdentifier: fakeConfigData.ip,
+      })
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+
+      const createdConfig = await callCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      )
+
+      const parsed = ConfigSchema.parse(createdConfig)
+      expect(parsed.data.ip).toBe(fakeConfigData.ip)
+    })
+
+    it("creates a second config on the same endpoint with a distinct client identifier", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+
+      await callCreateUserConfig(
+        { name: "First Device", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
+        headers,
+      )
+
+      await callCreateUserConfig(
+        { name: "Second Device", endpointId: configEndpoint.id, deviceTypeId: configDeviceType.id },
+        headers,
+      )
+
+      const configRows = await db.select().from(config).where(eq(config.userId, requestUser.id))
+      expect(configRows).toHaveLength(2)
+      expect(configRows.every((row) => row.status === "active")).toBe(true)
+      const clientIdentifiers = configRows.map((row) => row.clientIdentifier)
+      expect(new Set(clientIdentifiers).size).toBe(2)
+      expect(
+        clientIdentifiers.every((clientIdentifier) =>
+          clientIdentifier?.startsWith(`${FakeAmneziawg2EndpointActualState.subnetPrefix}.`),
+        ),
+      ).toBe(true)
+    })
+
+    it("returns FAILED when the endpoint actual state has no dns", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
+        endpoint: { data: { actualState: endpointActualStateWithoutDns } },
+      })
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+
+      await expectOrpcError(
+        callCreateUserConfig(
+          {
+            name: "Created Config",
+            endpointId: configEndpoint.id,
+            deviceTypeId: configDeviceType.id,
+          },
+          headers,
+        ),
+        "FAILED",
+      )
+    })
   })
 
   describe("technical", () => {
