@@ -7,8 +7,13 @@
     "dev:worker": "tsx watch src/worker/index.ts",
     "start": "NODE_ENV=production node dist/api/index.js",
     "worker:start": "NODE_ENV=production node dist/worker/index.js",
-    "build": "tsc && tsc-alias",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
+    "test": "docker compose -f ../docker-compose.yml up -d --wait postgres-test redis-test && vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:unit:watch": "vitest --project unit",
+    "test:integration": "docker compose -f ../docker-compose.yml up -d --wait postgres-test redis-test && vitest run --project integration",
+    "test:coverage": "docker compose -f ../docker-compose.yml up -d --wait postgres-test redis-test && vitest run --coverage",
     "lint:check": "eslint .",
     "lint:fix": "eslint . --fix",
     "format:check": "prettier --check .",
@@ -39,10 +44,13 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@orpc/contract": "^1.14.13",
     "@types/node": "^25.6.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "drizzle-kit": "^0.31.10",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10"
   }
 }

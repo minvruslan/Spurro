@@ -15,6 +15,7 @@ const createServerRoute = authorized.servers.createServer.handler(async ({ input
         throw errors.PROTOCOL_NOT_FOUND({ cause: result.error })
       case "unsupported_protocol":
         throw errors.UNSUPPORTED_PROTOCOL({ cause: result.error })
+      /* v8 ignore next 2 */
       default:
         return result.errorCode satisfies never
     }

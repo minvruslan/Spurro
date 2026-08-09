@@ -3,9 +3,19 @@ import { configLogger } from "@/core/logger/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import type { DeletableUserConfig } from "../queries/findDeletableUserConfigs.js"
 import { findDeletableUserConfigs } from "../queries/findDeletableUserConfigs.js"
+import { deleteUserConfigs } from "../queries/deleteUserConfigs.js"
 import { setUserConfigsStatus } from "../queries/setUserConfigsStatus.js"
 import { deleteUserConfigsFromRemoteEndpointService } from "./deleteUserConfigsFromRemoteEndpointService.js"
 
+export async function deleteUserConfigsService(
+  userId: string,
+): Promise<ServiceResult<{ deletedConfigIds: string[]; deleteFailedConfigIds: string[] }>>
+export async function deleteUserConfigsService(
+  userId: string,
+  configIds: string[],
+): Promise<
+  ServiceResult<{ deletedConfigIds: string[]; deleteFailedConfigIds: string[] }, "not_found">
+>
 export async function deleteUserConfigsService(
   userId: string,
   configIds?: string[],
@@ -46,13 +56,7 @@ export async function deleteUserConfigsService(
       continue
     }
 
-    const deletedRows = await setUserConfigsStatus(
-      db,
-      userId,
-      groupConfigIds,
-      "deleted",
-      "deleting",
-    )
+    const deletedRows = await deleteUserConfigs(db, userId, groupConfigIds, "deleting")
     deletedConfigIds.push(...deletedRows.map((row) => row.id))
   }
 

@@ -9,3 +9,4 @@ export { getUserConfigLimitsService } from "./services/getUserConfigLimitsServic
 export { getUsersConfigLimitsService } from "./services/getUsersConfigLimitsService.js"
 export { setUserConfigLimitsService } from "./services/setUserConfigLimitsService.js"
 export { isUserConfigLimitReachedService } from "./services/isUserConfigLimitReachedService.js"
+export { reservedConfigCondition } from "./queries/conditions/reservedConfigCondition.js"

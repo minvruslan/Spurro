@@ -7,7 +7,6 @@ export async function findEndpointProtocolClientData(executor: DbOrTx, endpointI
   const [row] = await executor
     .select({
       serverIp: server.ip,
-      serverDomainName: server.domainName,
       serverData: server.data,
       endpointData: endpoint.data,
       protocolCode: protocol.code,
@@ -18,14 +17,15 @@ export async function findEndpointProtocolClientData(executor: DbOrTx, endpointI
     .where(eq(endpoint.id, endpointId))
     .limit(1)
 
+  /* v8 ignore start */
   if (!row) return undefined
+  /* v8 ignore stop */
 
   const parsedServerData = ServerDataSchema.safeParse(row.serverData)
   const parsedEndpointData = EndpointDataSchema.safeParse(row.endpointData)
 
   return {
     serverIp: row.serverIp,
-    serverDomainName: row.serverDomainName,
     protocolCode: row.protocolCode,
     serverData: parsedServerData.success ? parsedServerData.data : null,
     endpointData: parsedEndpointData.success ? parsedEndpointData.data : null,

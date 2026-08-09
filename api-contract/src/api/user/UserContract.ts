@@ -24,6 +24,7 @@ export const UserContract = oc.prefix("/users").router({
     .input(UpsertUserSchema.extend({ id: z.string() }))
     .errors({
       NOT_FOUND: { message: "User not found" },
+      EMAIL_TAKEN: { status: 409, message: "User with this email already exists" },
     })
     .output(UserSchema),
   deleteUser: adminAccess

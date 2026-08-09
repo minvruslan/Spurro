@@ -1,11 +1,6 @@
 import { serve } from "@hono/node-server"
 import app from "./app.js"
-import {
-  bootstrapAdmin,
-  bootstrapDeviceTypes,
-  bootstrapProtocols,
-  bootstrapCurrentServer,
-} from "@/core/bootstraps/index.js"
+import { runBootstraps } from "@/core/bootstraps/index.js"
 import { checkDatabaseConnection } from "@/core/database/checkDatabaseConnection.js"
 import { env } from "@/core/env/index.js"
 import { startupLogger } from "@/core/logger/index.js"
@@ -26,10 +21,7 @@ try {
   process.exit(1)
 }
 
-await bootstrapAdmin()
-await bootstrapDeviceTypes()
-await bootstrapProtocols()
-await bootstrapCurrentServer()
+await runBootstraps()
 
 const server = serve({ fetch: app.fetch, port, hostname: host }, () => {
   startupLogger.info(`Server running on http://${host}:${port}.`)

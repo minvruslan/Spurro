@@ -8,12 +8,10 @@ const deleteUserConfigRoute = authorized.configs.deleteUserConfig.handler(
       switch (result.errorCode) {
         case "not_found":
           throw errors.NOT_FOUND({ cause: result.error })
+        /* v8 ignore next 2 */
         default:
           return result.errorCode satisfies never
       }
-    }
-    if (result.data.deleteFailedConfigIds.length > 0) {
-      throw errors.DELETE_FAILED()
     }
     return { id: input.id }
   },

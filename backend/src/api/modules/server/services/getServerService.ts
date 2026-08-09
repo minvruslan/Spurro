@@ -12,6 +12,5 @@ export async function getServerService(
   const rows = await findServerById(db, id)
   if (rows.length === 0) return { ok: false, errorCode: "not_found" }
   const server = createServersFromDatabaseData(rows)[0]
-  if (server.status === "deleted") return { ok: false, errorCode: "not_found" }
   return { ok: true, data: { server } }
 }

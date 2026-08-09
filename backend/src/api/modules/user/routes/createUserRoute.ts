@@ -7,6 +7,7 @@ const createUserRoute = authorized.users.createUser.handler(async ({ input, erro
     switch (result.errorCode) {
       case "email_taken":
         throw errors.EMAIL_TAKEN({ cause: result.error })
+      /* v8 ignore next 2 */
       default:
         return result.errorCode satisfies never
     }

@@ -4,7 +4,6 @@ export const messages = {
       active: "Активен",
       provisioning: "Настраивается",
       failed: "Ошибка",
-      deleted: "Удалён",
     },
   },
   en: {
@@ -12,7 +11,6 @@ export const messages = {
       active: "Active",
       provisioning: "Provisioning",
       failed: "Failed",
-      deleted: "Deleted",
     },
   },
 }

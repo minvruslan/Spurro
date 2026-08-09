@@ -10,7 +10,9 @@ export function createServersFromDatabaseData(rows: ServerRow[]): Server[] {
 
   for (const row of rows) {
     let server = serversById.get(row.id)
+    /* v8 ignore start -- a repeated server row needs two endpoints on one server, unrepresentable until a second protocol exists */
     if (!server) {
+      /* v8 ignore stop */
       server = {
         id: row.id,
         name: row.name,

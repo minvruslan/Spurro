@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm"
+import { reservedConfigCondition } from "@/api/modules/config-limit/index.js"
 import type { DbOrTx } from "@/core/database/index.js"
 import {
   config,
@@ -17,5 +18,5 @@ export async function findUserConfig(executor: DbOrTx, userId: string, configId:
     .innerJoin(endpoint, eq(config.endpointId, endpoint.id))
     .innerJoin(protocol, eq(endpoint.protocolId, protocol.id))
     .innerJoin(server, eq(endpoint.serverId, server.id))
-    .where(and(eq(config.id, configId), eq(config.userId, userId), eq(config.status, "active")))
+    .where(and(eq(config.id, configId), eq(config.userId, userId), reservedConfigCondition()))
 }

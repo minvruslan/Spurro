@@ -1,6 +1,6 @@
 import type { ProtocolCode } from "@spurro/api-contract"
 import { ProtocolCodeSchema } from "@spurro/api-contract"
-import type { EndpointActualState, ServerActualState } from "@spurro/infrastructure/types"
+import type { EndpointActualState } from "@spurro/infrastructure/types"
 import { EndpointActualStateSchema } from "@spurro/infrastructure/types"
 import type { ProtocolClient } from "@spurro/infrastructure"
 import { RemoteServer } from "@spurro/infrastructure"
@@ -11,7 +11,6 @@ import { findEndpointProtocolClientData } from "../queries/findEndpointProtocolC
 
 type EndpointProtocolClient = {
   client: ProtocolClient
-  server: { ip: string; domainName: string | null; actualState: ServerActualState }
   endpointActualState: EndpointActualState
   protocolCode: ProtocolCode
 }
@@ -62,16 +61,6 @@ export async function getEndpointProtocolClientService(
     }
   }
 
-  if (!serverData.actualState.dns) {
-    return {
-      ok: false,
-      errorCode: "unavailable",
-      error: new Error(
-        `Endpoint ${endpointId} server actual state has no DNS; server may not be hardened.`,
-      ),
-    }
-  }
-
   const endpointActualState = EndpointActualStateSchema.safeParse(
     endpointProtocolClientData.endpointData?.actualState,
   )
@@ -79,21 +68,28 @@ export async function getEndpointProtocolClientService(
     return {
       ok: false,
       errorCode: "unavailable",
-      error: new Error(`Endpoint ${endpointId} has no actual state; it may not be deployed.`),
+      error: new Error(`Endpoint ${endpointId} has no actual state.`),
     }
   }
 
   const client = new RemoteServer(serverAccess).getProtocolClient(parsedCode.data)
 
+  try {
+    client.parseEndpointActualState(endpointActualState.data)
+  } catch (error) {
+    return {
+      ok: false,
+      errorCode: "unavailable",
+      error: new Error(`Endpoint ${endpointId} actual state failed protocol validation.`, {
+        cause: error,
+      }),
+    }
+  }
+
   return {
     ok: true,
     data: {
       client,
-      server: {
-        ip: endpointProtocolClientData.serverIp,
-        domainName: endpointProtocolClientData.serverDomainName,
-        actualState: serverData.actualState,
-      },
       endpointActualState: endpointActualState.data,
       protocolCode: parsedCode.data,
     },

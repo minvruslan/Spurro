@@ -17,6 +17,8 @@ app.onError((error, c) => {
 
 app.get("/health", (c) => c.json({ status: "ok" }))
 
+app.on(["POST", "GET"], "/api/auth/admin/*", (c) => c.notFound())
+
 app.on(["POST", "GET"], "/api/auth/*", (c) => authServer.handler(c.req.raw))
 
 const apiHandler = new OpenAPIHandler(router, {

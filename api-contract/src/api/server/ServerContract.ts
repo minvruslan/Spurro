@@ -29,19 +29,4 @@ export const ServerContract = oc.prefix("/servers").router({
       UNSUPPORTED_PROTOCOL: { status: 400, message: "Unsupported protocol" },
     })
     .output(ServerSchema),
-  updateServer: adminAccess
-    .route({ method: "PUT", path: "/{id}" })
-    .input(UpsertServerSchema.extend({ id: z.uuid() }))
-    .errors({
-      NOT_FOUND: { message: "Server not found" },
-    })
-    .output(ServerSchema),
-  deleteServer: adminAccess
-    .route({ method: "DELETE", path: "/{id}" })
-    .input(z.object({ id: z.uuid() }))
-    .errors({
-      NOT_FOUND: { message: "Server not found" },
-      CURRENT_SERVER: { status: 409, message: "Cannot delete current server" },
-    })
-    .output(z.object({ id: z.uuid() })),
 })

@@ -38,7 +38,6 @@ export const ConfigContract = oc.prefix("/configs").router({
     .input(z.object({ id: z.uuid() }))
     .errors({
       NOT_FOUND: { message: "Config not found" },
-      DELETE_FAILED: { status: 502, message: "Failed to delete config" },
     })
     .output(z.object({ id: z.uuid() })),
 })

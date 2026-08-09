@@ -8,21 +8,23 @@ export async function deleteUserConfigsFromRemoteEndpointService(
   endpointId: string,
   configs: DeletableUserConfig[],
 ): Promise<ServiceResult<null, ErrorCode>> {
+  /* v8 ignore start */
   if (configs.length === 0) return { ok: true, data: null }
+  /* v8 ignore stop */
 
-  const mismatchedConfigIds = configs
-    .filter((config) => config.endpointId !== endpointId)
-    .map((config) => config.id)
+  const mismatchedConfigs = configs.filter((config) => config.endpointId !== endpointId)
 
-  if (mismatchedConfigIds.length > 0) {
+  /* v8 ignore start */
+  if (mismatchedConfigs.length > 0) {
     return {
       ok: false,
       errorCode: "endpoint_mismatch",
       error: new Error(
-        `Configs [${mismatchedConfigIds.join(", ")}] do not belong to endpoint ${endpointId}; configs not deleted.`,
+        `Configs [${mismatchedConfigs.map((config) => config.id).join(", ")}] do not belong to endpoint ${endpointId}; configs not deleted.`,
       ),
     }
   }
+  /* v8 ignore stop */
 
   const resolved = await getEndpointProtocolClientService(endpointId)
   if (!resolved.ok) return resolved

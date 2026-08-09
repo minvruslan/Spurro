@@ -8,17 +8,10 @@ export async function setUserConfigsStatus(
   userId: string,
   configIds: string[],
   status: ConfigStatus,
-  fromStatus?: ConfigStatus,
 ) {
   return executor
     .update(config)
     .set({ status })
-    .where(
-      and(
-        inArray(config.id, configIds),
-        eq(config.userId, userId),
-        ...(fromStatus ? [eq(config.status, fromStatus)] : []),
-      ),
-    )
+    .where(and(inArray(config.id, configIds), eq(config.userId, userId)))
     .returning({ id: config.id })
 }

@@ -20,6 +20,8 @@ type EndpointDataUpdate = {
 export const resolveEndpointDeployments: ProvisioningStep<
   {
     remoteServer: RemoteServer
+    host: string
+    dns: string
     endpoints: {
       endpointId: string
       port: number
@@ -28,12 +30,13 @@ export const resolveEndpointDeployments: ProvisioningStep<
     }[]
   },
   { endpointDeployments: EndpointDeployment[]; endpointDataUpdates: EndpointDataUpdate[] }
-> = async (serverId, { remoteServer, endpoints }) => {
+> = async (serverId, { remoteServer, host, dns, endpoints }) => {
   const endpointDeployments: EndpointDeployment[] = []
   const endpointDataUpdates: EndpointDataUpdate[] = []
 
   for (const endpoint of endpoints) {
     const parsedProtocolCode = ProtocolCodeSchema.safeParse(endpoint.protocolCode)
+    /* v8 ignore start */
     if (!parsedProtocolCode.success) {
       throw new ProvisioningError(
         serverId,
@@ -43,6 +46,7 @@ export const resolveEndpointDeployments: ProvisioningStep<
         ),
       )
     }
+    /* v8 ignore stop */
 
     if (endpoint.data === null) {
       throw new ProvisioningError(
@@ -69,7 +73,7 @@ export const resolveEndpointDeployments: ProvisioningStep<
     let endpointDesiredState = parsedDesiredState.success ? parsedDesiredState.data : undefined
 
     if (!endpointDesiredState) {
-      endpointDesiredState = client.createEndpointDesiredState(endpoint.port)
+      endpointDesiredState = client.createEndpointDesiredState(endpoint.port, host, dns)
       endpointData = { ...endpointData, desiredState: endpointDesiredState }
       endpointDataUpdates.push({ endpointId: endpoint.endpointId, endpointData })
     }

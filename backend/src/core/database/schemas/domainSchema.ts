@@ -20,24 +20,31 @@ import { user } from "./authSchema"
 
 // Enums
 
-export const serverStatus = pgEnum("server_status", ["provisioning", "active", "failed", "deleted"])
-export const endpointStatus = pgEnum("endpoint_status", ["active", "deleted"])
-export const configStatus = pgEnum("config_status", ["active", "pending", "deleting", "deleted"])
+export const serverStatus = pgEnum("server_status", ["provisioning", "active", "failed"])
+export const endpointStatus = pgEnum("endpoint_status", ["active"])
+export const configStatus = pgEnum("config_status", ["active", "pending", "deleting"])
 
 // Catalog
 
-export const protocol = pgTable("protocol", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  code: text("code").notNull().unique(),
-  family: text("family").$type<ProtocolFamilyCode>().notNull(),
-  name: text("name").notNull(),
-  isEnabled: boolean("is_enabled").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
-})
+export const protocol = pgTable(
+  "protocol",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: text("code").notNull().unique(),
+    family: text("family").$type<ProtocolFamilyCode>().notNull(),
+    name: text("name").notNull(),
+    isEnabled: boolean("is_enabled").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    check("protocol_code_check", sql`${t.code} in ('amneziawg2')`),
+    check("protocol_family_check", sql`${t.family} in ('amneziawg')`),
+  ],
+)
 
 export const deviceType = pgTable(
   "device_type",
@@ -167,9 +174,7 @@ export const config = pgTable(
       .notNull(),
   },
   (t) => [
-    uniqueIndex("config_endpoint_client_identifier_uq")
-      .on(t.endpointId, t.clientIdentifier)
-      .where(sql`${t.status} != 'deleted'`),
+    uniqueIndex("config_endpoint_client_identifier_uq").on(t.endpointId, t.clientIdentifier),
     index("config_user_idx").on(t.userId),
     index("config_endpoint_idx").on(t.endpointId),
     index("config_device_type_idx").on(t.deviceTypeId),

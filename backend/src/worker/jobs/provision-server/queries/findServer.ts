@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { ServerDataSchema } from "@spurro/infrastructure/types"
 import { db } from "@/core/database/index.js"
 import { server } from "@/core/database/schemas/domainSchema.js"
@@ -8,18 +8,19 @@ export async function findServer(serverId: string) {
     .select({
       ip: server.ip,
       domainName: server.domainName,
+      status: server.status,
       data: server.data,
     })
     .from(server)
-    .where(and(eq(server.id, serverId), ne(server.status, "deleted")))
+    .where(eq(server.id, serverId))
     .limit(1)
 
   if (!row) return undefined
 
   const parsedData = ServerDataSchema.safeParse(row.data)
   if (!parsedData.success) {
-    return { ip: row.ip, domainName: row.domainName, data: null }
+    return { ip: row.ip, domainName: row.domainName, status: row.status, data: null }
   }
 
-  return { ip: row.ip, domainName: row.domainName, data: parsedData.data }
+  return { ip: row.ip, domainName: row.domainName, status: row.status, data: parsedData.data }
 }

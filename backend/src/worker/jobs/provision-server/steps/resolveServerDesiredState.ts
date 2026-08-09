@@ -3,7 +3,6 @@ import type { ServerDesiredState } from "@spurro/infrastructure/types"
 import { ProvisioningError } from "../ProvisioningError.js"
 import {
   VPN_NODE_BASE_DIRECTORY,
-  VPN_NODE_DNS,
   VPN_NODE_SSH_PORT,
   VPN_NODE_USERNAME,
 } from "../constants/index.js"
@@ -26,7 +25,6 @@ export const resolveServerDesiredState: ProvisioningStep<
       username: VPN_NODE_USERNAME,
       port: VPN_NODE_SSH_PORT,
     },
-    dns: VPN_NODE_DNS,
     baseDirectory: VPN_NODE_BASE_DIRECTORY,
   })
 }

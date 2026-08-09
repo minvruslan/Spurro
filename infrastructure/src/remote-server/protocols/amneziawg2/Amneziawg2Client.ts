@@ -2,7 +2,6 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { z } from "zod"
 import {
-  DomainNameSchema,
   IpSchema,
   PortSchema,
   type Amneziawg2ClientIdentifier,
@@ -62,12 +61,18 @@ export class Amneziawg2Client {
     return Amneziawg2EndpointActualStateSchema.parse(actualState)
   }
 
-  createEndpointDesiredState(port: number): Amneziawg2EndpointDesiredState {
+  createEndpointDesiredState(
+    port: number,
+    host: string,
+    dns: string,
+  ): Amneziawg2EndpointDesiredState {
     const parsedPort = PortSchema.parse(port)
     const serverKeyPair = generateServerKeyPair()
 
     return {
       protocolCode: this.protocolCode,
+      host: Amneziawg2EndpointDesiredStateSchema.shape.host.parse(host),
+      dns: Amneziawg2EndpointDesiredStateSchema.shape.dns.parse(dns),
       dockerImageVersion: this.dockerImageVersion,
       port: parsedPort,
       containerName: AMNEZIAWG2_CONTAINER_NAME,
@@ -117,20 +122,11 @@ export class Amneziawg2Client {
   }
 
   async createAccess(
-    server: { ip: string; domainName: string | null; actualState: ServerActualState },
     endpointActualState: EndpointActualState,
     clientIdentifier: string,
   ): Promise<{ configData: Amneziawg2ConfigData; clientConfiguration: string }> {
     const actualState = this.parseEndpointActualState(endpointActualState)
     const clientIp = IpSchema.parse(clientIdentifier)
-    const serverHost =
-      server.domainName === null
-        ? IpSchema.parse(server.ip)
-        : DomainNameSchema.parse(server.domainName)
-
-    if (!server.actualState.dns) {
-      throw new Error("Server actual state has no DNS; server may not be hardened.")
-    }
 
     const output = await this.remoteCommandRunner.executeContainerScript(
       actualState.containerName,
@@ -163,9 +159,9 @@ export class Amneziawg2Client {
       clientIp,
       serverPublicKey: createdAccess.serverPublicKey,
       presharedKey: createdAccess.presharedKey,
-      serverEndpoint: `${serverHost}:${actualState.port}`,
+      serverEndpoint: `${actualState.host}:${actualState.port}`,
       obfuscation: createdAccess.obfuscation,
-      dns: server.actualState.dns,
+      dns: actualState.dns,
     })
 
     return {
