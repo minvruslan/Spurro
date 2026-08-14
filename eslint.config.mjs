@@ -1,7 +1,7 @@
 import tseslint from "typescript-eslint"
 import eslintConfigPrettier from "eslint-config-prettier"
 
-const EXTERNAL_NAMES = new Set(["baseURL"])
+const EXTERNAL_NAMES = new Set(["baseURL", "useTagRC", "useTagRD"])
 
 const UPPERCASE_RUN_PATTERN = /[A-Z]{2,}/
 const SCREAMING_SNAKE_PATTERN = /^[A-Z0-9_]+$/
@@ -60,6 +60,7 @@ export default tseslint.config(
       "**/dist/**",
       "**/coverage/**",
       "frontend/",
+      "infrastructure/src/remote-server/protocols/*/vendor/**",
     ],
   },
   ...tseslint.configs.recommended,

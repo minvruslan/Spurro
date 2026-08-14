@@ -14,10 +14,13 @@ import { insertUserConfig } from "../queries/insertUserConfig.js"
 import { activateConfig } from "../queries/activateConfig.js"
 import { createConfigFromDatabaseData } from "../utils/createConfigFromDatabaseData.js"
 
+type CreatedConfig = Config & { clientConfiguration: string }
+
 type ErrorCode =
   | "endpoint_invalid"
   | "device_type_invalid"
   | "unsupported_protocol"
+  | "protocol_options_mismatch"
   | "no_available_ip"
   | "limit_reached"
   | "failed"
@@ -25,7 +28,7 @@ type ErrorCode =
 export async function createUserConfigService(
   userId: string,
   input: UpsertConfig,
-): Promise<ServiceResult<{ config: Config }, ErrorCode>> {
+): Promise<ServiceResult<{ config: CreatedConfig }, ErrorCode>> {
   const endpoint = await findActiveEndpointById(db, input.endpointId)
   if (!endpoint) return { ok: false, errorCode: "endpoint_invalid" }
 
@@ -41,7 +44,23 @@ export async function createUserConfigService(
     }
   }
 
-  const { client, endpointActualState } = resolved.data
+  const { client, endpointActualState, protocolCode } = resolved.data
+
+  /* v8 ignore start -- unreachable while a single protocol exists: the options union has one branch */
+  if (input.protocolOptions && input.protocolOptions.protocolCode !== protocolCode) {
+    return {
+      ok: false,
+      errorCode: "protocol_options_mismatch",
+      error: new Error(
+        `Config options for protocol "${input.protocolOptions.protocolCode}" do not match endpoint protocol "${protocolCode}".`,
+      ),
+    }
+  }
+  /* v8 ignore stop */
+
+  const protocolOptions =
+    input.protocolOptions ??
+    ProtocolRegistry[protocolCode].configOptionsSchema.parse({ protocolCode })
 
   const reserved = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
@@ -69,7 +88,7 @@ export async function createUserConfigService(
       endpointId: input.endpointId,
       deviceTypeId: input.deviceTypeId,
       name: input.name,
-      data: client.createInitialConfigData(clientIdentifier),
+      data: client.createInitialConfigData(clientIdentifier, protocolOptions),
       clientIdentifier,
     })
 
@@ -82,7 +101,7 @@ export async function createUserConfigService(
 
   let created
   try {
-    created = await client.createAccess(endpointActualState, clientIdentifier)
+    created = await client.createAccess(endpointActualState, clientIdentifier, protocolOptions)
 
     const [activated] = await activateConfig(db, configId, created.configData)
     if (!activated) {
@@ -115,7 +134,8 @@ export async function createUserConfigService(
     data: {
       config: {
         ...config,
-        data: { ...created.configData, configuration: created.clientConfiguration },
+        data: created.configData,
+        clientConfiguration: created.clientConfiguration,
       },
     },
   }

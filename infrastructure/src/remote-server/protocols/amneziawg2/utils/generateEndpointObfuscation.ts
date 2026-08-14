@@ -1,0 +1,41 @@
+import {
+  Amneziawg2ObfuscationDefaults,
+  Amneziawg2ServerObfuscationSchema,
+  type Amneziawg2ServerObfuscation,
+} from "../../../../types/index.js"
+import { genCfg } from "../vendor/awg-architect/engines/awg/generator/index"
+import { JUNK_PACKET_COUNT_BY_LEVEL } from "./generateClientObfuscation.js"
+import { ObfuscationGeneratorBaseInput } from "./ObfuscationGeneratorBaseInput.js"
+
+// The generator reports a draw that pads two handshake messages to the same length as a
+// warning rather than an error, so it can return one; the schema rejects it. Generation is
+// pure, so an invalid draw is simply discarded and repeated.
+const MAXIMUM_GENERATION_ATTEMPTS = 10
+
+export function generateEndpointObfuscation(): Amneziawg2ServerObfuscation {
+  for (let attempt = 0; attempt < MAXIMUM_GENERATION_ATTEMPTS; attempt++) {
+    const generated = genCfg({
+      ...ObfuscationGeneratorBaseInput,
+      profile: Amneziawg2ObfuscationDefaults.protocolProfile,
+      intensity: Amneziawg2ObfuscationDefaults.junkPacketSize,
+      junkLevel: JUNK_PACKET_COUNT_BY_LEVEL[Amneziawg2ObfuscationDefaults.junkPacketCount],
+    })
+
+    const parsed = Amneziawg2ServerObfuscationSchema.safeParse({
+      s1: generated.s1,
+      s2: generated.s2,
+      s3: generated.s3,
+      s4: generated.s4,
+      h1: generated.h1,
+      h2: generated.h2,
+      h3: generated.h3,
+      h4: generated.h4,
+    })
+
+    if (parsed.success) return parsed.data
+  }
+
+  throw new Error(
+    `Failed to generate a valid endpoint obfuscation in ${MAXIMUM_GENERATION_ATTEMPTS} attempts.`,
+  )
+}

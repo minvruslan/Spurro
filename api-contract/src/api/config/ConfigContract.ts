@@ -20,11 +20,15 @@ export const ConfigContract = oc.prefix("/configs").router({
       FAILED: { status: 502, message: "Failed to create VPN config" },
       NO_AVAILABLE_IP: { status: 503, message: "Server is at capacity (no available IP)" },
       UNSUPPORTED_PROTOCOL: { status: 400, message: "Unsupported protocol" },
+      PROTOCOL_OPTIONS_MISMATCH: {
+        status: 400,
+        message: "Protocol options do not match the endpoint protocol",
+      },
       LIMIT_REACHED: { status: 409, message: "Config limit reached for this protocol family" },
       ENDPOINT_INVALID: { status: 400, message: "Invalid endpoint" },
       DEVICE_TYPE_INVALID: { status: 400, message: "Invalid device type" },
     })
-    .output(ConfigSchema),
+    .output(ConfigSchema.extend({ clientConfiguration: z.string() })),
   updateUserConfig: userAccess
     .route({ method: "PUT", path: "/{id}" })
     .input(UpdateConfigSchema.extend({ id: z.uuid() }))

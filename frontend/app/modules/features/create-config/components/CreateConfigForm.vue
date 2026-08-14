@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import type { Config, Endpoint, UpsertConfig } from "@spurro/api-contract"
+import {
+  ProtocolCodeSchema,
+  ProtocolRegistry,
+  type Config,
+  type Endpoint,
+} from "@spurro/api-contract"
 import { onMounted, ref } from "vue"
 import { Plus } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
@@ -15,7 +20,10 @@ import { FieldLabel, FormLayout } from "@/modules/common/components"
 import { useEndpoints } from "@/modules/entities/endpoint"
 import { useDeviceTypes } from "@/modules/entities/device-type"
 import { useCreateConfig } from "../composables/useCreateConfig"
+import type { CreateConfigFormValues } from "../types"
 import { messages } from "../translations/CreateConfigForm"
+
+const DEFAULT_PROTOCOL_CODE = ProtocolCodeSchema.enum.amneziawg2
 
 const emit = defineEmits<{ (e: "created", config: Config): void; (e: "cancel"): void }>()
 
@@ -31,10 +39,13 @@ onMounted(() => nameInput.value?.$el?.focus())
 
 await Promise.all([endpointsReady, deviceTypesReady])
 
-const form = ref<UpsertConfig>({
+const form = ref<CreateConfigFormValues>({
   name: "",
   endpointId: "",
   deviceTypeId: "",
+  protocolOptions: ProtocolRegistry[DEFAULT_PROTOCOL_CODE].configOptionsSchema.parse({
+    protocolCode: DEFAULT_PROTOCOL_CODE,
+  }),
 })
 
 const endpointLabel = (endpoint: Endpoint) => `${endpoint.server.name} · ${endpoint.protocol.name}`

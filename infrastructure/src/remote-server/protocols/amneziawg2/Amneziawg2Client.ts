@@ -2,11 +2,14 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { z } from "zod"
 import {
+  Amneziawg2ConfigOptionsSchema,
   IpSchema,
   PortSchema,
   type Amneziawg2ClientIdentifier,
   type Amneziawg2ConfigData,
+  type ConfigClientIdentifier,
   type ConfigData,
+  type ConfigProtocolOptions,
   type ProtocolCode,
 } from "../../../types/index.js"
 import {
@@ -17,17 +20,18 @@ import {
   type Amneziawg2EndpointDesiredState,
   type EndpointActualState,
   type EndpointDesiredState,
-  type ServerActualState,
   type ServerDesiredState,
 } from "../../../types/index.js"
 import type { RemoteCommandRunner } from "../../../remote-command-runner/index.js"
-import { Amneziawg2CreatedAccessSchema } from "./types/index.js"
+import { TUNNEL_MTU } from "./constants/index.js"
+import type { Amneziawg2Access } from "./types/index.js"
 import {
   buildClientConfiguration,
-  extractField,
   findClientPublicKeyByClientIp,
-  generateServerKeyPair,
-  parseObfuscation,
+  generateClientObfuscation,
+  generateEndpointObfuscation,
+  generateKeyPair,
+  generatePresharedKey,
   pickFreeClientIp,
 } from "./utils/index.js"
 
@@ -67,7 +71,7 @@ export class Amneziawg2Client {
     dns: string,
   ): Amneziawg2EndpointDesiredState {
     const parsedPort = PortSchema.parse(port)
-    const serverKeyPair = generateServerKeyPair()
+    const serverKeyPair = generateKeyPair()
 
     return {
       protocolCode: this.protocolCode,
@@ -82,6 +86,7 @@ export class Amneziawg2Client {
       subnetPrefix: AMNEZIAWG2_SUBNET_PREFIX,
       serverPrivateKey: serverKeyPair.privateKey,
       serverPublicKey: serverKeyPair.publicKey,
+      obfuscation: generateEndpointObfuscation(),
     }
   }
 
@@ -93,10 +98,16 @@ export class Amneziawg2Client {
     return pickFreeClientIp(reservedClientIdentifiers, actualState.subnetPrefix)
   }
 
-  createInitialConfigData(clientIdentifier: string): Amneziawg2ConfigData {
+  createInitialConfigData(
+    clientIdentifier: ConfigClientIdentifier,
+    protocolOptions: ConfigProtocolOptions,
+  ): Amneziawg2ConfigData {
+    const { protocolCode, ...options } = Amneziawg2ConfigOptionsSchema.parse(protocolOptions)
+
     return {
-      protocolCode: this.protocolCode,
-      ip: IpSchema.parse(clientIdentifier),
+      protocolCode,
+      clientIp: IpSchema.parse(clientIdentifier),
+      options,
     }
   }
 
@@ -110,6 +121,7 @@ export class Amneziawg2Client {
       service_username: server.desiredState.ssh.username,
       amneziawg2_docker_image_version: desiredState.dockerImageVersion,
       amneziawg2_port: desiredState.port,
+      amneziawg2_mtu: TUNNEL_MTU,
       amneziawg2_address: `${desiredState.subnetPrefix}.1/24`,
       amneziawg2_deploy_directory: `${server.desiredState.baseDirectory}/${this.protocolCode}`,
       amneziawg2_container_name: desiredState.containerName,
@@ -118,65 +130,72 @@ export class Amneziawg2Client {
       amneziawg2_interface_name: desiredState.interfaceName,
       amneziawg2_server_private_key: desiredState.serverPrivateKey,
       amneziawg2_server_public_key: desiredState.serverPublicKey,
+      amneziawg2_obfuscation: desiredState.obfuscation,
     })
   }
 
   async createAccess(
     endpointActualState: EndpointActualState,
-    clientIdentifier: string,
+    clientIdentifier: ConfigClientIdentifier,
+    protocolOptions: ConfigProtocolOptions,
   ): Promise<{ configData: Amneziawg2ConfigData; clientConfiguration: string }> {
     const actualState = this.parseEndpointActualState(endpointActualState)
+    const obfuscationSelection = Amneziawg2ConfigOptionsSchema.parse(protocolOptions)
     const clientIp = IpSchema.parse(clientIdentifier)
 
-    const output = await this.remoteCommandRunner.executeContainerScript(
-      actualState.containerName,
-      "create-access.sh",
-      clientIp,
-    )
-
-    const parsed = Amneziawg2CreatedAccessSchema.safeParse({
-      clientPrivateKey: extractField(output, "PRIVATE_KEY"),
-      clientPublicKey: extractField(output, "PUBLIC_KEY"),
-      serverPublicKey: extractField(output, "SERVER_PUBLIC_KEY"),
-      presharedKey: extractField(output, "PRESHARED_KEY"),
-      obfuscation: parseObfuscation(
-        output.match(/OBFUSCATION_BEGIN\n([\s\S]*?)\nOBFUSCATION_END/)?.[1] ?? "",
-      ),
-    })
-
-    if (!parsed.success) {
-      throw new Error(
-        `Output of create-access.sh failed validation: ${parsed.error.issues
-          .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-          .join("; ")}.`,
-      )
-    }
-
-    const createdAccess = parsed.data
+    const clientKeyPair = generateKeyPair()
+    const presharedKey = generatePresharedKey()
 
     const clientConfiguration = buildClientConfiguration({
-      clientPrivateKey: createdAccess.clientPrivateKey,
+      clientPrivateKey: clientKeyPair.privateKey,
       clientIp,
-      serverPublicKey: createdAccess.serverPublicKey,
-      presharedKey: createdAccess.presharedKey,
+      serverPublicKey: actualState.serverPublicKey,
+      presharedKey,
       serverEndpoint: `${actualState.host}:${actualState.port}`,
-      obfuscation: createdAccess.obfuscation,
+      serverObfuscation: actualState.obfuscation,
+      clientObfuscation: generateClientObfuscation(obfuscationSelection),
       dns: actualState.dns,
     })
 
+    await this.applyAccesses(actualState, [
+      { publicKey: clientKeyPair.publicKey, presharedKey, clientIp },
+    ])
+
     return {
       configData: {
-        ...this.createInitialConfigData(clientIdentifier),
-        publicKey: createdAccess.clientPublicKey,
-        presharedKey: createdAccess.presharedKey,
+        ...this.createInitialConfigData(clientIdentifier, obfuscationSelection),
+        publicKey: clientKeyPair.publicKey,
+        presharedKey,
       },
       clientConfiguration,
     }
   }
 
+  async applyAccesses(
+    endpointActualState: EndpointActualState,
+    accesses: Amneziawg2Access[],
+  ): Promise<void> {
+    if (accesses.length === 0) return
+
+    const actualState = this.parseEndpointActualState(endpointActualState)
+
+    const lines = accesses.map((access) => {
+      const publicKey = Amneziawg2KeySchema.parse(access.publicKey)
+      const presharedKey = Amneziawg2KeySchema.parse(access.presharedKey)
+      const clientIp = IpSchema.parse(access.clientIp)
+      return `${publicKey} ${presharedKey} ${clientIp}\n`
+    })
+
+    await this.remoteCommandRunner.executeContainerScript(
+      actualState.containerName,
+      "apply-peers.sh",
+      lines.join(""),
+    )
+  }
+
   async deleteAccessByClientIdentifier(
     endpointActualState: EndpointActualState,
-    clientIdentifier: string,
+    clientIdentifier: ConfigClientIdentifier,
   ): Promise<void> {
     const actualState = this.parseEndpointActualState(endpointActualState)
 

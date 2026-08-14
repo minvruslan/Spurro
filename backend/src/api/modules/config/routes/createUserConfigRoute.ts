@@ -12,6 +12,9 @@ const createUserConfigRoute = authorized.configs.createUserConfig.handler(
           throw errors.NO_AVAILABLE_IP({ cause: result.error })
         case "unsupported_protocol":
           throw errors.UNSUPPORTED_PROTOCOL({ cause: result.error })
+        /* v8 ignore next 2 -- unreachable while a single protocol exists */
+        case "protocol_options_mismatch":
+          throw errors.PROTOCOL_OPTIONS_MISMATCH({ cause: result.error })
         case "limit_reached":
           throw errors.LIMIT_REACHED({ cause: result.error })
         case "endpoint_invalid":

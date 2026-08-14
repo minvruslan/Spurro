@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { type Protocol, ServerSchema, type UpsertServer } from "@spurro/api-contract"
-import { ProtocolCodeSchema, ProtocolRegistry, ServerDataSchema } from "@spurro/infrastructure/types"
+import {
+  ProtocolCodeSchema,
+  ProtocolRegistry,
+  ServerDataSchema,
+} from "@spurro/infrastructure/types"
 import { eq, sql } from "drizzle-orm"
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
