@@ -2,7 +2,7 @@ import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { z } from "zod"
 import {
-  Amneziawg2ConfigOptionsSchema,
+  Amneziawg2ObfuscationOptionsSchema,
   IpSchema,
   PortSchema,
   type Amneziawg2ClientIdentifier,
@@ -102,12 +102,10 @@ export class Amneziawg2Client {
     clientIdentifier: ConfigClientIdentifier,
     protocolOptions: ConfigProtocolOptions,
   ): Amneziawg2ConfigData {
-    const { protocolCode, ...options } = Amneziawg2ConfigOptionsSchema.parse(protocolOptions)
-
     return {
-      protocolCode,
+      protocolCode: this.protocolCode,
       clientIp: IpSchema.parse(clientIdentifier),
-      options,
+      options: Amneziawg2ObfuscationOptionsSchema.parse(protocolOptions),
     }
   }
 
@@ -140,7 +138,7 @@ export class Amneziawg2Client {
     protocolOptions: ConfigProtocolOptions,
   ): Promise<{ configData: Amneziawg2ConfigData; clientConfiguration: string }> {
     const actualState = this.parseEndpointActualState(endpointActualState)
-    const obfuscationSelection = Amneziawg2ConfigOptionsSchema.parse(protocolOptions)
+    const obfuscationOptions = Amneziawg2ObfuscationOptionsSchema.parse(protocolOptions)
     const clientIp = IpSchema.parse(clientIdentifier)
 
     const clientKeyPair = generateKeyPair()
@@ -153,7 +151,7 @@ export class Amneziawg2Client {
       presharedKey,
       serverEndpoint: `${actualState.host}:${actualState.port}`,
       serverObfuscation: actualState.obfuscation,
-      clientObfuscation: generateClientObfuscation(obfuscationSelection),
+      clientObfuscation: generateClientObfuscation(obfuscationOptions),
       dns: actualState.dns,
     })
 
@@ -163,7 +161,7 @@ export class Amneziawg2Client {
 
     return {
       configData: {
-        ...this.createInitialConfigData(clientIdentifier, obfuscationSelection),
+        ...this.createInitialConfigData(clientIdentifier, protocolOptions),
         publicKey: clientKeyPair.publicKey,
         presharedKey,
       },

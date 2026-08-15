@@ -9,5 +9,7 @@ export type { Amneziawg2BrowserFingerprint } from "./Amneziawg2BrowserFingerprin
 export { Amneziawg2IntensitySchema } from "./Amneziawg2IntensitySchema"
 export type { Amneziawg2Intensity } from "./Amneziawg2Intensity"
 export { Amneziawg2ObfuscationDefaults } from "./Amneziawg2ObfuscationDefaults"
+export { Amneziawg2ObfuscationOptionsSchema } from "./Amneziawg2ObfuscationOptionsSchema"
+export type { Amneziawg2ObfuscationOptions } from "./Amneziawg2ObfuscationOptions"
 export { Amneziawg2ConfigOptionsSchema } from "./Amneziawg2ConfigOptionsSchema"
 export type { Amneziawg2ConfigOptions } from "./Amneziawg2ConfigOptions"

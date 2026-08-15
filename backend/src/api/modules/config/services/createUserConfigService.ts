@@ -58,9 +58,10 @@ export async function createUserConfigService(
   }
   /* v8 ignore stop */
 
-  const protocolOptions =
-    input.protocolOptions ??
-    ProtocolRegistry[protocolCode].configOptionsSchema.parse({ protocolCode })
+  const protocolOptions = {
+    ...ProtocolRegistry[protocolCode].configOptionsDefaults,
+    ...input.protocolOptions,
+  }
 
   const reserved = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)

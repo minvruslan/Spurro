@@ -1,12 +1,12 @@
 import { z } from "zod"
 import { IpSchema } from "../../../common/network/IpSchema"
 import { ProtocolCodeSchema } from "../../../protocols/ProtocolCodeSchema"
-import { Amneziawg2ConfigOptionsSchema } from "./Amneziawg2ConfigOptionsSchema"
+import { Amneziawg2ObfuscationOptionsSchema } from "./Amneziawg2ObfuscationOptionsSchema"
 
 export const Amneziawg2ConfigDataSchema = z.object({
   protocolCode: z.literal(ProtocolCodeSchema.enum.amneziawg2),
   clientIp: IpSchema,
   publicKey: z.string().optional(),
   presharedKey: z.string().optional(),
-  options: Amneziawg2ConfigOptionsSchema.omit({ protocolCode: true }),
+  options: Amneziawg2ObfuscationOptionsSchema,
 })

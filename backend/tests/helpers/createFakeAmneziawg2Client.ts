@@ -1,6 +1,9 @@
 import { RemoteServer, type ProtocolClient } from "@spurro/infrastructure"
 import {
   Amneziawg2EndpointActualStateSchema,
+  Amneziawg2ObfuscationDefaults,
+  Amneziawg2ObfuscationOptionsSchema,
+  ProtocolCodeSchema,
   type Amneziawg2ConfigData,
 } from "@spurro/infrastructure/types"
 import { vi } from "vitest"
@@ -14,7 +17,7 @@ function createAmneziawg2Client(): ProtocolClient {
     username: "spurro",
     privateKey: "fake-ssh-private-key",
     sshHostKeys: [FAKE_SERVER_SSH_HOST_KEY],
-  }).getProtocolClient("amneziawg2")
+  }).getProtocolClient(ProtocolCodeSchema.enum.amneziawg2)
 }
 
 const FakeAmneziawg2EndpointActualState = Amneziawg2EndpointActualStateSchema.parse({
@@ -24,10 +27,11 @@ const FakeAmneziawg2EndpointActualState = Amneziawg2EndpointActualStateSchema.pa
 
 const FakeAmneziawg2CreateAccessResult = {
   configData: {
-    protocolCode: "amneziawg2",
-    ip: `${FakeAmneziawg2EndpointActualState.subnetPrefix}.2`,
+    protocolCode: ProtocolCodeSchema.enum.amneziawg2,
+    clientIp: `${FakeAmneziawg2EndpointActualState.subnetPrefix}.2`,
     publicKey: "fake-public-key",
     presharedKey: "fake-preshared-key",
+    options: { ...Amneziawg2ObfuscationDefaults },
   } satisfies Amneziawg2ConfigData,
   clientConfiguration: "fake-client-configuration",
 }
@@ -41,8 +45,12 @@ function createFakeAmneziawg2Client() {
     createInitialConfigData: vi.spyOn(client, "createInitialConfigData"),
     createAccess: vi
       .spyOn(client, "createAccess")
-      .mockImplementation(async (_endpointActualState, clientIdentifier) => ({
-        configData: { ...FakeAmneziawg2CreateAccessResult.configData, ip: clientIdentifier },
+      .mockImplementation(async (_endpointActualState, clientIdentifier, protocolOptions) => ({
+        configData: {
+          ...FakeAmneziawg2CreateAccessResult.configData,
+          clientIp: clientIdentifier,
+          options: Amneziawg2ObfuscationOptionsSchema.parse(protocolOptions),
+        },
         clientConfiguration: FakeAmneziawg2CreateAccessResult.clientConfiguration,
       })),
     deleteAccessByClientIdentifier: vi

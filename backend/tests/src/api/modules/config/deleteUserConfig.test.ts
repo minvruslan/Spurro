@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { ConfigSchema, type UpsertConfig } from "@spurro/api-contract"
-import { ProtocolCodeSchema, ProtocolRegistry } from "@spurro/infrastructure/types"
+import {
+  Amneziawg2ObfuscationDefaults,
+  ProtocolCodeSchema,
+  ProtocolRegistry,
+} from "@spurro/infrastructure/types"
 import { RemoteServer } from "@spurro/infrastructure"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
@@ -12,10 +16,12 @@ import { configRouter } from "@/api/modules/config/index.js"
 import { findDeletableUserConfigs } from "@/api/modules/config/queries/findDeletableUserConfigs.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/bootstrapDeviceTypes.js"
 import { db } from "@/core/database/index.js"
-import { config, deviceType, server } from "@/core/database/schemas/index.js"
+import { config, deviceType, endpoint, protocol, server } from "@/core/database/schemas/index.js"
 import { expectOrpcError } from "@tests/assertions/index.js"
 import {
   createFakeAmneziawg2Client,
+  createTestIp,
+  FakeAmneziawg2EndpointActualState,
   insertTestConfig,
   insertTestConfigLimit,
   insertTestEndpoint,
@@ -44,14 +50,17 @@ function callDeleteUserConfig(headers: Headers, id: string) {
 
 async function insertConfigPrerequisites(
   overrides: {
+    protocol?: Partial<typeof protocol.$inferInsert>
     server?: Partial<typeof server.$inferInsert>
+    endpoint?: Partial<typeof endpoint.$inferInsert>
   } = {},
 ) {
-  const configProtocol = await insertTestProtocol()
+  const configProtocol = await insertTestProtocol(overrides.protocol)
   const configServer = await insertTestServer(overrides.server)
   const configEndpoint = await insertTestEndpoint({
     serverId: configServer.id,
     protocolId: configProtocol.id,
+    ...overrides.endpoint,
   })
   const [configDeviceType] = await db.select().from(deviceType).limit(1)
   return { configEndpoint, configDeviceType }
@@ -66,15 +75,22 @@ describe("DELETE /configs/{id}", () => {
     await bootstrapDeviceTypes()
   })
 
-  it("removes the active config row and returns its id matching the contract output", async () => {
+  it("removes the config row, removes the peer from the node and returns the id matching the contract output", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
+    const clientIdentifier = createTestIp()
     const insertedConfig = await insertTestConfig({
       userId: requestUser.id,
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "active",
+      clientIdentifier,
+      data: {
+        protocolCode: ProtocolCodeSchema.enum.amneziawg2,
+        clientIp: clientIdentifier,
+        options: { ...Amneziawg2ObfuscationDefaults },
+      },
     })
 
     const deletedConfig = await callDeleteUserConfig(headers, insertedConfig.id)
@@ -83,6 +99,9 @@ describe("DELETE /configs/{id}", () => {
     expect(parsed.id).toBe(insertedConfig.id)
     const configRows = await db.select().from(config).where(eq(config.id, insertedConfig.id))
     expect(configRows).toHaveLength(0)
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+      insertedConfig.data,
+    ])
   })
 
   it("frees the user's limit slot immediately after a successful delete", async () => {
@@ -111,12 +130,10 @@ describe("DELETE /configs/{id}", () => {
     const createdConfig = await call(configRouter.createUserConfig, createUserConfigInput, {
       context: { headers },
     })
-
-    const parsed = ConfigSchema.parse(createdConfig)
-    expect(parsed.name).toBe("Created Config")
+    expect(ConfigSchema.parse(createdConfig).name).toBe("Created Config")
   })
 
-  it("deletes a pending config cancelling the in-flight creation", async () => {
+  it("deletes a pending config just inside the reservation window, removing its row and its peer from the node", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
@@ -125,6 +142,7 @@ describe("DELETE /configs/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "pending",
+      createdAt: new Date(Date.now() - (PENDING_CONFIG_RESERVATION_MINUTES - 1) * 60 * 1000),
     })
 
     const deletedConfig = await callDeleteUserConfig(headers, pendingConfig.id)
@@ -138,7 +156,7 @@ describe("DELETE /configs/{id}", () => {
     ])
   })
 
-  it("deletes a pending config older than the reservation window", async () => {
+  it("deletes a pending config older than the reservation window, removing its row and its peer from the node", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
@@ -147,13 +165,8 @@ describe("DELETE /configs/{id}", () => {
       endpointId: configEndpoint.id,
       deviceTypeId: configDeviceType.id,
       status: "pending",
+      createdAt: new Date(Date.now() - (PENDING_CONFIG_RESERVATION_MINUTES + 1) * 60 * 1000),
     })
-    await db
-      .update(config)
-      .set({
-        createdAt: new Date(Date.now() - (PENDING_CONFIG_RESERVATION_MINUTES + 1) * 60 * 1000),
-      })
-      .where(eq(config.id, stalePendingConfig.id))
 
     const deletedConfig = await callDeleteUserConfig(headers, stalePendingConfig.id)
 
@@ -166,7 +179,7 @@ describe("DELETE /configs/{id}", () => {
     ])
   })
 
-  it("deletes a config stuck in deleting status", async () => {
+  it("deletes a config stuck in deleting status, removing its row and its peer from the node", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
@@ -188,14 +201,107 @@ describe("DELETE /configs/{id}", () => {
     ])
   })
 
-  it("rejects an unknown id with NOT_FOUND", async () => {
+  it("deletes a config on an endpoint whose protocol is disabled", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
+      protocol: { isEnabled: false },
+    })
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
+    const disabledProtocolConfig = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "active",
+    })
 
-    await expectOrpcError(callDeleteUserConfig(headers, randomUUID()), "NOT_FOUND")
+    const deletedConfig = await callDeleteUserConfig(headers, disabledProtocolConfig.id)
+
+    const parsed = DeleteUserConfigOutputSchema.parse(deletedConfig)
+    expect(parsed.id).toBe(disabledProtocolConfig.id)
+    const configRows = await db
+      .select()
+      .from(config)
+      .where(eq(config.id, disabledProtocolConfig.id))
+    expect(configRows).toHaveLength(0)
   })
 
-  it("rejects another user's config with NOT_FOUND", async () => {
+  it("leaves the user's other config and its node peer untouched on a successful delete", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+    const requestUser = await insertTestUser()
+    const headers = await insertTestSession(requestUser)
+    const deletedConfigRow = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "active",
+    })
+    const siblingConfig = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "active",
+    })
+
+    await callDeleteUserConfig(headers, deletedConfigRow.id)
+
+    const configRows = await db.select().from(config).where(eq(config.id, siblingConfig.id))
+    expect(configRows).toHaveLength(1)
+    expect(configRows[0].status).toBe("active")
+    expect(configRows[0].data).toEqual(siblingConfig.data)
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+      deletedConfigRow.data,
+    ])
+  })
+
+  it("leaves another user's config untouched on a successful delete", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+    const requestUser = await insertTestUser()
+    const headers = await insertTestSession(requestUser)
+    const otherUser = await insertTestUser()
+    const requestUserConfig = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "active",
+    })
+    const otherUserConfig = await insertTestConfig({
+      userId: otherUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "active",
+    })
+
+    await callDeleteUserConfig(headers, requestUserConfig.id)
+
+    const configRows = await db.select().from(config).where(eq(config.id, otherUserConfig.id))
+    expect(configRows).toHaveLength(1)
+    expect(configRows[0].status).toBe("active")
+    expect(configRows[0].data).toEqual(otherUserConfig.data)
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+      requestUserConfig.data,
+    ])
+  })
+
+  it("rejects an unknown id with NOT_FOUND without touching any config row or calling the node", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+    const requestUser = await insertTestUser()
+    const headers = await insertTestSession(requestUser)
+    const insertedConfig = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "active",
+    })
+
+    await expectOrpcError(callDeleteUserConfig(headers, randomUUID()), "NOT_FOUND")
+
+    const configRows = await db.select().from(config).where(eq(config.id, insertedConfig.id))
+    expect(configRows).toHaveLength(1)
+    expect(configRows[0].status).toBe("active")
+    expect(fakeAmneziawg2Client.deleteAccesses).not.toHaveBeenCalled()
+  })
+
+  it("rejects another user's config with NOT_FOUND, leaves its row unchanged and does not call the node", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
@@ -212,10 +318,11 @@ describe("DELETE /configs/{id}", () => {
     const configRows = await db.select().from(config).where(eq(config.id, otherUserConfig.id))
     expect(configRows).toHaveLength(1)
     expect(configRows[0].status).toBe("active")
+    expect(configRows[0].data).toEqual(otherUserConfig.data)
     expect(fakeAmneziawg2Client.deleteAccesses).not.toHaveBeenCalled()
   })
 
-  it("returns the deleted id, keeps the config deleting and hides it from the user's config list when the node-side delete fails", async () => {
+  it("returns the deleted id, keeps the config row with status deleting and hides it from the user's config list when the node-side delete fails", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
@@ -232,12 +339,16 @@ describe("DELETE /configs/{id}", () => {
     const parsed = DeleteUserConfigOutputSchema.parse(deletedConfig)
     expect(parsed.id).toBe(insertedConfig.id)
     const configRows = await db.select().from(config).where(eq(config.id, insertedConfig.id))
+    expect(configRows).toHaveLength(1)
     expect(configRows[0].status).toBe("deleting")
+    expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
+      insertedConfig.data,
+    ])
     const configs = await call(configRouter.getUserConfigs, undefined, { context: { headers } })
     expect(configs).toHaveLength(0)
   })
 
-  it("returns the deleted id and keeps the config deleting when the server has no usable data", async () => {
+  it("returns the deleted id and keeps the config row with status deleting when the server has no usable data", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
       server: { data: null },
     })
@@ -255,7 +366,9 @@ describe("DELETE /configs/{id}", () => {
     const parsed = DeleteUserConfigOutputSchema.parse(deletedConfig)
     expect(parsed.id).toBe(insertedConfig.id)
     const configRows = await db.select().from(config).where(eq(config.id, insertedConfig.id))
+    expect(configRows).toHaveLength(1)
     expect(configRows[0].status).toBe("deleting")
+    expect(fakeAmneziawg2Client.deleteAccesses).not.toHaveBeenCalled()
   })
 
   it("allows an admin user as well", async () => {
@@ -276,65 +389,103 @@ describe("DELETE /configs/{id}", () => {
   })
 
   describe("amneziawg2", () => {
-    it("removes the peer from the node", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+    it("removes the peer from the node by the config's client identifier for the target endpoint", async () => {
+      const targetEndpointHost = "target-endpoint.example.test"
+      const targetEndpointPort = 51999
+      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
+        endpoint: {
+          data: {
+            actualState: {
+              ...FakeAmneziawg2EndpointActualState,
+              host: targetEndpointHost,
+              port: targetEndpointPort,
+            },
+          },
+        },
+      })
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
+      const clientIdentifier = createTestIp()
       const insertedConfig = await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,
         deviceTypeId: configDeviceType.id,
         status: "active",
+        clientIdentifier,
+        data: {
+          protocolCode: ProtocolCodeSchema.enum.amneziawg2,
+          clientIp: clientIdentifier,
+          publicKey: "test-public-key",
+          presharedKey: "test-preshared-key",
+          options: { ...Amneziawg2ObfuscationDefaults },
+        },
       })
 
       await callDeleteUserConfig(headers, insertedConfig.id)
 
       expect(getProtocolClientSpy).toHaveBeenCalledWith(ProtocolCodeSchema.enum.amneziawg2)
-      expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
-        insertedConfig.data,
-      ])
-    })
-
-    it("deletes only the requested config and leaves the user's other config untouched", async () => {
-      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-      const requestUser = await insertTestUser()
-      const headers = await insertTestSession(requestUser)
-      const deletedConfigRow = await insertTestConfig({
-        userId: requestUser.id,
-        endpointId: configEndpoint.id,
-        deviceTypeId: configDeviceType.id,
-        status: "active",
-        data: { protocolCode: ProtocolCodeSchema.enum.amneziawg2, ip: "10.8.0.11" },
-      })
-      const siblingConfig = await insertTestConfig({
-        userId: requestUser.id,
-        endpointId: configEndpoint.id,
-        deviceTypeId: configDeviceType.id,
-        status: "active",
-        data: { protocolCode: ProtocolCodeSchema.enum.amneziawg2, ip: "10.8.0.12" },
-      })
-
-      await callDeleteUserConfig(headers, deletedConfigRow.id)
-
-      const configRows = await db.select().from(config).where(eq(config.id, siblingConfig.id))
-      expect(configRows).toHaveLength(1)
-      expect(configRows[0].status).toBe("active")
-      expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(expect.anything(), [
-        deletedConfigRow.data,
+      expect(fakeAmneziawg2Client.deleteAccesses).toHaveBeenCalledWith(
+        expect.objectContaining({ host: targetEndpointHost, port: targetEndpointPort }),
+        [insertedConfig.data],
+      )
+      const [, deletedAccessesData] = fakeAmneziawg2Client.deleteAccesses.mock.calls[0]
+      expect(deletedAccessesData).toEqual([
+        expect.objectContaining({ clientIp: insertedConfig.clientIdentifier }),
       ])
     })
   })
 
   describe("technical", () => {
-    it("responds with HTTP 500 when the config query throws", async () => {
-      vi.mocked(findDeletableUserConfigs).mockRejectedValueOnce(new Error("Query failure"))
-
+    it("keeps another user's config untouched when the deletable-configs query returns a foreign row", async () => {
+      const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
       const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+      const otherUser = await insertTestUser()
+      const requestUserConfig = await insertTestConfig({
+        userId: requestUser.id,
+        endpointId: configEndpoint.id,
+        deviceTypeId: configDeviceType.id,
+        status: "active",
+      })
+      const otherUserConfig = await insertTestConfig({
+        userId: otherUser.id,
+        endpointId: configEndpoint.id,
+        deviceTypeId: configDeviceType.id,
+        status: "active",
+      })
+      const originalFindDeletableUserConfigs = vi
+        .mocked(findDeletableUserConfigs)
+        .getMockImplementation()!
+      vi.mocked(findDeletableUserConfigs).mockImplementationOnce(
+        async (...findDeletableUserConfigsArguments) => {
+          const deletableConfigs = await originalFindDeletableUserConfigs(
+            ...findDeletableUserConfigsArguments,
+          )
+          return deletableConfigs.map((deletableConfig) => ({
+            ...deletableConfig,
+            id: otherUserConfig.id,
+          }))
+        },
+      )
+
+      await callDeleteUserConfig(headers, requestUserConfig.id)
+
+      const configRows = await db.select().from(config).where(eq(config.id, otherUserConfig.id))
+      expect(configRows).toHaveLength(1)
+      expect(configRows[0].status).toBe("active")
+      expect(configRows[0].data).toEqual(otherUserConfig.data)
+    })
+
+    it("responds with HTTP 500 when the config lookup query throws", async () => {
+      vi.mocked(findDeletableUserConfigs).mockRejectedValueOnce(new Error("Query failure"))
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
 
       const response = await app.request(`/api/configs/${randomUUID()}`, {
         method: "DELETE",
-        headers: await insertTestSession(requestUser),
+        headers,
       })
+
       expect(response.status).toBe(500)
     })
   })

@@ -43,9 +43,7 @@ const form = ref<CreateConfigFormValues>({
   name: "",
   endpointId: "",
   deviceTypeId: "",
-  protocolOptions: ProtocolRegistry[DEFAULT_PROTOCOL_CODE].configOptionsSchema.parse({
-    protocolCode: DEFAULT_PROTOCOL_CODE,
-  }),
+  protocolOptions: { ...ProtocolRegistry[DEFAULT_PROTOCOL_CODE].configOptionsDefaults },
 })
 
 const endpointLabel = (endpoint: Endpoint) => `${endpoint.server.name} · ${endpoint.protocol.name}`

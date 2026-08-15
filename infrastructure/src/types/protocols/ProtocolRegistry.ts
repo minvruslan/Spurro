@@ -7,6 +7,7 @@ import { Amneziawg2EndpointDesiredStateSchema } from "../endpoint/protocols/amne
 import { Amneziawg2ClientIdentifierSchema } from "../config/protocols/amneziawg2/Amneziawg2ClientIdentifierSchema"
 import { Amneziawg2ConfigDataSchema } from "../config/protocols/amneziawg2/Amneziawg2ConfigDataSchema"
 import { Amneziawg2ConfigOptionsSchema } from "../config/protocols/amneziawg2/Amneziawg2ConfigOptionsSchema"
+import { Amneziawg2ObfuscationDefaults } from "../config/protocols/amneziawg2/Amneziawg2ObfuscationDefaults"
 import type { ProtocolCode } from "./ProtocolCode"
 import type { ProtocolFamilyCode } from "./ProtocolFamilyCode"
 
@@ -17,6 +18,7 @@ type ProtocolRegistryRecord = {
   transportProtocol: TransportProtocol
   configDataSchema: z.ZodObject
   configOptionsSchema: z.ZodObject
+  configOptionsDefaults: { protocolCode: ProtocolCode }
   clientIdentifierSchema: z.ZodType
   endpointDesiredStateSchema: z.ZodType<EndpointDesiredState>
   endpointActualStateSchema: z.ZodType<EndpointActualState>
@@ -30,6 +32,7 @@ export const ProtocolRegistry = {
     transportProtocol: "udp",
     configDataSchema: Amneziawg2ConfigDataSchema,
     configOptionsSchema: Amneziawg2ConfigOptionsSchema,
+    configOptionsDefaults: { protocolCode: "amneziawg2", ...Amneziawg2ObfuscationDefaults },
     clientIdentifierSchema: Amneziawg2ClientIdentifierSchema,
     endpointDesiredStateSchema: Amneziawg2EndpointDesiredStateSchema,
     endpointActualStateSchema: Amneziawg2EndpointActualStateSchema,
