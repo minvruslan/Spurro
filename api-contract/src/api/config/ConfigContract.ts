@@ -28,7 +28,9 @@ export const ConfigContract = oc.prefix("/configs").router({
       ENDPOINT_INVALID: { status: 400, message: "Invalid endpoint" },
       DEVICE_TYPE_INVALID: { status: 400, message: "Invalid device type" },
     })
-    .output(ConfigSchema.extend({ clientConfiguration: z.string() })),
+    .output(
+      ConfigSchema.extend({ clientConfiguration: z.string(), clientConfigurationLink: z.string() }),
+    ),
   updateUserConfig: userAccess
     .route({ method: "PUT", path: "/{id}" })
     .input(UpdateConfigSchema.extend({ id: z.uuid() }))

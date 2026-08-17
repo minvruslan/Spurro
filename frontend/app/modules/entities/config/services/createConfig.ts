@@ -1,6 +1,9 @@
 import type { z } from "zod"
-import type { Config, UpsertConfigSchema } from "@spurro/api-contract"
+import type { UpsertConfigSchema } from "@spurro/api-contract"
+import type { CreatedConfig } from "../types/CreatedConfig"
 
-export async function createConfig(payload: z.input<typeof UpsertConfigSchema>): Promise<Config> {
+export async function createConfig(
+  payload: z.input<typeof UpsertConfigSchema>,
+): Promise<CreatedConfig> {
   return useApiClient().configs.createUserConfig(payload)
 }

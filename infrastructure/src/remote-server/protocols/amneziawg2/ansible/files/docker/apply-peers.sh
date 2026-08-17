@@ -57,17 +57,23 @@ awg show "$INTERFACE" allowed-ips | awk -v peers_file="$PEERS_FILE" '
   }
 '
 
-# A peer already persisted with a DIFFERENT preshared key must not be applied: awg set
-# would update the live interface while the file keeps the old block, so the next container
-# restart would silently revert the peer to the old key.
+# A peer already persisted with a DIFFERENT preshared key or client IP must not be applied:
+# awg set would update the live interface while the apply loop below never rewrites an
+# existing [Peer] block, so the next container restart would silently revert the peer to
+# the old settings.
 awk -v peers_file="$PEERS_FILE" '
   sub(/^PublicKey *= */, "")    { peer = $0; next }
-  sub(/^PresharedKey *= */, "") { persisted[peer] = $0; next }
+  sub(/^PresharedKey *= */, "") { persisted_preshared_key[peer] = $0; next }
+  sub(/^AllowedIPs *= */, "")   { persisted_allowed_ips[peer] = $0; next }
   END {
     while ((getline line < peers_file) > 0) {
       if (split(line, field, " ") != 3) continue
-      if (field[1] in persisted && persisted[field[1]] != field[2]) {
+      if (field[1] in persisted_preshared_key && persisted_preshared_key[field[1]] != field[2]) {
         print "Peer " field[1] " is already persisted with a different preshared key; refusing to apply" > "/dev/stderr"
+        exit 1
+      }
+      if (field[1] in persisted_allowed_ips && persisted_allowed_ips[field[1]] != field[3] "/32") {
+        print "Peer " field[1] " is already persisted with a different client IP; refusing to apply" > "/dev/stderr"
         exit 1
       }
     }

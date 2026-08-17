@@ -27,6 +27,7 @@ import { TUNNEL_MTU } from "./constants/index.js"
 import type { Amneziawg2Access } from "./types/index.js"
 import {
   buildClientConfiguration,
+  buildClientConfigurationLink,
   findClientPublicKeyByClientIp,
   generateClientObfuscation,
   generateEndpointObfuscation,
@@ -136,13 +137,19 @@ export class Amneziawg2Client {
     endpointActualState: EndpointActualState,
     clientIdentifier: ConfigClientIdentifier,
     protocolOptions: ConfigProtocolOptions,
-  ): Promise<{ configData: Amneziawg2ConfigData; clientConfiguration: string }> {
+    displayName: string,
+  ): Promise<{
+    configData: Amneziawg2ConfigData
+    clientConfiguration: string
+    clientConfigurationLink: string
+  }> {
     const actualState = this.parseEndpointActualState(endpointActualState)
     const obfuscationOptions = Amneziawg2ObfuscationOptionsSchema.parse(protocolOptions)
     const clientIp = IpSchema.parse(clientIdentifier)
 
     const clientKeyPair = generateKeyPair()
     const presharedKey = generatePresharedKey()
+    const clientObfuscation = generateClientObfuscation(obfuscationOptions)
 
     const clientConfiguration = buildClientConfiguration({
       clientPrivateKey: clientKeyPair.privateKey,
@@ -151,8 +158,22 @@ export class Amneziawg2Client {
       presharedKey,
       serverEndpoint: `${actualState.host}:${actualState.port}`,
       serverObfuscation: actualState.obfuscation,
-      clientObfuscation: generateClientObfuscation(obfuscationOptions),
+      clientObfuscation,
       dns: actualState.dns,
+    })
+
+    const clientConfigurationLink = buildClientConfigurationLink({
+      displayName,
+      clientConfiguration,
+      clientPrivateKey: clientKeyPair.privateKey,
+      clientIp,
+      serverPublicKey: actualState.serverPublicKey,
+      presharedKey,
+      host: actualState.host,
+      port: actualState.port,
+      dns: actualState.dns,
+      serverObfuscation: actualState.obfuscation,
+      clientObfuscation,
     })
 
     await this.applyAccesses(actualState, [
@@ -166,6 +187,7 @@ export class Amneziawg2Client {
         presharedKey,
       },
       clientConfiguration,
+      clientConfigurationLink,
     }
   }
 
@@ -235,7 +257,7 @@ export class Amneziawg2Client {
 
     await this.remoteCommandRunner.executeContainerScript(
       endpointActualState.containerName,
-      "delete-accesses.sh",
+      "delete-peers.sh",
       parsedClientPublicKeys.map((clientPublicKey) => `${clientPublicKey}\n`).join(""),
     )
   }

@@ -1,8 +1,6 @@
 import type { Amneziawg2ServerObfuscation } from "../../../../types/index.js"
-import { TUNNEL_MTU } from "../constants/index.js"
+import { ALLOWED_IPS, PERSISTENT_KEEPALIVE_SECONDS, TUNNEL_MTU } from "../constants/index.js"
 import type { Amneziawg2ClientObfuscation } from "../types/index.js"
-
-const PERSISTENT_KEEPALIVE_SECONDS = 25
 
 export function buildClientConfiguration(params: {
   clientPrivateKey: string
@@ -49,7 +47,7 @@ export function buildClientConfiguration(params: {
     "[Peer]",
     `PublicKey = ${serverPublicKey}`,
     `PresharedKey = ${presharedKey}`,
-    "AllowedIPs = 0.0.0.0/0, ::/0",
+    `AllowedIPs = ${ALLOWED_IPS.join(", ")}`,
     `Endpoint = ${serverEndpoint}`,
     `PersistentKeepalive = ${PERSISTENT_KEEPALIVE_SECONDS}`,
     "",

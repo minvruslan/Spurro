@@ -229,7 +229,6 @@ describe("GET /configs/{id}", () => {
         "publicKey",
       ])
     })
-
   })
 
   describe("technical", () => {

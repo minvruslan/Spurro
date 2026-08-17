@@ -1,4 +1,5 @@
 export { buildClientConfiguration } from "./buildClientConfiguration.js"
+export { buildClientConfigurationLink } from "./buildClientConfigurationLink.js"
 export { findClientPublicKeyByClientIp } from "./findClientPublicKeyByClientIp.js"
 export { generateClientObfuscation } from "./generateClientObfuscation.js"
 export { generateEndpointObfuscation } from "./generateEndpointObfuscation.js"

@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { CreateConfigForm } from "@/modules/features/create-config"
+import { ref } from "vue"
+import type { CreatedConfig } from "@/modules/entities/config"
+import { ConfigCreatedView, CreateConfigForm } from "@/modules/features/create-config"
 
 definePageMeta({ middleware: "admin", layout: "admin" })
+
+const createdConfig = ref<CreatedConfig | null>(null)
 
 const goBack = () => navigateTo("/admin/configs")
 </script>
 
 <template>
-  <CreateConfigForm @created="goBack" @cancel="goBack" />
+  <ConfigCreatedView v-if="createdConfig" :config="createdConfig" @done="goBack" />
+  <CreateConfigForm v-else @created="createdConfig = $event" @cancel="goBack" />
 </template>

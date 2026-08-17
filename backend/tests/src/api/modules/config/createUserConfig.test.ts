@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import { inflateSync } from "node:zlib"
 import { call } from "@orpc/server"
 import { ConfigSchema, type UpsertConfig } from "@spurro/api-contract"
 import {
@@ -56,10 +57,62 @@ vi.mock("@/api/modules/config/queries/insertUserConfig.js", async (importOrigina
   return { insertUserConfig: vi.fn(original.insertUserConfig) }
 })
 
-const CreateUserConfigOutputSchema = ConfigSchema.extend({ clientConfiguration: z.string() })
+const CreateUserConfigOutputSchema = ConfigSchema.extend({
+  clientConfiguration: z.string(),
+  clientConfigurationLink: z.string(),
+})
+
+const AmneziaConfigImportSchema = z.object({
+  containers: z.tuple([
+    z.object({
+      container: z.literal("amnezia-awg"),
+      awg: z.object({
+        last_config: z.string(),
+        isThirdPartyConfig: z.literal(true),
+        port: z.string(),
+        transport_proto: z.literal("udp"),
+      }),
+    }),
+  ]),
+  defaultContainer: z.literal("amnezia-awg"),
+  description: z.string(),
+  dns1: z.string().optional(),
+  dns2: z.string().optional(),
+  hostName: z.string(),
+})
+
+const AmneziaLastConfigSchema = z.object({
+  config: z.string(),
+  hostName: z.string(),
+  port: z.number(),
+  client_priv_key: z.string(),
+  client_ip: z.string(),
+  psk_key: z.string(),
+  server_pub_key: z.string(),
+  mtu: z.string(),
+  persistent_keep_alive: z.string(),
+  allowed_ips: z.array(z.string()),
+  Jc: z.string(),
+  Jmin: z.string(),
+  Jmax: z.string(),
+  S1: z.string(),
+  S2: z.string(),
+  S3: z.string(),
+  S4: z.string(),
+  H1: z.string(),
+  H2: z.string(),
+  H3: z.string(),
+  H4: z.string(),
+  I1: z.string(),
+  I2: z.string().optional(),
+  I3: z.string().optional(),
+  I4: z.string().optional(),
+  I5: z.string().optional(),
+})
 
 const fakeConfigData = FakeAmneziawg2CreateAccessResult.configData
 const fakeClientConfiguration = FakeAmneziawg2CreateAccessResult.clientConfiguration
+const fakeClientConfigurationLink = FakeAmneziawg2CreateAccessResult.clientConfigurationLink
 
 const validServerData: ServerData = {
   facts: { sshHostKeys: [FAKE_SERVER_SSH_HOST_KEY] },
@@ -150,6 +203,7 @@ describe("POST /configs", () => {
     expect(parsed.endpoint.protocol.code).toBe(configProtocol.code)
     expect(parsed.data).toEqual(fakeConfigData)
     expect(parsed.clientConfiguration).toBe(fakeClientConfiguration)
+    expect(parsed.clientConfigurationLink).toBe(fakeClientConfigurationLink)
     const configRows = await db.select().from(config).where(eq(config.id, createdConfig.id))
     expect(configRows).toHaveLength(1)
     expect(configRows[0].status).toBe("active")
@@ -830,7 +884,11 @@ describe("POST /configs", () => {
     const headers = await insertTestSession(requestUser)
     fakeAmneziawg2Client.createAccess.mockImplementationOnce(async () => {
       await db.update(config).set({ status: "deleting" }).where(eq(config.userId, requestUser.id))
-      return { configData: fakeConfigData, clientConfiguration: fakeClientConfiguration }
+      return {
+        configData: fakeConfigData,
+        clientConfiguration: fakeClientConfiguration,
+        clientConfigurationLink: fakeClientConfigurationLink,
+      }
     })
 
     await expectOrpcError(
@@ -1076,7 +1134,7 @@ describe("POST /configs", () => {
       expect(clientIdentifier).toBe(fakeConfigData.clientIp)
     })
 
-    it("returns exactly the amneziawg2 config data fields and the client configuration at the top level", async () => {
+    it("returns exactly the amneziawg2 config data fields and the client configuration and import link at the top level", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
@@ -1098,6 +1156,7 @@ describe("POST /configs", () => {
         "publicKey",
       ])
       expect(createdConfig.clientConfiguration).toBe(fakeClientConfiguration)
+      expect(createdConfig.clientConfigurationLink).toBe(fakeClientConfigurationLink)
     })
 
     it("stores the data column encrypted at rest without the plaintext public or preshared key", async () => {
@@ -1241,6 +1300,7 @@ describe("POST /configs", () => {
         async (_endpointActualState, clientIdentifier, protocolOptions) => ({
           configData: { ...fakeConfigData, clientIp: clientIdentifier },
           clientConfiguration: JSON.stringify(protocolOptions),
+          clientConfigurationLink: fakeClientConfigurationLink,
         }),
       )
 
@@ -1272,6 +1332,7 @@ describe("POST /configs", () => {
         async (endpointActualState, clientIdentifier) => ({
           configData: { ...fakeConfigData, clientIp: clientIdentifier },
           clientConfiguration: `Endpoint = ${endpointActualState.host}:${endpointActualState.port}`,
+          clientConfigurationLink: fakeClientConfigurationLink,
         }),
       )
 
@@ -1303,6 +1364,84 @@ describe("POST /configs", () => {
       expect(CreateUserConfigOutputSchema.parse(recreatedConfig).clientConfiguration).toBe(
         expectedEndpointLine,
       )
+    })
+
+    it("builds the Amnezia vpn:// import link around the generated client configuration", async () => {
+      const { configServer, configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+      const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
+      fakeAmneziawg2Client.createAccess.mockRestore()
+      vi.spyOn(fakeAmneziawg2Client.client, "applyAccesses").mockResolvedValue(undefined)
+
+      const createdConfig = await callCreateUserConfig(
+        {
+          name: "Created Config",
+          endpointId: configEndpoint.id,
+          deviceTypeId: configDeviceType.id,
+        },
+        headers,
+      )
+
+      const parsed = CreateUserConfigOutputSchema.parse(createdConfig)
+      expect(parsed.clientConfigurationLink).toMatch(/^vpn:\/\//)
+      const compressed = Buffer.from(
+        parsed.clientConfigurationLink.slice("vpn://".length),
+        "base64url",
+      )
+      const inflated = inflateSync(compressed.subarray(4))
+      expect(compressed.readUInt32BE(0)).toBe(inflated.length)
+
+      const configImport = AmneziaConfigImportSchema.parse(JSON.parse(inflated.toString()))
+      expect(configImport).toMatchObject({
+        description: configServer.name,
+        hostName: FakeAmneziawg2EndpointActualState.host,
+        dns1: FakeAmneziawg2EndpointActualState.dns,
+      })
+      expect(configImport.dns2).toBeUndefined()
+      expect(configImport.containers[0].awg.port).toBe(
+        String(FakeAmneziawg2EndpointActualState.port),
+      )
+
+      const lastConfig = AmneziaLastConfigSchema.parse(
+        JSON.parse(configImport.containers[0].awg.last_config),
+      )
+      const endpointObfuscation = FakeAmneziawg2EndpointActualState.obfuscation
+      expect(lastConfig).toMatchObject({
+        config: parsed.clientConfiguration,
+        hostName: FakeAmneziawg2EndpointActualState.host,
+        port: FakeAmneziawg2EndpointActualState.port,
+        client_ip: `${parsed.data.clientIp}/32`,
+        psk_key: parsed.data.presharedKey,
+        server_pub_key: FakeAmneziawg2EndpointActualState.serverPublicKey,
+        allowed_ips: ["0.0.0.0/0", "::/0"],
+        S1: String(endpointObfuscation.s1),
+        S2: String(endpointObfuscation.s2),
+        S3: String(endpointObfuscation.s3),
+        S4: String(endpointObfuscation.s4),
+        H1: String(endpointObfuscation.h1),
+        H2: String(endpointObfuscation.h2),
+        H3: String(endpointObfuscation.h3),
+        H4: String(endpointObfuscation.h4),
+      })
+      expect([lastConfig.I2, lastConfig.I3, lastConfig.I4, lastConfig.I5]).toEqual([
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      ])
+
+      const configurationLines = parsed.clientConfiguration.split("\n")
+      expect(configurationLines).toContain(`PrivateKey = ${lastConfig.client_priv_key}`)
+      expect(configurationLines).toContain(`Address = ${lastConfig.client_ip}`)
+      expect(configurationLines).toContain(`MTU = ${lastConfig.mtu}`)
+      expect(configurationLines).toContain(
+        `PersistentKeepalive = ${lastConfig.persistent_keep_alive}`,
+      )
+      expect(configurationLines).toContain(`AllowedIPs = ${lastConfig.allowed_ips.join(", ")}`)
+      expect(configurationLines).toContain(`Jc = ${lastConfig.Jc}`)
+      expect(configurationLines).toContain(`Jmin = ${lastConfig.Jmin}`)
+      expect(configurationLines).toContain(`Jmax = ${lastConfig.Jmax}`)
+      expect(configurationLines).toContain(`I1 = ${lastConfig.I1}`)
     })
 
     it("reuses the client identifier of a deleted config", async () => {

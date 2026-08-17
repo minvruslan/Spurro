@@ -14,7 +14,7 @@ import { insertUserConfig } from "../queries/insertUserConfig.js"
 import { activateConfig } from "../queries/activateConfig.js"
 import { createConfigFromDatabaseData } from "../utils/createConfigFromDatabaseData.js"
 
-type CreatedConfig = Config & { clientConfiguration: string }
+type CreatedConfig = Config & { clientConfiguration: string; clientConfigurationLink: string }
 
 type ErrorCode =
   | "endpoint_invalid"
@@ -102,7 +102,12 @@ export async function createUserConfigService(
 
   let created
   try {
-    created = await client.createAccess(endpointActualState, clientIdentifier, protocolOptions)
+    created = await client.createAccess(
+      endpointActualState,
+      clientIdentifier,
+      protocolOptions,
+      endpoint.serverName,
+    )
 
     const [activated] = await activateConfig(db, configId, created.configData)
     if (!activated) {
@@ -137,6 +142,7 @@ export async function createUserConfigService(
         ...config,
         data: created.configData,
         clientConfiguration: created.clientConfiguration,
+        clientConfigurationLink: created.clientConfigurationLink,
       },
     },
   }

@@ -8,10 +8,18 @@ const HANDSHAKE_INITIATION_SIZE = 148
 const HANDSHAKE_RESPONSE_SIZE = 92
 const HANDSHAKE_COOKIE_SIZE = 64
 
+const MAXIMUM_JUNK_PACKET_COUNT = 128
+const MAXIMUM_JUNK_PACKET_SIZE = 1280
+
 const PaddingSchema = z.number().int().min(0).max(UINT32_MAX)
+const JunkPacketSizeSchema = z.number().int().min(0).max(MAXIMUM_JUNK_PACKET_SIZE)
+const SignaturePacketSchema = z.string().min(1)
 
 export const Amneziawg2ServerObfuscationSchema = z
   .object({
+    jc: z.number().int().min(1).max(MAXIMUM_JUNK_PACKET_COUNT),
+    jmin: JunkPacketSizeSchema,
+    jmax: JunkPacketSizeSchema,
     s1: PaddingSchema,
     s2: PaddingSchema,
     s3: PaddingSchema,
@@ -20,8 +28,20 @@ export const Amneziawg2ServerObfuscationSchema = z
     h2: Amneziawg2HeaderRangeSchema,
     h3: Amneziawg2HeaderRangeSchema,
     h4: Amneziawg2HeaderRangeSchema,
+    i1: SignaturePacketSchema,
+    i2: SignaturePacketSchema.optional(),
+    i3: SignaturePacketSchema.optional(),
+    i4: SignaturePacketSchema.optional(),
+    i5: SignaturePacketSchema.optional(),
   })
   .superRefine((obfuscation, context) => {
+    if (obfuscation.jmin >= obfuscation.jmax) {
+      context.addIssue({
+        code: "custom",
+        message: "Jmin must be less than Jmax",
+      })
+    }
+
     const paddedSizes = [
       HANDSHAKE_INITIATION_SIZE + obfuscation.s1,
       HANDSHAKE_RESPONSE_SIZE + obfuscation.s2,

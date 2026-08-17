@@ -34,6 +34,7 @@ const FakeAmneziawg2CreateAccessResult = {
     options: { ...Amneziawg2ObfuscationDefaults },
   } satisfies Amneziawg2ConfigData,
   clientConfiguration: "fake-client-configuration",
+  clientConfigurationLink: "vpn://fake-client-configuration-link",
 }
 
 function createFakeAmneziawg2Client() {
@@ -52,6 +53,7 @@ function createFakeAmneziawg2Client() {
           options: Amneziawg2ObfuscationOptionsSchema.parse(protocolOptions),
         },
         clientConfiguration: FakeAmneziawg2CreateAccessResult.clientConfiguration,
+        clientConfigurationLink: FakeAmneziawg2CreateAccessResult.clientConfigurationLink,
       })),
     deleteAccessByClientIdentifier: vi
       .spyOn(client, "deleteAccessByClientIdentifier")

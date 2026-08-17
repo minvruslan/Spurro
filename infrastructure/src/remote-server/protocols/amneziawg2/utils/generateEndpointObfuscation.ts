@@ -1,10 +1,14 @@
 import {
   Amneziawg2ObfuscationDefaults,
   Amneziawg2ServerObfuscationSchema,
+  type Amneziawg2ObfuscationOptions,
   type Amneziawg2ServerObfuscation,
 } from "../../../../types/index.js"
 import { genCfg } from "../vendor/awg-architect/engines/awg/generator/index"
-import { JUNK_PACKET_COUNT_BY_LEVEL } from "./generateClientObfuscation.js"
+import {
+  generateClientObfuscation,
+  JUNK_PACKET_COUNT_BY_LEVEL,
+} from "./generateClientObfuscation.js"
 import { ObfuscationGeneratorBaseInput } from "./ObfuscationGeneratorBaseInput.js"
 
 // The generator reports a draw that pads two handshake messages to the same length as a
@@ -12,16 +16,19 @@ import { ObfuscationGeneratorBaseInput } from "./ObfuscationGeneratorBaseInput.j
 // pure, so an invalid draw is simply discarded and repeated.
 const MAXIMUM_GENERATION_ATTEMPTS = 10
 
-export function generateEndpointObfuscation(): Amneziawg2ServerObfuscation {
+export function generateEndpointObfuscation(
+  options: Amneziawg2ObfuscationOptions = Amneziawg2ObfuscationDefaults,
+): Amneziawg2ServerObfuscation {
   for (let attempt = 0; attempt < MAXIMUM_GENERATION_ATTEMPTS; attempt++) {
     const generated = genCfg({
       ...ObfuscationGeneratorBaseInput,
-      profile: Amneziawg2ObfuscationDefaults.protocolProfile,
-      intensity: Amneziawg2ObfuscationDefaults.junkPacketSize,
-      junkLevel: JUNK_PACKET_COUNT_BY_LEVEL[Amneziawg2ObfuscationDefaults.junkPacketCount],
+      profile: options.protocolProfile,
+      intensity: options.junkPacketSize,
+      junkLevel: JUNK_PACKET_COUNT_BY_LEVEL[options.junkPacketCount],
     })
 
     const parsed = Amneziawg2ServerObfuscationSchema.safeParse({
+      ...generateClientObfuscation(options),
       s1: generated.s1,
       s2: generated.s2,
       s3: generated.s3,

@@ -4,5 +4,5 @@ export interface CreateConfigFormValues {
   name: string
   endpointId: string
   deviceTypeId: string
-  protocolOptions: ConfigProtocolOptions
+  protocolOptions: ConfigProtocolOptions | null
 }
