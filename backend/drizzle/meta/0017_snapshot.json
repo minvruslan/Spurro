@@ -147,12 +147,8 @@
           "name": "config_user_id_user_id_fk",
           "tableFrom": "config",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -160,12 +156,8 @@
           "name": "config_endpoint_id_endpoint_id_fk",
           "tableFrom": "config",
           "tableTo": "endpoint",
-          "columnsFrom": [
-            "endpoint_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["endpoint_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -173,12 +165,8 @@
           "name": "config_device_type_id_device_type_id_fk",
           "tableFrom": "config",
           "tableTo": "device_type",
-          "columnsFrom": [
-            "device_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["device_type_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -239,12 +227,8 @@
           "name": "config_limit_user_id_user_id_fk",
           "tableFrom": "config_limit",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -254,10 +238,7 @@
         "config_limit_user_protocol_family_uq": {
           "name": "config_limit_user_protocol_family_uq",
           "nullsNotDistinct": false,
-          "columns": [
-            "user_id",
-            "protocol_family"
-          ]
+          "columns": ["user_id", "protocol_family"]
         }
       },
       "policies": {},
@@ -316,9 +297,7 @@
         "device_type_code_unique": {
           "name": "device_type_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
+          "columns": ["code"]
         }
       },
       "policies": {},
@@ -473,12 +452,8 @@
           "name": "endpoint_server_id_server_id_fk",
           "tableFrom": "endpoint",
           "tableTo": "server",
-          "columnsFrom": [
-            "server_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["server_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -486,12 +461,8 @@
           "name": "endpoint_protocol_id_protocol_id_fk",
           "tableFrom": "endpoint",
           "tableTo": "protocol",
-          "columnsFrom": [
-            "protocol_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["protocol_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -560,9 +531,7 @@
         "protocol_code_unique": {
           "name": "protocol_code_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
+          "columns": ["code"]
         }
       },
       "policies": {},
@@ -780,12 +749,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -878,12 +843,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -893,9 +854,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -1073,27 +1032,17 @@
     "public.config_status": {
       "name": "config_status",
       "schema": "public",
-      "values": [
-        "active",
-        "pending",
-        "deleting"
-      ]
+      "values": ["active", "pending", "deleting"]
     },
     "public.endpoint_status": {
       "name": "endpoint_status",
       "schema": "public",
-      "values": [
-        "active"
-      ]
+      "values": ["active"]
     },
     "public.server_status": {
       "name": "server_status",
       "schema": "public",
-      "values": [
-        "provisioning",
-        "active",
-        "failed"
-      ]
+      "values": ["provisioning", "active", "failed"]
     }
   },
   "schemas": {},

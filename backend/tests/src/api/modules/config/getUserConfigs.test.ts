@@ -1,7 +1,11 @@
 import { call } from "@orpc/server"
 import { ConfigSchema } from "@spurro/api-contract"
-import { ProtocolCodeSchema } from "@spurro/infrastructure/types"
-import { eq } from "drizzle-orm"
+import {
+  Amneziawg2BrowserFingerprintSchema,
+  Amneziawg2IntensitySchema,
+  Amneziawg2ProtocolProfileSchema,
+  ProtocolCodeSchema,
+} from "@spurro/infrastructure/types"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"
@@ -10,7 +14,7 @@ import { configRouter } from "@/api/modules/config/index.js"
 import { findUserConfigs } from "@/api/modules/config/queries/findUserConfigs.js"
 import { bootstrapDeviceTypes } from "@/core/bootstraps/bootstrapDeviceTypes.js"
 import { db } from "@/core/database/index.js"
-import { config, deviceType, protocol, server } from "@/core/database/schemas/index.js"
+import { deviceType, protocol, server } from "@/core/database/schemas/index.js"
 import {
   insertTestConfig,
   insertTestEndpoint,
@@ -49,8 +53,9 @@ async function insertConfigPrerequisites(
 describe("GET /configs", () => {
   beforeEach(bootstrapDeviceTypes)
 
-  it("returns the requesting user's configs matching the contract schema", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+  it("returns the requesting user's configs matching the contract schema with the joined endpoint, server, protocol and device type values", async () => {
+    const { configProtocol, configServer, configEndpoint, configDeviceType } =
+      await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
     const insertedConfig = await insertTestConfig({
@@ -67,35 +72,18 @@ describe("GET /configs", () => {
     expect(parsed[0].id).toBe(insertedConfig.id)
     expect(parsed[0].name).toBe(insertedConfig.name)
     expect(parsed[0].status).toBe("active")
+    expect(parsed[0].data).toEqual(insertedConfig.data)
     expect(parsed[0].deviceType.id).toBe(configDeviceType.id)
+    expect(parsed[0].deviceType.code).toBe(configDeviceType.code)
+    expect(parsed[0].deviceType.name).toBe(configDeviceType.name)
     expect(parsed[0].endpoint.id).toBe(configEndpoint.id)
-  })
-
-  it("returns the joined endpoint, server, protocol and device type values", async () => {
-    const { configProtocol, configServer, configEndpoint, configDeviceType } =
-      await insertConfigPrerequisites()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
-      status: "active",
-    })
-
-    const configs = await callGetUserConfigs(headers)
-
-    z.array(ConfigSchema).parse(configs)
-    expect(configs).toHaveLength(1)
-    const [entry] = configs
-    expect(entry.endpoint.port).toBe(configEndpoint.port)
-    expect(entry.endpoint.protocol.code).toBe(configProtocol.code)
-    expect(entry.endpoint.protocol.family).toBe(configProtocol.family)
-    expect(entry.endpoint.protocol.name).toBe(configProtocol.name)
-    expect(entry.endpoint.server.name).toBe(configServer.name)
-    expect(entry.endpoint.server.country).toBe(configServer.country)
-    expect(entry.deviceType.code).toBe(configDeviceType.code)
-    expect(entry.deviceType.name).toBe(configDeviceType.name)
+    expect(parsed[0].endpoint.port).toBe(configEndpoint.port)
+    expect(parsed[0].endpoint.protocol.code).toBe(configProtocol.code)
+    expect(parsed[0].endpoint.protocol.family).toBe(configProtocol.family)
+    expect(parsed[0].endpoint.protocol.name).toBe(configProtocol.name)
+    expect(parsed[0].endpoint.server.id).toBe(configServer.id)
+    expect(parsed[0].endpoint.server.name).toBe(configServer.name)
+    expect(parsed[0].endpoint.server.country).toBe(configServer.country)
   })
 
   it("returns each config with its own server", async () => {
@@ -126,8 +114,9 @@ describe("GET /configs", () => {
 
     const configs = await callGetUserConfigs(headers)
 
+    const parsed = z.array(ConfigSchema).parse(configs)
     const serverNamesByConfigId = new Map(
-      configs.map((entry) => [entry.id, entry.endpoint.server.name]),
+      parsed.map((entry) => [entry.id, entry.endpoint.server.name]),
     )
     expect(serverNamesByConfigId.get(firstConfig.id)).toBe(firstServer.name)
     expect(serverNamesByConfigId.get(secondConfig.id)).toBe(secondServer.name)
@@ -142,63 +131,7 @@ describe("GET /configs", () => {
     expect(configs).toEqual([])
   })
 
-  it("lists pending configs younger than the reservation window", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const pendingConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
-      status: "pending",
-    })
-
-    const configs = await callGetUserConfigs(headers)
-
-    const parsed = z.array(ConfigSchema).parse(configs)
-    expect(parsed.map((entry) => entry.id)).toEqual([pendingConfig.id])
-    expect(parsed[0].status).toBe("pending")
-  })
-
-  it("omits pending configs older than the reservation window", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    const stalePendingConfig = await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
-      status: "pending",
-    })
-    await db
-      .update(config)
-      .set({
-        createdAt: new Date(Date.now() - (PENDING_CONFIG_RESERVATION_MINUTES + 1) * 60 * 1000),
-      })
-      .where(eq(config.id, stalePendingConfig.id))
-
-    const configs = await callGetUserConfigs(headers)
-
-    expect(configs).toEqual([])
-  })
-
-  it("omits deleting configs", async () => {
-    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
-    const requestUser = await insertTestUser()
-    const headers = await insertTestSession(requestUser)
-    await insertTestConfig({
-      userId: requestUser.id,
-      endpointId: configEndpoint.id,
-      deviceTypeId: configDeviceType.id,
-      status: "deleting",
-    })
-
-    const configs = await callGetUserConfigs(headers)
-
-    expect(configs).toEqual([])
-  })
-
-  it("omits another user's configs", async () => {
+  it("does not return another user's configs", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
@@ -222,7 +155,59 @@ describe("GET /configs", () => {
     expect(parsed.map((entry) => entry.id)).toEqual([requestUserConfig.id])
   })
 
-  it("lists a config whose protocol is disabled", async () => {
+  it("returns a pending config just inside the reservation window", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+    const requestUser = await insertTestUser()
+    const headers = await insertTestSession(requestUser)
+    const pendingConfig = await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "pending",
+      createdAt: new Date(Date.now() - (PENDING_CONFIG_RESERVATION_MINUTES - 1) * 60 * 1000),
+    })
+
+    const configs = await callGetUserConfigs(headers)
+
+    const parsed = z.array(ConfigSchema).parse(configs)
+    expect(parsed.map((entry) => entry.id)).toEqual([pendingConfig.id])
+    expect(parsed[0].status).toBe("pending")
+  })
+
+  it("hides a pending config older than the reservation window", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+    const requestUser = await insertTestUser()
+    const headers = await insertTestSession(requestUser)
+    await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "pending",
+      createdAt: new Date(Date.now() - (PENDING_CONFIG_RESERVATION_MINUTES + 1) * 60 * 1000),
+    })
+
+    const configs = await callGetUserConfigs(headers)
+
+    expect(configs).toEqual([])
+  })
+
+  it("hides a deleting config", async () => {
+    const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
+    const requestUser = await insertTestUser()
+    const headers = await insertTestSession(requestUser)
+    await insertTestConfig({
+      userId: requestUser.id,
+      endpointId: configEndpoint.id,
+      deviceTypeId: configDeviceType.id,
+      status: "deleting",
+    })
+
+    const configs = await callGetUserConfigs(headers)
+
+    expect(configs).toEqual([])
+  })
+
+  it("returns configs on an endpoint whose protocol is disabled", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites({
       protocol: { isEnabled: false },
     })
@@ -241,7 +226,7 @@ describe("GET /configs", () => {
     expect(parsed.map((entry) => entry.id)).toEqual([disabledProtocolConfig.id])
   })
 
-  it("returns configs ordered by creation date descending", async () => {
+  it("returns the configs ordered by creation date, newest first", async () => {
     const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
     const requestUser = await insertTestUser()
     const headers = await insertTestSession(requestUser)
@@ -295,28 +280,38 @@ describe("GET /configs", () => {
   })
 
   describe("amneziawg2", () => {
-    it("returns the stored data fields", async () => {
+    it("returns exactly the amneziawg2 config data fields", async () => {
       const { configEndpoint, configDeviceType } = await insertConfigPrerequisites()
       const requestUser = await insertTestUser()
       const headers = await insertTestSession(requestUser)
-      await insertTestConfig({
+      const insertedConfig = await insertTestConfig({
         userId: requestUser.id,
         endpointId: configEndpoint.id,
         deviceTypeId: configDeviceType.id,
         status: "active",
         data: {
           protocolCode: ProtocolCodeSchema.enum.amneziawg2,
-          ip: "10.8.0.2",
+          clientIp: "10.8.0.2",
           publicKey: "test-public-key",
           presharedKey: "test-preshared-key",
+          options: {
+            protocolProfile: Amneziawg2ProtocolProfileSchema.enum.quic_initial,
+            browserFingerprint: Amneziawg2BrowserFingerprintSchema.enum.firefox,
+            junkPacketCount: Amneziawg2IntensitySchema.enum.high,
+            junkPacketSize: Amneziawg2IntensitySchema.enum.low,
+            noisePackets: Amneziawg2IntensitySchema.enum.medium,
+          },
         },
       })
 
       const configs = await callGetUserConfigs(headers)
 
       const parsed = z.array(ConfigSchema).parse(configs)
-      expect(Object.keys(parsed[0].data).sort()).toEqual([
-        "ip",
+      expect(parsed).toHaveLength(1)
+      expect(parsed[0].data).toEqual(insertedConfig.data)
+      expect(Object.keys(configs[0].data).sort()).toEqual([
+        "clientIp",
+        "options",
         "presharedKey",
         "protocolCode",
         "publicKey",
@@ -325,14 +320,13 @@ describe("GET /configs", () => {
   })
 
   describe("technical", () => {
-    it("responds with HTTP 500 when the config query throws", async () => {
+    it("responds with HTTP 500 when the configs query throws", async () => {
       vi.mocked(findUserConfigs).mockRejectedValueOnce(new Error("Query failure"))
-
       const requestUser = await insertTestUser()
+      const headers = await insertTestSession(requestUser)
 
-      const response = await app.request("/api/configs", {
-        headers: await insertTestSession(requestUser),
-      })
+      const response = await app.request("/api/configs", { headers })
+
       expect(response.status).toBe(500)
     })
   })

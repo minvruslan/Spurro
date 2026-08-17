@@ -1,3 +1,4 @@
-import type { createProtocolClient } from "./createProtocolClient.js"
+import type { ProtocolCode } from "../../types/index.js"
+import type { ProtocolClientByCode } from "./ProtocolClientByCode.js"
 
-export type ProtocolClient = ReturnType<typeof createProtocolClient>
+export type ProtocolClient = ProtocolClientByCode[ProtocolCode]

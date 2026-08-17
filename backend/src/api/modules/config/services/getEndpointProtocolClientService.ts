@@ -1,7 +1,7 @@
 import type { ProtocolCode } from "@spurro/api-contract"
 import { ProtocolCodeSchema } from "@spurro/api-contract"
 import type { EndpointActualState } from "@spurro/infrastructure/types"
-import { EndpointActualStateSchema } from "@spurro/infrastructure/types"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import type { ProtocolClient } from "@spurro/infrastructure"
 import { RemoteServer } from "@spurro/infrastructure"
 import { db } from "@/core/database/index.js"
@@ -61,30 +61,20 @@ export async function getEndpointProtocolClientService(
     }
   }
 
-  const endpointActualState = EndpointActualStateSchema.safeParse(
+  const endpointActualState = ProtocolRegistry[parsedCode.data].endpointActualStateSchema.safeParse(
     endpointProtocolClientData.endpointData?.actualState,
   )
   if (!endpointActualState.success) {
     return {
       ok: false,
       errorCode: "unavailable",
-      error: new Error(`Endpoint ${endpointId} has no actual state.`),
+      error: new Error(`Endpoint ${endpointId} has no valid actual state.`, {
+        cause: endpointActualState.error,
+      }),
     }
   }
 
   const client = new RemoteServer(serverAccess).getProtocolClient(parsedCode.data)
-
-  try {
-    client.parseEndpointActualState(endpointActualState.data)
-  } catch (error) {
-    return {
-      ok: false,
-      errorCode: "unavailable",
-      error: new Error(`Endpoint ${endpointId} actual state failed protocol validation.`, {
-        cause: error,
-      }),
-    }
-  }
 
   return {
     ok: true,

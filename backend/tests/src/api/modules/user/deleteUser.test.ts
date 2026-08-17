@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { RemoteServer } from "@spurro/infrastructure"
-import { ProtocolCodeSchema, ProtocolRegistry } from "@spurro/infrastructure/types"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import { eq, sql } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
@@ -425,7 +425,6 @@ describe("DELETE /users/{id}", () => {
         userId: targetUser.id,
         endpointId: configEndpoint.id,
         deviceTypeId: configDeviceType.id,
-        data: { protocolCode: ProtocolCodeSchema.enum.amneziawg2, ip: "10.8.0.3" },
       })
 
       await callDeleteUser(targetUser.id, await signInTestAdmin())
@@ -446,7 +445,6 @@ describe("DELETE /users/{id}", () => {
         userId: targetUser.id,
         endpointId: configEndpoint.id,
         deviceTypeId: configDeviceType.id,
-        data: { protocolCode: ProtocolCodeSchema.enum.amneziawg2, ip: "10.8.0.77" },
       })
       const bystanderUser = await insertTestUser()
       await insertTestSession(bystanderUser)
@@ -492,6 +490,10 @@ describe("DELETE /users/{id}", () => {
       vi.mocked(deleteUser).mockResolvedValueOnce([])
 
       await expectOrpcError(callDeleteUser(targetUser.id, await signInTestAdmin()), "NOT_FOUND")
+
+      const userRows = await db.select().from(user).where(eq(user.id, targetUser.id))
+      expect(userRows).toHaveLength(1)
+      expect(fakeAmneziawg2Client.deleteAccesses).not.toHaveBeenCalled()
     })
 
     it("responds with HTTP 500 when the user delete throws", async () => {

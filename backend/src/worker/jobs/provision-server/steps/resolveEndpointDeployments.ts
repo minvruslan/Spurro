@@ -1,6 +1,6 @@
 import { ProtocolCodeSchema } from "@spurro/api-contract"
 import type { ProtocolClient, RemoteServer } from "@spurro/infrastructure"
-import { EndpointDesiredStateSchema } from "@spurro/infrastructure/types"
+import { ProtocolRegistry } from "@spurro/infrastructure/types"
 import type { EndpointData, EndpointDesiredState } from "@spurro/infrastructure/types"
 import { ProvisioningError } from "../ProvisioningError.js"
 import type { ProvisioningStep } from "./ProvisioningStep.js"
@@ -56,7 +56,8 @@ export const resolveEndpointDeployments: ProvisioningStep<
       )
     }
 
-    const parsedDesiredState = EndpointDesiredStateSchema.safeParse(endpoint.data.desiredState)
+    const desiredStateSchema = ProtocolRegistry[parsedProtocolCode.data].endpointDesiredStateSchema
+    const parsedDesiredState = desiredStateSchema.safeParse(endpoint.data.desiredState)
     if (!parsedDesiredState.success && endpoint.data.desiredState !== undefined) {
       throw new ProvisioningError(
         serverId,

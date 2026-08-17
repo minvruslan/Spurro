@@ -3,6 +3,7 @@ import { pino, stdSerializers } from "pino"
 
 const SECRET_FIELD_NAMES = [
   "clientConfiguration",
+  "clientConfigurationLink",
   "privateKey",
   "presharedKey",
   "publicKey",

@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto"
+import { Amneziawg2ObfuscationDefaults, ProtocolCodeSchema } from "@spurro/infrastructure/types"
 import type { DbOrTx } from "@/core/database/index.js"
 import { db } from "@/core/database/index.js"
 import { config } from "@/core/database/schemas/index.js"
+import { createTestIp } from "./createTestIp.js"
 
 export async function insertTestConfig(
   overrides: Partial<typeof config.$inferInsert> &
@@ -12,7 +14,11 @@ export async function insertTestConfig(
     .insert(config)
     .values({
       name: `Test Config ${randomUUID()}`,
-      data: { protocolCode: "amneziawg2", ip: "10.8.0.2" },
+      data: {
+        protocolCode: ProtocolCodeSchema.enum.amneziawg2,
+        clientIp: createTestIp(),
+        options: { ...Amneziawg2ObfuscationDefaults },
+      },
       status: "active",
       ...overrides,
     })

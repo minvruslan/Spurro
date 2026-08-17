@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
 import { type Protocol, ServerSchema, type UpsertServer } from "@spurro/api-contract"
-import { ProtocolCodeSchema, ProtocolRegistry, ServerDataSchema } from "@spurro/infrastructure/types"
+import {
+  ProtocolCodeSchema,
+  ProtocolRegistry,
+  ServerDataSchema,
+} from "@spurro/infrastructure/types"
 import { eq, sql } from "drizzle-orm"
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
@@ -59,7 +63,7 @@ function requestCreateServer(input: Record<string, unknown>, headers: Headers) {
 
 function createServerInput(overrides: Record<string, unknown> = {}) {
   return {
-    name: `Created Server ${randomUUID()}`,
+    name: `srv-${randomUUID().slice(0, 8)}`,
     ip: "192.0.2.10",
     country: "NL",
     credentials: { username: "spurro", password: "server-password" },
@@ -364,8 +368,8 @@ describe("POST /servers", () => {
     expect(endpointRows[0]?.id).toBe(siblingEndpoint.id)
   })
 
-  it("accepts a name of exactly 255 characters", async () => {
-    const name = "n".repeat(255)
+  it("accepts a name of exactly 15 characters", async () => {
+    const name = "n".repeat(15)
 
     const createdServer = await callCreateServer(
       createServerInput({ name }),

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Config, Endpoint, UpsertConfig } from "@spurro/api-contract"
-import { onMounted, ref } from "vue"
+import { ProtocolCodeSchema, ProtocolRegistry, type Endpoint } from "@spurro/api-contract"
+import { onMounted, ref, watch } from "vue"
 import { Plus } from "lucide-vue-next"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,10 +14,13 @@ import {
 import { FieldLabel, FormLayout } from "@/modules/common/components"
 import { useEndpoints } from "@/modules/entities/endpoint"
 import { useDeviceTypes } from "@/modules/entities/device-type"
+import type { CreatedConfig } from "@/modules/entities/config"
 import { useCreateConfig } from "../composables/useCreateConfig"
+import type { CreateConfigFormValues } from "../types"
 import { messages } from "../translations/CreateConfigForm"
+import Amneziawg2ObfuscationFields from "./Amneziawg2ObfuscationFields.vue"
 
-const emit = defineEmits<{ (e: "created", config: Config): void; (e: "cancel"): void }>()
+const emit = defineEmits<{ (e: "created", config: CreatedConfig): void; (e: "cancel"): void }>()
 
 const { t } = useI18n({ useScope: "local", messages })
 const { endpoints, ready: endpointsReady } = useEndpoints()
@@ -31,11 +34,22 @@ onMounted(() => nameInput.value?.$el?.focus())
 
 await Promise.all([endpointsReady, deviceTypesReady])
 
-const form = ref<UpsertConfig>({
+const form = ref<CreateConfigFormValues>({
   name: "",
   endpointId: "",
   deviceTypeId: "",
+  protocolOptions: null,
 })
+
+watch(
+  () => form.value.endpointId,
+  (endpointId) => {
+    const endpoint = endpoints.value.find((entry) => entry.id === endpointId)
+    form.value.protocolOptions = endpoint
+      ? { ...ProtocolRegistry[endpoint.protocol.code].configOptionsDefaults }
+      : null
+  },
+)
 
 const endpointLabel = (endpoint: Endpoint) => `${endpoint.server.name} · ${endpoint.protocol.name}`
 
@@ -72,28 +86,6 @@ const onSubmit = async () => {
       </div>
 
       <div class="flex flex-col gap-2">
-        <FieldLabel for="endpoint" required>{{ t("fields.endpoint.label") }}</FieldLabel>
-        <Select v-model="form.endpointId">
-          <SelectTrigger
-            id="endpoint"
-            class="w-full"
-            aria-required="true"
-            :disabled="!endpoints.length"
-          >
-            <SelectValue :placeholder="t('fields.endpoint.placeholder')" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="endpoint in endpoints" :key="endpoint.id" :value="endpoint.id">
-              {{ endpointLabel(endpoint) }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        <p v-if="!endpoints.length" class="text-sm text-muted-foreground">
-          {{ t("fields.endpoint.empty") }}
-        </p>
-      </div>
-
-      <div class="flex flex-col gap-2">
         <FieldLabel for="deviceType" required>{{ t("fields.deviceType.label") }}</FieldLabel>
         <Select v-model="form.deviceTypeId">
           <SelectTrigger
@@ -118,6 +110,36 @@ const onSubmit = async () => {
           {{ t("fields.deviceType.empty") }}
         </p>
       </div>
+
+      <div class="flex flex-col gap-2">
+        <FieldLabel for="endpoint" required>{{ t("fields.endpoint.label") }}</FieldLabel>
+        <Select v-model="form.endpointId">
+          <SelectTrigger
+            id="endpoint"
+            class="w-full"
+            aria-required="true"
+            :disabled="!endpoints.length"
+          >
+            <SelectValue :placeholder="t('fields.endpoint.placeholder')" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="endpoint in endpoints" :key="endpoint.id" :value="endpoint.id">
+              {{ endpointLabel(endpoint) }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <p v-if="!endpoints.length" class="text-sm text-muted-foreground">
+          {{ t("fields.endpoint.empty") }}
+        </p>
+      </div>
+
+      <Amneziawg2ObfuscationFields
+        v-if="
+          form.protocolOptions &&
+          form.protocolOptions.protocolCode === ProtocolCodeSchema.enum.amneziawg2
+        "
+        v-model="form.protocolOptions"
+      />
     </template>
 
     <template #actions>

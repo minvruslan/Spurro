@@ -35,9 +35,7 @@ describe("GET /protocols", () => {
 
     const parsed = z.array(ProtocolSchema).parse(protocols)
     expect(parsed).toHaveLength(ProtocolCodeSchema.options.length)
-    expect(parsed.map((entry) => entry.code).sort()).toEqual(
-      [...ProtocolCodeSchema.options].sort(),
-    )
+    expect(parsed.map((entry) => entry.code).sort()).toEqual([...ProtocolCodeSchema.options].sort())
     for (const entry of protocols) {
       expect(Object.keys(entry).sort()).toEqual([...ProtocolSchema.keyof().options].sort())
     }

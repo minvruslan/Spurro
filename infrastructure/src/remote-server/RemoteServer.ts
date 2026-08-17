@@ -18,7 +18,8 @@ import {
 import { PROJECT_NAME } from "../common/constants/index.js"
 import { CommandRunner } from "../command-runner/index.js"
 import { RemoteCommandRunner } from "../remote-command-runner/index.js"
-import { createProtocolClient } from "./protocols/index.js"
+import { ProtocolClientFactories } from "./protocols/index.js"
+import type { ProtocolClientByCode } from "./protocols/index.js"
 
 const ANSIBLE_DIRECTORY = resolve(dirname(fileURLToPath(import.meta.url)), "ansible")
 const SSH_KEYSCAN_TIMEOUT_SECONDS = 15
@@ -179,7 +180,7 @@ export class RemoteServer {
     )
   }
 
-  getProtocolClient(protocolCode: ProtocolCode) {
-    return createProtocolClient(protocolCode, this.remoteCommandRunner)
+  getProtocolClient<Code extends ProtocolCode>(protocolCode: Code): ProtocolClientByCode[Code] {
+    return ProtocolClientFactories[protocolCode](this.remoteCommandRunner)
   }
 }

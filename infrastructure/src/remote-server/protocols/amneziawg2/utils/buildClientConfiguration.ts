@@ -1,4 +1,6 @@
-import type { Amneziawg2Obfuscation } from "../types/index.js"
+import type { Amneziawg2ServerObfuscation } from "../../../../types/index.js"
+import { ALLOWED_IPS, PERSISTENT_KEEPALIVE_SECONDS, TUNNEL_MTU } from "../constants/index.js"
+import type { Amneziawg2ClientObfuscation } from "../types/index.js"
 
 export function buildClientConfiguration(params: {
   clientPrivateKey: string
@@ -6,7 +8,8 @@ export function buildClientConfiguration(params: {
   serverPublicKey: string
   presharedKey: string
   serverEndpoint: string
-  obfuscation: Amneziawg2Obfuscation
+  serverObfuscation: Amneziawg2ServerObfuscation
+  clientObfuscation: Amneziawg2ClientObfuscation
   dns: string
 }): string {
   const {
@@ -15,7 +18,8 @@ export function buildClientConfiguration(params: {
     serverPublicKey,
     presharedKey,
     serverEndpoint,
-    obfuscation,
+    serverObfuscation,
+    clientObfuscation,
     dns,
   } = params
 
@@ -23,28 +27,29 @@ export function buildClientConfiguration(params: {
     "[Interface]",
     `Address = ${clientIp}/32`,
     `DNS = ${dns}`,
+    `MTU = ${TUNNEL_MTU}`,
     `PrivateKey = ${clientPrivateKey}`,
-    `Jc = ${obfuscation.Jc}`,
-    `Jmin = ${obfuscation.Jmin}`,
-    `Jmax = ${obfuscation.Jmax}`,
-    `S1 = ${obfuscation.S1}`,
-    `S2 = ${obfuscation.S2}`,
-    `S3 = ${obfuscation.S3}`,
-    `S4 = ${obfuscation.S4}`,
-    `H1 = ${obfuscation.H1}`,
-    `H2 = ${obfuscation.H2}`,
-    `H3 = ${obfuscation.H3}`,
-    `H4 = ${obfuscation.H4}`,
-    ...(["I1", "I2", "I3", "I4", "I5"] as const)
-      .filter((key) => obfuscation[key])
-      .map((key) => `${key} = ${obfuscation[key]}`),
+    `Jc = ${clientObfuscation.jc}`,
+    `Jmin = ${clientObfuscation.jmin}`,
+    `Jmax = ${clientObfuscation.jmax}`,
+    `S1 = ${serverObfuscation.s1}`,
+    `S2 = ${serverObfuscation.s2}`,
+    `S3 = ${serverObfuscation.s3}`,
+    `S4 = ${serverObfuscation.s4}`,
+    `H1 = ${serverObfuscation.h1}`,
+    `H2 = ${serverObfuscation.h2}`,
+    `H3 = ${serverObfuscation.h3}`,
+    `H4 = ${serverObfuscation.h4}`,
+    ...(["i1", "i2", "i3", "i4", "i5"] as const)
+      .filter((key) => clientObfuscation[key])
+      .map((key) => `${key.toUpperCase()} = ${clientObfuscation[key]}`),
     "",
     "[Peer]",
     `PublicKey = ${serverPublicKey}`,
     `PresharedKey = ${presharedKey}`,
-    "AllowedIPs = 0.0.0.0/0, ::/0",
+    `AllowedIPs = ${ALLOWED_IPS.join(", ")}`,
     `Endpoint = ${serverEndpoint}`,
-    "PersistentKeepalive = 25",
+    `PersistentKeepalive = ${PERSISTENT_KEEPALIVE_SECONDS}`,
     "",
   ].join("\n")
 }

@@ -21,6 +21,7 @@
     "@nuxtjs/i18n": "^10.4.0",
     "@orpc/client": "^1.14.13",
     "@orpc/openapi-client": "^1.14.13",
+    "@sindresorhus/slugify": "^3.0.0",
     "@spurro/api-contract": "workspace:*",
     "@vueuse/core": "^14.2.1",
     "better-auth": "^1.6.14",
