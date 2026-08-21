@@ -6,8 +6,6 @@ import { ChevronRight, Monitor, Smartphone, Tablet } from "@lucide/vue"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { getConfigObfuscationLevel } from "../utils/getConfigObfuscationLevel"
-import ConfigObfuscationLevelName from "./ConfigObfuscationLevelName.vue"
 import { messages } from "../translations/ConfigCard"
 
 const props = defineProps<{ config: Config }>()
@@ -26,7 +24,6 @@ const DeviceIcons: Record<DeviceType["code"], Component> = {
 
 const DeviceIcon = computed(() => DeviceIcons[props.config.deviceType.code])
 const protocolName = computed(() => props.config.endpoint.protocol.name)
-const obfuscationLevel = computed(() => getConfigObfuscationLevel(props.config.data))
 </script>
 
 <template>
@@ -44,9 +41,6 @@ const obfuscationLevel = computed(() => getConfigObfuscationLevel(props.config.d
           <span class="truncate text-sm text-muted-foreground">{{ config.deviceType.name }}</span>
         </div>
         <Badge variant="secondary">{{ protocolName }}</Badge>
-        <Badge v-if="obfuscationLevel" variant="outline">
-          <ConfigObfuscationLevelName :level="obfuscationLevel" />
-        </Badge>
       </div>
       <Button variant="outline" size="sm" @click="$emit('open')">
         {{ t("open") }}
@@ -79,9 +73,6 @@ const obfuscationLevel = computed(() => getConfigObfuscationLevel(props.config.d
       </div>
       <div class="flex shrink-0 items-center gap-3">
         <Badge variant="secondary">{{ protocolName }}</Badge>
-        <Badge v-if="obfuscationLevel" variant="outline">
-          <ConfigObfuscationLevelName :level="obfuscationLevel" />
-        </Badge>
         <ChevronRight class="size-5 text-muted-foreground" aria-hidden="true" />
       </div>
     </div>

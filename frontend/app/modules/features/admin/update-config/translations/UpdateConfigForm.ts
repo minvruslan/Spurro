@@ -3,7 +3,6 @@ export const messages = {
     title: "Редактирование конфигурации",
     fields: {
       name: { label: "Название", placeholder: "iPhone" },
-      endpoint: { label: "Точка подключения" },
       deviceType: { label: "Устройство", placeholder: "Выберите устройство" },
     },
     deleteConfirmationDialog: {
@@ -27,7 +26,6 @@ export const messages = {
     title: "Edit configuration",
     fields: {
       name: { label: "Name", placeholder: "iPhone" },
-      endpoint: { label: "Endpoint" },
       deviceType: { label: "Device", placeholder: "Select a device" },
     },
     deleteConfirmationDialog: {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CreateConfigWizard } from "@/modules/features/create-config-wizard"
+import { CreateConfigWizard } from "@/modules/features/user/create-config"
 
 definePageMeta({
   middleware: "user",

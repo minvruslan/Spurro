@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Config } from "@spurro/api-contract"
-import { UserHome } from "@/modules/features/user-home"
+import { UserHome } from "@/modules/features/user/home"
 
 definePageMeta({
   middleware: "user",

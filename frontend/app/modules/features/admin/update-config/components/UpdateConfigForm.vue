@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Config, UpdateConfig } from "@spurro/api-contract"
-import { computed, onMounted, ref } from "vue"
+import { onMounted, ref } from "vue"
 import { Save, Trash2 } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,8 +12,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { FieldLabel, FormLayout } from "@/modules/shared/components"
-import { useConfig, useUpdateConfig, useDeleteConfig } from "@/modules/entities/config"
+import {
+  ConfigObfuscationDetails,
+  useConfig,
+  useUpdateConfig,
+  useDeleteConfig,
+} from "@/modules/entities/config"
 import { useDeviceTypes } from "@/modules/entities/device-type"
+import { EndpointDetails } from "@/modules/entities/endpoint"
 import { messages } from "../translations/UpdateConfigForm"
 
 const props = defineProps<{ id: string }>()
@@ -37,12 +43,6 @@ onMounted(() => nameInput.value?.$el?.focus())
 await Promise.all([ready, deviceTypesReady])
 
 const loadedConfig = config.value
-
-const endpointLabel = computed(() => {
-  const endpoint = loadedConfig?.endpoint
-  if (!endpoint) return ""
-  return `${endpoint.server.name} · ${endpoint.protocol.name}`
-})
 
 const form = ref<UpdateConfig>({
   name: loadedConfig?.name ?? "",
@@ -98,17 +98,6 @@ const onDelete = async () => {
       </div>
 
       <div class="flex flex-col gap-2">
-        <FieldLabel for="endpoint">{{ t("fields.endpoint.label") }}</FieldLabel>
-        <Input
-          id="endpoint"
-          :model-value="endpointLabel"
-          readonly
-          tabindex="-1"
-          class="bg-muted text-muted-foreground"
-        />
-      </div>
-
-      <div class="flex flex-col gap-2">
         <FieldLabel for="deviceType" required>{{ t("fields.deviceType.label") }}</FieldLabel>
         <Select v-model="form.deviceTypeId">
           <SelectTrigger
@@ -130,6 +119,10 @@ const onDelete = async () => {
           </SelectContent>
         </Select>
       </div>
+
+      <EndpointDetails :endpoint="config.endpoint" />
+
+      <ConfigObfuscationDetails :data="config.data" />
     </template>
 
     <template #actions>

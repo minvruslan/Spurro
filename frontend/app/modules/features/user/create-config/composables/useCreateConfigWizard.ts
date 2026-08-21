@@ -14,7 +14,7 @@ import {
 } from "@/modules/entities/config"
 import { useDeviceTypes } from "@/modules/entities/device-type"
 import { useEndpoints } from "@/modules/entities/endpoint"
-import { WizardAppsByDeviceTypeCode } from "../settings/WizardAppsByDeviceTypeCode"
+import { WizardAppsByDeviceTypeCode } from "../constants/WizardAppsByDeviceTypeCode"
 import { WizardStepOrder } from "../types/WizardStepOrder"
 import type { WizardStep } from "../types/WizardStep"
 import type { WizardAppId } from "../types/WizardAppId"

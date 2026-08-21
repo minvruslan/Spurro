@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CreateUserForm } from "@/modules/features/create-user"
+import { CreateUserForm } from "@/modules/features/admin/create-user"
 
 definePageMeta({ middleware: "admin", layout: "admin" })
 

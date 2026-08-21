@@ -22,7 +22,7 @@ import {
 } from "@/modules/entities/config"
 import { useDeviceTypes, DeviceTypeName } from "@/modules/entities/device-type"
 import { EndpointDetails } from "@/modules/entities/endpoint"
-import { messages } from "../translations/ConfigDetails"
+import { messages } from "../translations/UpdateConfigForm"
 
 const props = defineProps<{ id: string }>()
 const emit = defineEmits<{

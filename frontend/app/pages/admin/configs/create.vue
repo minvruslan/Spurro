@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue"
 import type { CreatedConfig } from "@/modules/entities/config"
-import { ConfigCreatedView, CreateConfigForm } from "@/modules/features/create-config"
+import { ConfigCreatedView, CreateConfigForm } from "@/modules/features/admin/create-config"
 
 definePageMeta({ middleware: "admin", layout: "admin" })
 

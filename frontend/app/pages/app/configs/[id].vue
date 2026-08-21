@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ConfigDetails } from "@/modules/features/config-details"
+import { UpdateConfigForm } from "@/modules/features/user/update-config"
 
 definePageMeta({
   middleware: "user",
@@ -15,5 +15,5 @@ const goBack = () => navigateTo("/app")
 </script>
 
 <template>
-  <ConfigDetails :id="id" @updated="goBack" @deleted="goBack" @cancel="goBack" />
+  <UpdateConfigForm :id="id" @updated="goBack" @deleted="goBack" @cancel="goBack" />
 </template>
