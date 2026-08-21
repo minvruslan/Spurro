@@ -15,7 +15,7 @@
       - amneziawg2_obfuscation is defined
     fail_msg: >-
       Missing required variables. In production they are injected automatically by
-      the AmneziaWG protocol client (@spurro/infrastructure); for manual runs pass
+      the AmneziaWG protocol client (@vancloak/infrastructure); for manual runs pass
       them via --extra-vars.
 
 - name: Create AmneziaWG directory owned by {{ service_username }}

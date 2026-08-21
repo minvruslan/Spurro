@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ProtocolCodeSchema, ProtocolRegistry, type Endpoint } from "@spurro/api-contract"
+import { ProtocolCodeSchema, ProtocolRegistry, type Endpoint } from "@vancloak/api-contract"
 import { onMounted, ref, watch } from "vue"
 import { Plus } from "@lucide/vue"
 import { Button } from "@/components/ui/button"

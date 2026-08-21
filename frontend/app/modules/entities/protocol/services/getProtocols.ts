@@ -1,4 +1,4 @@
-import type { Protocol } from "@spurro/api-contract"
+import type { Protocol } from "@vancloak/api-contract"
 
 export async function getProtocols(): Promise<Protocol[]> {
   return useApiClient().protocols.getProtocols()

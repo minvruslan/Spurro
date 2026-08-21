@@ -1,5 +1,5 @@
 import { call } from "@orpc/server"
-import { DeviceTypeSchema, type DeviceType } from "@spurro/api-contract"
+import { DeviceTypeSchema, type DeviceType } from "@vancloak/api-contract"
 import { eq } from "drizzle-orm"
 import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"

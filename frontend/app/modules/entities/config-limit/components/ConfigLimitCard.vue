@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { ProtocolFamilyCode } from "@spurro/api-contract"
-import { ProtocolFamilyRegistry } from "@spurro/api-contract"
+import type { ProtocolFamilyCode } from "@vancloak/api-contract"
+import { ProtocolFamilyRegistry } from "@vancloak/api-contract"
 import { computed } from "vue"
 import { Badge } from "@/components/ui/badge"
 

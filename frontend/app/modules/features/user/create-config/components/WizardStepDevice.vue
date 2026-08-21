@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DeviceTypeSchema, type DeviceType } from "@spurro/api-contract"
+import { DeviceTypeSchema, type DeviceType } from "@vancloak/api-contract"
 import { ChevronRight } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { DeviceTypeLogo, DeviceTypeName } from "@/modules/entities/device-type"

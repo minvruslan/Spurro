@@ -1,6 +1,6 @@
 import { call } from "@orpc/server"
-import { ProtocolSchema, type Protocol } from "@spurro/api-contract"
-import { ProtocolCodeSchema, ProtocolRegistry } from "@spurro/infrastructure/types"
+import { ProtocolSchema, type Protocol } from "@vancloak/api-contract"
+import { ProtocolCodeSchema, ProtocolRegistry } from "@vancloak/infrastructure/types"
 import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"

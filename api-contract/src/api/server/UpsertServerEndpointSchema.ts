@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { PortSchema } from "@spurro/infrastructure/types"
+import { PortSchema } from "@vancloak/infrastructure/types"
 
 export const UpsertServerEndpointSchema = z.object({
   id: z.uuid().optional(),

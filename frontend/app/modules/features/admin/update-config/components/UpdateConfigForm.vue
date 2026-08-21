@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Config, UpdateConfig } from "@spurro/api-contract"
+import type { Config, UpdateConfig } from "@vancloak/api-contract"
 import { onMounted, ref } from "vue"
 import { Save, Trash2 } from "@lucide/vue"
 import { Button } from "@/components/ui/button"

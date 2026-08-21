@@ -46,13 +46,13 @@ describe("bootstrapCurrentServer", () => {
   })
 
   it("stores the domain name when DOMAIN_NAME is set", async () => {
-    env.DOMAIN_NAME = "current.spurro.test"
+    env.DOMAIN_NAME = "current.vancloak.test"
 
     try {
       await bootstrapCurrentServer()
 
       const [currentServer] = await db.select().from(server).where(eq(server.isCurrent, true))
-      expect(currentServer.domainName).toBe("current.spurro.test")
+      expect(currentServer.domainName).toBe("current.vancloak.test")
     } finally {
       delete env.DOMAIN_NAME
     }
@@ -97,15 +97,15 @@ describe("bootstrapCurrentServer", () => {
       isCurrent: true,
       ip: env.IP,
       country: env.COUNTRY,
-      domainName: "old.spurro.test",
+      domainName: "old.vancloak.test",
     })
-    env.DOMAIN_NAME = "current.spurro.test"
+    env.DOMAIN_NAME = "current.vancloak.test"
 
     try {
       await bootstrapCurrentServer()
 
       const [currentServer] = await db.select().from(server).where(eq(server.isCurrent, true))
-      expect(currentServer.domainName).toBe("current.spurro.test")
+      expect(currentServer.domainName).toBe("current.vancloak.test")
     } finally {
       delete env.DOMAIN_NAME
     }

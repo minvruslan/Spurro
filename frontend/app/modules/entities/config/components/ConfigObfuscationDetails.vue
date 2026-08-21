@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ProtocolCodeSchema, type ConfigData } from "@spurro/api-contract"
+import { ProtocolCodeSchema, type ConfigData } from "@vancloak/api-contract"
 import { computed } from "vue"
 import { CollapsibleCard } from "@/modules/shared/components"
 import { messages } from "../translations/ConfigObfuscationDetails"

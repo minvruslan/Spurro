@@ -1,1 +1,1 @@
-export const PROJECT_NAME = "spurro"
+export const PROJECT_NAME = "vancloak"

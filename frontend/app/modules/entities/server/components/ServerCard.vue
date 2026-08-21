@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Server } from "@spurro/api-contract"
+import type { Server } from "@vancloak/api-contract"
 import { computed } from "vue"
 import { ChevronRight } from "@lucide/vue"
 import { Button } from "@/components/ui/button"

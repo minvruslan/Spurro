@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm"
-import { EndpointDataSchema } from "@spurro/infrastructure/types"
+import { EndpointDataSchema } from "@vancloak/infrastructure/types"
 import { db } from "@/core/database/index.js"
 import { endpoint, protocol } from "@/core/database/schemas/domainSchema.js"
 

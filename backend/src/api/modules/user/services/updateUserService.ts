@@ -1,6 +1,6 @@
 import { DrizzleQueryError } from "drizzle-orm"
 import postgres from "postgres"
-import type { User, UpsertUser } from "@spurro/api-contract"
+import type { User, UpsertUser } from "@vancloak/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import {

@@ -4,7 +4,7 @@ set -euo pipefail
 # Everything this script writes is node state, including the server private key — owner-only.
 umask 077
 
-# AmneziaWG server init. The interface configuration is rendered by @spurro/infrastructure
+# AmneziaWG server init. The interface configuration is rendered by @vancloak/infrastructure
 # from the endpoint desired state and arrives as a read-only bind mount
 # (CONFIGURATION_SOURCE_FILE). Nothing is generated here: keys, obfuscation and peers all
 # come from the application database.

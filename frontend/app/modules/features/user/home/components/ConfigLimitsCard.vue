@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ConfigLimit } from "@spurro/api-contract"
+import type { ConfigLimit } from "@vancloak/api-contract"
 import { Skeleton } from "@/components/ui/skeleton"
 import { isReachedConfigLimit } from "@/modules/entities/config-limit"
 import { messages } from "../translations/ConfigLimitsCard"

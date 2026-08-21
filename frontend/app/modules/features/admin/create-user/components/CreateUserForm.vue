@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { ProtocolFamilyCode, User } from "@spurro/api-contract"
-import { ProtocolFamilyRegistry } from "@spurro/api-contract"
+import type { ProtocolFamilyCode, User } from "@vancloak/api-contract"
+import { ProtocolFamilyRegistry } from "@vancloak/api-contract"
 import { onMounted, ref } from "vue"
 import { Plus } from "@lucide/vue"
 import { Button } from "@/components/ui/button"

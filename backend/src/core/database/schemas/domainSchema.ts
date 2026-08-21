@@ -13,8 +13,8 @@ import {
   pgEnum,
   check,
 } from "drizzle-orm/pg-core"
-import type { ConfigData, ProtocolFamilyCode } from "@spurro/api-contract"
-import type { EndpointData, ServerData } from "@spurro/infrastructure/types"
+import type { ConfigData, ProtocolFamilyCode } from "@vancloak/api-contract"
+import type { EndpointData, ServerData } from "@vancloak/infrastructure/types"
 import { encryptedJsonb, encryptedText } from "../columns/index.js"
 import { user } from "./authSchema"
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ConfigLimit } from "@spurro/api-contract"
+import type { ConfigLimit } from "@vancloak/api-contract"
 import { computed } from "vue"
 import ConfigLimitCard from "./ConfigLimitCard.vue"
 import ConfigLimitCardSkeleton from "./ConfigLimitCardSkeleton.vue"

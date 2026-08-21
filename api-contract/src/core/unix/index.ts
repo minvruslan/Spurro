@@ -1,1 +1,1 @@
-export { UnixPathSchema, UnixUsernameSchema } from "@spurro/infrastructure/types"
+export { UnixPathSchema, UnixUsernameSchema } from "@vancloak/infrastructure/types"

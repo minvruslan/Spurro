@@ -4,7 +4,7 @@
       - hardening_ssh_port is defined
     fail_msg: >-
       Missing required variables. They are injected automatically by
-      ServerProvisioner.harden (@spurro/infrastructure);
+      ServerProvisioner.harden (@vancloak/infrastructure);
       for manual runs pass them via --extra-vars.
 
 - name: Assert the node OS family is supported

@@ -1,4 +1,4 @@
-import type { ServerStatus } from "@spurro/api-contract"
+import type { ServerStatus } from "@vancloak/api-contract"
 
 interface ServerStatusStyle {
   dot: string

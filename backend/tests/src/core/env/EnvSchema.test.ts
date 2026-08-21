@@ -5,11 +5,11 @@ const SSH_PRIVATE_KEY = "-----BEGIN OPENSSH PRIVATE KEY-----\\ndGVzdA==\\n"
 
 function createEnv(overrides: Record<string, string | undefined> = {}) {
   return {
-    DATABASE_URL: "postgres://user:pass@localhost:5432/spurro",
+    DATABASE_URL: "postgres://user:pass@localhost:5432/vancloak",
     QUEUE_URL: "redis://localhost:6379",
     BETTER_AUTH_SECRET: "secret",
     BETTER_AUTH_URL: "http://localhost:4000",
-    ADMIN_EMAIL: "admin@spurro.test",
+    ADMIN_EMAIL: "admin@vancloak.test",
     APP_ENCRYPTION_KEY: Buffer.alloc(32, "k").toString("base64"),
     APP_SSH_PRIVATE_KEY: SSH_PRIVATE_KEY,
     IP: "203.0.113.10",
@@ -151,7 +151,7 @@ describe("EnvSchema", () => {
   })
 
   it("accepts an authorized_keys line as OPERATOR_SSH_PUBLIC_KEY", () => {
-    const parsed = parseEnv({ OPERATOR_SSH_PUBLIC_KEY: "ssh-ed25519 AAAAKEY operator@spurro" })
+    const parsed = parseEnv({ OPERATOR_SSH_PUBLIC_KEY: "ssh-ed25519 AAAAKEY operator@vancloak" })
 
     expect(parsed.success).toBe(true)
   })
@@ -175,7 +175,9 @@ describe("EnvSchema", () => {
   })
 
   it("accepts a valid DOMAIN_NAME", () => {
-    expect(parseEnv({ DOMAIN_NAME: "node.spurro.test" }).data?.DOMAIN_NAME).toBe("node.spurro.test")
+    expect(parseEnv({ DOMAIN_NAME: "node.vancloak.test" }).data?.DOMAIN_NAME).toBe(
+      "node.vancloak.test",
+    )
   })
 
   it("rejects a malformed DOMAIN_NAME", () => {

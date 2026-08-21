@@ -1,5 +1,5 @@
 import { ref } from "vue"
-import type { Config, UpdateConfig } from "@spurro/api-contract"
+import type { Config, UpdateConfig } from "@vancloak/api-contract"
 import { updateConfig } from "../services/updateConfig"
 
 export function useUpdateConfig(id: string) {

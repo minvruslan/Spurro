@@ -1,4 +1,4 @@
-import type { ProtocolFamilyCode } from "@spurro/api-contract"
+import type { ProtocolFamilyCode } from "@vancloak/api-contract"
 
 export interface UpdateUserFormValues {
   name: string

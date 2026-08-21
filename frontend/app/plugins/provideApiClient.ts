@@ -1,7 +1,7 @@
 import { createORPCClient } from "@orpc/client"
 import { OpenAPILink } from "@orpc/openapi-client/fetch"
-import type { ApiClient } from "@spurro/api-contract"
-import { ApiContract } from "@spurro/api-contract"
+import type { ApiClient } from "@vancloak/api-contract"
+import { ApiContract } from "@vancloak/api-contract"
 
 export default defineNuxtPlugin(() => {
   const {

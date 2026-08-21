@@ -1,4 +1,4 @@
-import type { DeviceType } from "@spurro/api-contract"
+import type { DeviceType } from "@vancloak/api-contract"
 import type { WizardAppId } from "../types/WizardAppId"
 
 type InstructionMessages = Record<WizardAppId, Record<DeviceType["code"], { steps: string[] }>>

@@ -1,4 +1,4 @@
-import type { DeviceType } from "@spurro/api-contract"
+import type { DeviceType } from "@vancloak/api-contract"
 import type { WizardApp } from "../types/WizardApp"
 
 export const WizardAppsByDeviceTypeCode: Record<DeviceType["code"], WizardApp[]> = {

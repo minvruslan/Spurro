@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { inflateSync } from "node:zlib"
 import { call } from "@orpc/server"
-import { ConfigSchema, type UpsertConfig } from "@spurro/api-contract"
+import { ConfigSchema, type UpsertConfig } from "@vancloak/api-contract"
 import {
   Amneziawg2BrowserFingerprintSchema,
   Amneziawg2IntensitySchema,
@@ -11,8 +11,8 @@ import {
   ProtocolRegistry,
   type EndpointData,
   type ServerData,
-} from "@spurro/infrastructure/types"
-import { RemoteServer } from "@spurro/infrastructure"
+} from "@vancloak/infrastructure/types"
+import { RemoteServer } from "@vancloak/infrastructure"
 import { eq, sql } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
 import { z } from "zod"
@@ -117,8 +117,8 @@ const fakeClientConfigurationLink = FakeAmneziawg2CreateAccessResult.clientConfi
 const validServerData: ServerData = {
   facts: { sshHostKeys: [FAKE_SERVER_SSH_HOST_KEY] },
   actualState: {
-    ssh: { type: "privateKey", username: "spurro", port: 22 },
-    baseDirectory: "/opt/spurro",
+    ssh: { type: "privateKey", username: "vancloak", port: 22 },
+    baseDirectory: "/opt/vancloak",
     appliedAt: "2026-01-01T00:00:00.000Z",
   },
 }

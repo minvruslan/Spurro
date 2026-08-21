@@ -1,11 +1,11 @@
-import { RemoteServer, type ProtocolClient } from "@spurro/infrastructure"
+import { RemoteServer, type ProtocolClient } from "@vancloak/infrastructure"
 import {
   Amneziawg2EndpointActualStateSchema,
   Amneziawg2ObfuscationDefaults,
   Amneziawg2ObfuscationOptionsSchema,
   ProtocolCodeSchema,
   type Amneziawg2ConfigData,
-} from "@spurro/infrastructure/types"
+} from "@vancloak/infrastructure/types"
 import { vi } from "vitest"
 
 const FAKE_SERVER_SSH_HOST_KEY = "ssh-ed25519 AAAATestServerHostKey"
@@ -14,7 +14,7 @@ function createAmneziawg2Client(): ProtocolClient {
   return new RemoteServer({
     ip: "192.0.2.1",
     port: 22,
-    username: "spurro",
+    username: "vancloak",
     privateKey: "fake-ssh-private-key",
     sshHostKeys: [FAKE_SERVER_SSH_HOST_KEY],
   }).getProtocolClient(ProtocolCodeSchema.enum.amneziawg2)

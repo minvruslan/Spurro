@@ -3,7 +3,7 @@ import {
   UpsertConfigSchema,
   type ConfigProtocolOptions,
   type ProtocolCode,
-} from "@spurro/api-contract"
+} from "@vancloak/api-contract"
 import { computed, ref, watch } from "vue"
 import {
   Amneziawg2ObfuscationPresets,

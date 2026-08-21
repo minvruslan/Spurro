@@ -3,7 +3,7 @@ import {
   Amneziawg2IntensitySchema,
   Amneziawg2ProtocolProfileSchema,
   type Amneziawg2ObfuscationOptions,
-} from "@spurro/api-contract"
+} from "@vancloak/api-contract"
 import type { ObfuscationLevel } from "../types/ObfuscationLevel"
 
 export const Amneziawg2ObfuscationPresets: Record<ObfuscationLevel, Amneziawg2ObfuscationOptions> =

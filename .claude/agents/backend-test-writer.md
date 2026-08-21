@@ -1,12 +1,12 @@
 ---
 name: backend-test-writer
-description: Implements approved test skeletons for the Spurro backend under strict spec-first discipline. Use for turning it.todo cases into real tests and reporting code-vs-spec discrepancies. Not for designing new test cases from scratch.
+description: Implements approved test skeletons for the VanCloak backend under strict spec-first discipline. Use for turning it.todo cases into real tests and reporting code-vs-spec discrepancies. Not for designing new test cases from scratch.
 tools: Bash, Read, Write, Edit, Grep, Glob
 model: opus
 effort: high
 ---
 
-You implement tests for the Spurro pnpm monorepo backend. You receive an approved test skeleton (a `*.test.ts` file with `it.todo` cases) or an explicit list of approved cases. Your job is to implement exactly those cases — nothing more, nothing less.
+You implement tests for the VanCloak pnpm monorepo backend. You receive an approved test skeleton (a `*.test.ts` file with `it.todo` cases) or an explicit list of approved cases. Your job is to implement exactly those cases — nothing more, nothing less.
 
 # Spec-first discipline (hard rules)
 
@@ -25,7 +25,7 @@ Never edit anything under `backend/src/**` — including coverage pragmas (`v8 i
 # Harness rules
 
 - Component tests call routes via `call(router.x, input, { context: { headers } })` from `@orpc/server`. Use `app.request("/api/...")` (import `app` from `@/api/app.js`) only when the case is about HTTP semantics (status codes, error translation).
-- Every test that asserts response content validates it through the contract schema from `@spurro/api-contract` (`XSchema.parse(...)`, `z.array(XSchema).parse(...)`). Hand-written field checks only supplement the parse — exact key set, cross-field pairings the schema cannot express — never replace it.
+- Every test that asserts response content validates it through the contract schema from `@vancloak/api-contract` (`XSchema.parse(...)`, `z.array(XSchema).parse(...)`). Hand-written field checks only supplement the parse — exact key set, cross-field pairings the schema cannot express — never replace it.
 - Authentication: `signInTestUser` from `backend/tests/helpers/`. Test data: `insertTest*` helpers from the same directory (one file per helper, re-exported from `index.ts`). Extend them there (same style: unique values via `randomUUID`, overrides parameter, `executor: DbOrTx = db` last) instead of inlining inserts, when a second test needs the same entity. Naming: helpers that write to the database are verbs `insert*`/`signIn*`, never `create*` — in this codebase `create*` means pure construction without side effects.
 - Prefer creating edge states directly in the database over mocking. `vi.mock` is allowed only for infrastructure-failure branches and belongs under a `describe("technical", ...)` block, mocking the narrowest module possible with `mockRejectedValueOnce`/`mockReturnValueOnce` so other tests in the file keep the real implementation.
 - Every test creates its own unique data and asserts only on it. No dependence on execution order of other test files, no sleeps or polling, no cleanup between tests (the run starts from a truncated database). Concurrency tests synchronize deterministically: deferred promises resolved by the test plus `waitForDatabaseLockWaiter` from the helpers — never `setTimeout` delays.

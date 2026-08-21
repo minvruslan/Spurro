@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Server } from "@spurro/api-contract"
+import type { Server } from "@vancloak/api-contract"
 import { Server as ServerIcon } from "@lucide/vue"
 import { computed } from "vue"
 import { ListEmptyState } from "@/modules/shared/components"

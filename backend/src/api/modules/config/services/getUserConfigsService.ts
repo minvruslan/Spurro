@@ -1,4 +1,4 @@
-import type { Config } from "@spurro/api-contract"
+import type { Config } from "@vancloak/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findUserConfigs } from "../queries/findUserConfigs.js"

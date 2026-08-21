@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { User } from "@spurro/api-contract"
+import type { User } from "@vancloak/api-contract"
 import { ListErrorState } from "@/modules/shared/components"
 import UserList from "./UserList.vue"
 import { useUsers } from "../composables/useUsers"

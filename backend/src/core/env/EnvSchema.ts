@@ -1,4 +1,4 @@
-import { CountryCodeSchema, DomainNameSchema, IpSchema } from "@spurro/api-contract"
+import { CountryCodeSchema, DomainNameSchema, IpSchema } from "@vancloak/api-contract"
 import { z } from "zod"
 
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ServerStatus } from "@spurro/api-contract"
+import type { ServerStatus } from "@vancloak/api-contract"
 import { computed } from "vue"
 import { getServerStatusStyle } from "../utils/getServerStatusStyle"
 import { messages } from "../translations/ServerStatusText"

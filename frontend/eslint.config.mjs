@@ -14,8 +14,8 @@ export default withNuxt(
         {
           patterns: [
             {
-              group: ["@spurro/backend*", "@spurro/infrastructure*"],
-              message: "Frontend may only import from @spurro/api-contract.",
+              group: ["@vancloak/backend*", "@vancloak/infrastructure*"],
+              message: "Frontend may only import from @vancloak/api-contract.",
             },
           ],
         },

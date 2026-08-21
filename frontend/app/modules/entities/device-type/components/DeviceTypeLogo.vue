@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DeviceType } from "@spurro/api-contract"
+import type { DeviceType } from "@vancloak/api-contract"
 import { computed } from "vue"
 import { siAndroid, siApple } from "simple-icons"
 

@@ -1,4 +1,4 @@
-import type { ConfigLimit } from "@spurro/api-contract"
+import type { ConfigLimit } from "@vancloak/api-contract"
 import type { findUserConfigLimits } from "../queries/findUserConfigLimits.js"
 
 type ConfigLimitRow = Awaited<ReturnType<typeof findUserConfigLimits>>[number]

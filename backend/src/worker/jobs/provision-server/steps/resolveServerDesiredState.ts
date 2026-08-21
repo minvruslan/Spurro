@@ -1,5 +1,5 @@
-import { ServerDesiredStateSchema } from "@spurro/infrastructure/types"
-import type { ServerDesiredState } from "@spurro/infrastructure/types"
+import { ServerDesiredStateSchema } from "@vancloak/infrastructure/types"
+import type { ServerDesiredState } from "@vancloak/infrastructure/types"
 import { ProvisioningError } from "../ProvisioningError.js"
 import {
   VPN_NODE_BASE_DIRECTORY,

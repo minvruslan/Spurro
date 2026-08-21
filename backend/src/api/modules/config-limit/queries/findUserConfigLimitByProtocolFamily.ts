@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm"
-import type { ProtocolFamilyCode } from "@spurro/api-contract"
+import type { ProtocolFamilyCode } from "@vancloak/api-contract"
 import type { DbOrTx } from "@/core/database/index.js"
 import { configLimit } from "@/core/database/schemas/domainSchema.js"
 
