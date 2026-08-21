@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Mail } from "lucide-vue-next"
+import { Mail } from "@lucide/vue"
 import { messages } from "../translations/LoginForm"
 
 const props = defineProps<{ pending?: boolean }>()

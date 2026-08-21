@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue"
 import { useMediaQuery } from "@vueuse/core"
-import { Menu, X } from "lucide-vue-next"
+import { Menu, X } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,

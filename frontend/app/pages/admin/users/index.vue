@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { User } from "@spurro/api-contract"
-import { UserList } from "@/modules/features/user-list"
+import { UserList } from "@/modules/features/admin/user-list"
 
 definePageMeta({ middleware: "admin", layout: "admin" })
 

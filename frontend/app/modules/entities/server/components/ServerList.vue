@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { Server } from "@spurro/api-contract"
-import { Server as ServerIcon } from "lucide-vue-next"
+import { Server as ServerIcon } from "@lucide/vue"
 import { computed } from "vue"
-import { ListEmptyState } from "@/modules/common/components"
+import { ListEmptyState } from "@/modules/shared/components"
 import ServerCard from "./ServerCard.vue"
 import ServerCardSkeleton from "./ServerCardSkeleton.vue"
 import { messages } from "../translations/ServerList"

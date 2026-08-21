@@ -56,7 +56,7 @@ describe("POST /api/auth/sign-in/magic-link", () => {
     expect(sendMagicLinkEmail).toHaveBeenCalledTimes(1)
     const [sentEmail, sentUrl] = vi.mocked(sendMagicLinkEmail).mock.calls[0]
     expect(sentEmail).toBe(requestUser.email)
-    expect(sentUrl).toContain("/api/auth/magic-link/verify?token=")
+    expect(sentUrl).toContain("/login/verify#token=")
   })
 
   it("sends the magic link when the email is requested in a different letter case", async () => {

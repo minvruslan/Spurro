@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { UpdateUserForm } from "@/modules/features/update-user"
+import { UpdateUserForm } from "@/modules/features/admin/update-user"
 
 definePageMeta({
   middleware: "admin",

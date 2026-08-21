@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CreateServerForm } from "@/modules/features/create-server"
+import { CreateServerForm } from "@/modules/features/admin/create-server"
 
 definePageMeta({ middleware: "admin", layout: "admin" })
 

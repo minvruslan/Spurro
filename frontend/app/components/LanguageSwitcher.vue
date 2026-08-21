@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue"
-import { Globe } from "lucide-vue-next"
+import { Globe } from "@lucide/vue"
 import {
   Select,
   SelectContent,

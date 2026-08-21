@@ -29,6 +29,18 @@ export const EnvSchema = z.object({
   QUEUE_URL: urlString,
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: urlString,
+  BETTER_AUTH_TRUSTED_ORIGINS: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .transform((value) =>
+        value
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean),
+      )
+      .optional(),
+  ),
   PORT: z.coerce.number().int().positive().default(4000),
   HOST: z.string().min(1).default("localhost"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),

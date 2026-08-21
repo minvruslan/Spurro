@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckCircle2 } from "lucide-vue-next"
+import { CheckCircle2 } from "@lucide/vue"
 import { messages } from "../translations/LoginEmailSent"
 
 defineProps<{ email: string }>()

@@ -7,7 +7,7 @@ export default defineNuxtPlugin(async () => {
   } = useRuntimeConfig()
 
   const authClient = createAuthClient({
-    baseURL: authBaseUrl,
+    baseURL: import.meta.server ? authBaseUrl : window.location.origin,
     plugins: [magicLinkClient(), adminClient()],
   })
 

@@ -35,16 +35,16 @@ function readSessionCookie(response: Response) {
 }
 
 describe("GET /api/auth/magic-link/verify", () => {
-  it("signs in through the exact url sent in the email", async () => {
+  it("signs in with the token carried by the emailed link", async () => {
     const requestUser = await insertTestUser()
     await requestMagicLinkToken(requestUser.email)
     const [, sentUrl] = vi.mocked(sendMagicLinkEmail).mock.calls[0]
-    expect(new URL(sentUrl).origin).toBe(env.BETTER_AUTH_URL)
+    const sentLink = new URL(sentUrl)
+    expect(sentLink.origin).toBe(env.BETTER_AUTH_URL)
+    expect(sentLink.pathname).toBe("/login/verify")
+    const sentToken = new URLSearchParams(sentLink.hash.slice(1)).get("token")
 
-    const response = await app.request(sentUrl, {
-      headers: { "x-forwarded-for": createTestIp() },
-      redirect: "manual",
-    })
+    const response = await verifyMagicLink(sentToken ?? "")
 
     expect(response.status).toBe(302)
     expect(new URL(response.headers.get("location") ?? "").searchParams.get("error")).toBeNull()

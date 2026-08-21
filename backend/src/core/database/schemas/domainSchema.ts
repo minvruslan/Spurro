@@ -52,6 +52,7 @@ export const deviceType = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     code: text("code").notNull().unique(),
     name: text("name").notNull(),
+    sortOrder: integer("sort_order").notNull(),
     isEnabled: boolean("is_enabled").default(true).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -62,11 +63,11 @@ export const deviceType = pgTable(
   (t) => [
     check(
       "device_type_code_check",
-      sql`${t.code} in ('ios', 'macos', 'windows', 'linux', 'android')`,
+      sql`${t.code} in ('ios', 'ipados', 'macos', 'windows', 'android')`,
     ),
     check(
       "device_type_name_check",
-      sql`${t.name} in ('iOS', 'macOS', 'Windows', 'Linux', 'Android')`,
+      sql`${t.name} in ('iOS', 'iPadOS', 'macOS', 'Windows', 'Android')`,
     ),
   ],
 )

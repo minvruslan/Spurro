@@ -2,7 +2,7 @@
 import type { Config, DeviceType } from "@spurro/api-contract"
 import type { Component } from "vue"
 import { computed } from "vue"
-import { ChevronRight, Monitor, Smartphone } from "lucide-vue-next"
+import { ChevronRight, Monitor, Smartphone, Tablet } from "@lucide/vue"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -14,15 +14,15 @@ defineEmits<{ (e: "open"): void }>()
 
 const { t } = useI18n({ useScope: "local", messages })
 
-const DEVICE_ICON: Record<DeviceType["code"], Component> = {
+const DeviceIcons: Record<DeviceType["code"], Component> = {
   ios: Smartphone,
+  ipados: Tablet,
   android: Smartphone,
   macos: Monitor,
   windows: Monitor,
-  linux: Monitor,
 }
 
-const DeviceIcon = computed(() => DEVICE_ICON[props.config.deviceType.code])
+const DeviceIcon = computed(() => DeviceIcons[props.config.deviceType.code])
 const protocolName = computed(() => props.config.endpoint.protocol.name)
 </script>
 

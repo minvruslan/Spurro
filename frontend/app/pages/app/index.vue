@@ -1,9 +1,17 @@
 <script setup lang="ts">
-definePageMeta({ middleware: "user" })
+import type { Config } from "@spurro/api-contract"
+import { UserHome } from "@/modules/features/user/home"
+
+definePageMeta({
+  middleware: "user",
+  layout: "user",
+  pageTransition: { name: "page", mode: "out-in" },
+})
+
+const onOpen = (config: Config) => navigateTo(`/app/configs/${config.id}`)
+const onCreate = () => navigateTo("/app/configs/create")
 </script>
 
 <template>
-  <main class="flex min-h-dvh items-center justify-center p-6">
-    <p class="text-sm">User interface.</p>
-  </main>
+  <UserHome @open="onOpen" @create="onCreate" />
 </template>

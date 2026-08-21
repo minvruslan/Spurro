@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LogOut } from "lucide-vue-next"
+import { LogOut } from "@lucide/vue"
 import { logout } from "@/modules/features/login/services/logout"
 import { messages } from "@/translations/admin-layout/LogoutButton"
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Server, Shield, Users } from "lucide-vue-next"
+import { Server, Shield, Users } from "@lucide/vue"
 import { cn } from "@/components/ui/utils/cn"
 import { messages } from "@/translations/admin-layout/NavItems"
 

@@ -1,6 +1,8 @@
 <template>
   <main class="relative min-h-dvh w-full flex items-center justify-center bg-background p-6">
-    <div class="absolute right-4 top-4 flex items-center gap-2">
+    <div
+      class="absolute top-4 flex items-center gap-2 max-sm:inset-x-0 max-sm:justify-center sm:right-4"
+    >
       <ThemeSwitcher class="w-36" />
       <LanguageSwitcher class="w-36" />
     </div>

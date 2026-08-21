@@ -14,6 +14,7 @@ const SESSION_LIFETIME_SECONDS = 604800
 
 export const authServer = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
+  trustedOrigins: env.BETTER_AUTH_TRUSTED_ORIGINS,
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -57,14 +58,14 @@ export const authServer = betterAuth({
     magicLink({
       disableSignUp: true,
       expiresIn: MAGIC_LINK_LIFETIME_SECONDS,
-      sendMagicLink: async ({ email, url }) => {
+      sendMagicLink: async ({ email, token }) => {
         const [existing] = await db
           .select({ id: user.id })
           .from(user)
           .where(eq(user.email, email.toLowerCase()))
           .limit(1)
         if (!existing) return
-        await sendMagicLinkEmail(email, url)
+        await sendMagicLinkEmail(email, `${env.BETTER_AUTH_URL}/login/verify#token=${token}`)
       },
     }),
   ],
