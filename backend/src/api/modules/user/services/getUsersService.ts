@@ -1,4 +1,4 @@
-import type { User } from "@spurro/api-contract"
+import type { User } from "@vancloak/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { getUsersConfigLimitsService } from "@/api/modules/config-limit/index.js"

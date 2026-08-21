@@ -1,5 +1,5 @@
-import type { Server } from "@spurro/api-contract"
-import { ProtocolCodeSchema } from "@spurro/api-contract"
+import type { Server } from "@vancloak/api-contract"
+import { ProtocolCodeSchema } from "@vancloak/api-contract"
 import type { findServers } from "../queries/findServers.js"
 
 type ServerRow = Awaited<ReturnType<typeof findServers>>[number]

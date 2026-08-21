@@ -14,9 +14,9 @@ describe("bootstrapDeviceTypes", () => {
     await bootstrapDeviceTypes()
 
     const deviceTypeRows = await db.select().from(deviceType)
-    expect(sortByCode(deviceTypeRows.map(({ code, name }) => ({ code, name })))).toEqual(
-      sortByCode(DEVICE_TYPES),
-    )
+    expect(
+      sortByCode(deviceTypeRows.map(({ code, name, sortOrder }) => ({ code, name, sortOrder }))),
+    ).toEqual(sortByCode(DEVICE_TYPES))
     expect(deviceTypeRows.every((row) => row.isEnabled)).toBe(true)
   })
 

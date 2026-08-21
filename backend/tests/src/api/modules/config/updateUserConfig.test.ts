@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
-import { ConfigSchema, type UpdateConfig } from "@spurro/api-contract"
+import { ConfigSchema, type UpdateConfig } from "@vancloak/api-contract"
 import {
   Amneziawg2BrowserFingerprintSchema,
   Amneziawg2IntensitySchema,
   Amneziawg2ProtocolProfileSchema,
   ProtocolCodeSchema,
-} from "@spurro/infrastructure/types"
-import { RemoteServer } from "@spurro/infrastructure"
+} from "@vancloak/infrastructure/types"
+import { RemoteServer } from "@vancloak/infrastructure"
 import { eq } from "drizzle-orm"
 import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
 import app from "@/api/app.js"

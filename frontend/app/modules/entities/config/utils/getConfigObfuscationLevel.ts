@@ -2,7 +2,7 @@ import {
   ProtocolCodeSchema,
   type Amneziawg2ObfuscationOptions,
   type ConfigData,
-} from "@spurro/api-contract"
+} from "@vancloak/api-contract"
 import { Amneziawg2ObfuscationPresets } from "../constants/Amneziawg2ObfuscationPresets"
 import { ObfuscationLevelOrder } from "../types/ObfuscationLevelOrder"
 import type { ConfigObfuscationLevel } from "../types/ConfigObfuscationLevel"

@@ -1,4 +1,4 @@
-import type { Config } from "@spurro/api-contract"
+import type { Config } from "@vancloak/api-contract"
 
 export type CreatedConfig = Config & {
   clientConfiguration: string

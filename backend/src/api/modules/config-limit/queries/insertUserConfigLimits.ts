@@ -1,4 +1,4 @@
-import type { UpsertConfigLimit } from "@spurro/api-contract"
+import type { UpsertConfigLimit } from "@vancloak/api-contract"
 import type { DbOrTx } from "@/core/database/index.js"
 import { configLimit } from "@/core/database/schemas/domainSchema.js"
 

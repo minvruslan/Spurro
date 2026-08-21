@@ -20,9 +20,9 @@ describe("decryptString", () => {
 
   it("decrypts a ciphertext frozen in the current at-rest format", () => {
     const frozenCiphertext =
-      "v1:9wGxUO11PG/XaZXQ:KSTyoqLaymYwU6uw+I94vi16FuFDioDjM37GeWmaUvHXbqJNlr4KDNB9sws="
+      "v1:tXzwpTdCtCR2Fus1:rnGZJnk+yDxoNlckYd0FjsYaQI6p7XpyAbvqjoadYKqy/To/6MePFuqPeEgwPw=="
 
-    expect(decryptString(frozenCiphertext)).toBe("spurro-at-rest-golden-vector")
+    expect(decryptString(frozenCiphertext)).toBe("vancloak-at-rest-golden-vector")
   })
 
   it("rejects a ciphertext with an unsupported version prefix", () => {

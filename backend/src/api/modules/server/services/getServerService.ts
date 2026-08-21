@@ -1,4 +1,4 @@
-import type { Server } from "@spurro/api-contract"
+import type { Server } from "@vancloak/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findServerById } from "../queries/findServerById.js"

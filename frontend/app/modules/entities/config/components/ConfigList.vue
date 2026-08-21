@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Config } from "@spurro/api-contract"
+import type { Config } from "@vancloak/api-contract"
 import { Shield } from "@lucide/vue"
 import { computed } from "vue"
 import { ListEmptyState } from "@/modules/shared/components"

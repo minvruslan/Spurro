@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm"
-import type { Config, UpsertConfig } from "@spurro/api-contract"
-import { ProtocolRegistry } from "@spurro/infrastructure/types"
+import type { Config, UpsertConfig } from "@vancloak/api-contract"
+import { ProtocolRegistry } from "@vancloak/infrastructure/types"
 import { isUserConfigLimitReachedService } from "@/api/modules/config-limit/index.js"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"

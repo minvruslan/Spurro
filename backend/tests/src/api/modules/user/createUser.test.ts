@@ -1,6 +1,6 @@
 import { call } from "@orpc/server"
-import { UserSchema, type UpsertUser } from "@spurro/api-contract"
-import { ProtocolRegistry } from "@spurro/infrastructure/types"
+import { UserSchema, type UpsertUser } from "@vancloak/api-contract"
+import { ProtocolRegistry } from "@vancloak/infrastructure/types"
 import { eq } from "drizzle-orm"
 import postgres from "postgres"
 import { describe, expect, it, vi } from "vitest"

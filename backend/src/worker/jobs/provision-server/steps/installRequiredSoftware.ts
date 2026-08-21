@@ -1,4 +1,4 @@
-import type { RemoteServer } from "@spurro/infrastructure"
+import type { RemoteServer } from "@vancloak/infrastructure"
 import type { ProvisioningStep } from "./ProvisioningStep.js"
 
 export const installRequiredSoftware: ProvisioningStep<

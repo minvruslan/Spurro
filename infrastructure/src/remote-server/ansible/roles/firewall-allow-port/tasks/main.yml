@@ -6,7 +6,7 @@
       - firewall_transport_protocol in ['udp', 'tcp']
     fail_msg: >-
       Missing required variables. They are injected automatically by
-      ServerProvisioner.allowFirewallPort (@spurro/infrastructure);
+      ServerProvisioner.allowFirewallPort (@vancloak/infrastructure);
       for manual runs pass them via --extra-vars.
 
 - name: Allow {{ firewall_transport_protocol }} on port {{ firewall_port }}

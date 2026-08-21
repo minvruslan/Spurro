@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Config } from "@spurro/api-contract"
+import type { Config } from "@vancloak/api-contract"
 import { computed } from "vue"
 import { ChevronRight } from "@lucide/vue"
 import { useCountries } from "@/modules/shared/composables"

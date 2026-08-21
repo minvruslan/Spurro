@@ -6,7 +6,7 @@
       - service_authorized_keys | length > 0
     fail_msg: >-
       Missing required variables. They are injected automatically by
-      ServerProvisioner.installServiceUserAuthorizedKeys (@spurro/infrastructure);
+      ServerProvisioner.installServiceUserAuthorizedKeys (@vancloak/infrastructure);
       for manual runs pass them via --extra-vars.
 
 - name: Install authorized keys for {{ service_username }}

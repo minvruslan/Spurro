@@ -1,4 +1,4 @@
-import type { ConfigStatus } from "@spurro/api-contract"
+import type { ConfigStatus } from "@vancloak/api-contract"
 import { and, eq, inArray } from "drizzle-orm"
 import type { DbOrTx } from "@/core/database/index.js"
 import { config } from "@/core/database/schemas/domainSchema.js"

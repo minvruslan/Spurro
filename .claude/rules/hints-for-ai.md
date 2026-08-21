@@ -4,9 +4,9 @@
 
 This repo is a **pnpm workspace monorepo** — always use `pnpm`, never `npm` or `yarn`.
 
-- Root scripts orchestrate packages via `pnpm --filter @spurro/<pkg>` (see root `package.json`).
-- Run a package script: `pnpm --filter @spurro/backend <script>` or `cd backend && pnpm <script>`.
-- Install: `pnpm install`. Add a dep: `pnpm --filter @spurro/<pkg> add <dep>`.
+- Root scripts orchestrate packages via `pnpm --filter @vancloak/<pkg>` (see root `package.json`).
+- Run a package script: `pnpm --filter @vancloak/backend <script>` or `cd backend && pnpm <script>`.
+- Install: `pnpm install`. Add a dep: `pnpm --filter @vancloak/<pkg> add <dep>`.
 - Lockfile is `pnpm-lock.yaml`; workspace layout in `pnpm-workspace.yaml`. There is no `package-lock.json`.
 
 ## Backend tests
@@ -19,7 +19,7 @@ This repo is a **pnpm workspace monorepo** — always use `pnpm`, never `npm` or
 - HTTP-status tests exist only for statuses declared in the contract `.errors()`. Trivial oRPC codes are never tested per route: BAD_REQUEST from input-schema validation (non-uuid, missing/empty/too-long fields) and UNAUTHORIZED from the auth middleware are framework behavior, not module logic — auth is covered once in `backend/tests/src/api/orpc/authorized.test.ts`, and schema wiring is proven by any case that distinguishes a valid input (e.g. unknown-id NOT_FOUND).
 - FORBIDDEN on an admin route IS tested per route, with exactly one ordinary-user test ("rejects an ordinary user with FORBIDDEN"): the access level is per-route contract configuration (`adminAccess` vs `userAccess`), so only a per-route test catches an accidental downgrade in the contract. No "own record"/"other record" variants — the middleware never looks at the input. The middleware internals stay covered centrally in `authorized.test.ts`.
 - An HTTP success test exists only when the contract declares a custom `successStatus` (e.g. 201), and it asserts the status code alone — no schema parse, no field checks. Routes answering the default 200 get no HTTP success test at all. Response bodies are proven by `call()`-based tests, which run the same contract output validation.
-- Response shapes are parsed with entity schemas imported from `@spurro/api-contract` — never redeclared locally in a test file. Route outputs the contract declares inline (e.g. `z.array(ConfigSchema)`, `z.object({ id: z.uuid() })`) are mirrored inline in the test; single-use output wrappers do not get named schemas in the contract.
+- Response shapes are parsed with entity schemas imported from `@vancloak/api-contract` — never redeclared locally in a test file. Route outputs the contract declares inline (e.g. `z.array(ConfigSchema)`, `z.object({ id: z.uuid() })`) are mirrored inline in the test; single-use output wrappers do not get named schemas in the contract.
 
 ## Backend database queries
 

@@ -29,7 +29,7 @@ importers:
       '@orpc/openapi-client':
         specifier: ^1.14.13
         version: 1.14.13
-      '@spurro/infrastructure':
+      '@vancloak/infrastructure':
         specifier: workspace:*
         version: link:../infrastructure
       zod:
@@ -47,10 +47,10 @@ importers:
       '@orpc/server':
         specifier: ^1.14.13
         version: 1.14.13(crossws@0.3.5)(ws@8.20.0)
-      '@spurro/api-contract':
+      '@vancloak/api-contract':
         specifier: workspace:*
         version: link:../api-contract
-      '@spurro/infrastructure':
+      '@vancloak/infrastructure':
         specifier: workspace:*
         version: link:../infrastructure
       better-auth:
@@ -144,7 +144,7 @@ importers:
       '@sindresorhus/slugify':
         specifier: ^3.0.0
         version: 3.0.0
-      '@spurro/api-contract':
+      '@vancloak/api-contract':
         specifier: workspace:*
         version: link:../api-contract
       '@vueuse/core':

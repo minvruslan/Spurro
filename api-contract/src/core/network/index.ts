@@ -4,4 +4,4 @@ export {
   PortSchema,
   TransportProtocolSchema,
   type TransportProtocol,
-} from "@spurro/infrastructure/types"
+} from "@vancloak/infrastructure/types"

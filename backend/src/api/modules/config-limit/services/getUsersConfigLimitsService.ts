@@ -1,4 +1,4 @@
-import type { ConfigLimit } from "@spurro/api-contract"
+import type { ConfigLimit } from "@vancloak/api-contract"
 import { db } from "@/core/database/index.js"
 import type { DbOrTx } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"

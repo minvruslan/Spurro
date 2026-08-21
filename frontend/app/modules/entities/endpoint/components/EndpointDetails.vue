@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Endpoint } from "@spurro/api-contract"
+import type { Endpoint } from "@vancloak/api-contract"
 import { CollapsibleCard } from "@/modules/shared/components"
 import { useCountries } from "@/modules/shared/composables"
 import { messages } from "../translations/EndpointDetails"

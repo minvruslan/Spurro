@@ -1,5 +1,5 @@
 import type { z } from "zod"
-import type { UpsertConfigSchema } from "@spurro/api-contract"
+import type { UpsertConfigSchema } from "@vancloak/api-contract"
 import type { CreatedConfig } from "../types/CreatedConfig"
 
 export async function createConfig(

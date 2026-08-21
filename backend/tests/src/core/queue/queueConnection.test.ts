@@ -35,10 +35,10 @@ describe("queueConnection", () => {
 
   it("decodes percent-encoded credentials", async () => {
     const queueConnection = await importQueueConnection(
-      "redis://user%40spurro:p%40ss%3Aword@redis.internal:6379",
+      "redis://user%40vancloak:p%40ss%3Aword@redis.internal:6379",
     )
 
-    expect(queueConnection.username).toBe("user@spurro")
+    expect(queueConnection.username).toBe("user@vancloak")
     expect(queueConnection.password).toBe("p@ss:word")
   })
 

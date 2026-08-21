@@ -5,6 +5,6 @@ import BrandIcon from "./BrandIcon.vue"
 <template>
   <div class="flex items-center gap-2">
     <BrandIcon />
-    <span class="text-base font-semibold">Spurro</span>
+    <span class="mt-0.5 text-base font-semibold">VanCloak</span>
   </div>
 </template>

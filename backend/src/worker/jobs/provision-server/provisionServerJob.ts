@@ -1,5 +1,5 @@
-import { ProtocolRegistry } from "@spurro/infrastructure/types"
-import { RemoteServer } from "@spurro/infrastructure"
+import { ProtocolRegistry } from "@vancloak/infrastructure/types"
+import { RemoteServer } from "@vancloak/infrastructure"
 import { env } from "@/core/env/index.js"
 import { VPN_NODE_DNS } from "./constants/index.js"
 import type { ProvisionServerJob } from "@/core/queue/provision-server/index.js"

@@ -1,11 +1,11 @@
 import { call } from "@orpc/server"
-import { ConfigSchema } from "@spurro/api-contract"
+import { ConfigSchema } from "@vancloak/api-contract"
 import {
   Amneziawg2BrowserFingerprintSchema,
   Amneziawg2IntensitySchema,
   Amneziawg2ProtocolProfileSchema,
   ProtocolCodeSchema,
-} from "@spurro/infrastructure/types"
+} from "@vancloak/infrastructure/types"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import app from "@/api/app.js"

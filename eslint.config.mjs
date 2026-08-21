@@ -73,7 +73,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ["@spurro/api-contract", "@spurro/api-contract/*", "@spurro/backend*"],
+              group: ["@vancloak/api-contract", "@vancloak/api-contract/*", "@vancloak/backend*"],
               message: "Infrastructure must not depend on application packages.",
             },
           ],
@@ -91,9 +91,9 @@ export default tseslint.config(
             {
               group: [
                 "node:*",
-                "@spurro/api-contract",
-                "@spurro/api-contract/*",
-                "@spurro/backend*",
+                "@vancloak/api-contract",
+                "@vancloak/api-contract/*",
+                "@vancloak/backend*",
               ],
               message:
                 "The types subpackage must stay runtime-free (zod only) so the frontend can import it.",
@@ -106,14 +106,14 @@ export default tseslint.config(
   {
     files: ["**/src/**/*.ts"],
     plugins: {
-      spurroNaming: {
+      vancloakNaming: {
         rules: {
           "camel-case-acronyms": camelCaseAcronymsRule,
         },
       },
     },
     rules: {
-      "spurroNaming/camel-case-acronyms": "error",
+      "vancloakNaming/camel-case-acronyms": "error",
     },
   },
 )

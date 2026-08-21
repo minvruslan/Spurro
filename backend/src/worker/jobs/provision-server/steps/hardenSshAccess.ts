@@ -1,5 +1,5 @@
-import { RemoteServer } from "@spurro/infrastructure"
-import type { ServerAccess } from "@spurro/infrastructure/types"
+import { RemoteServer } from "@vancloak/infrastructure"
+import type { ServerAccess } from "@vancloak/infrastructure/types"
 import type { ProvisioningStep } from "./ProvisioningStep.js"
 
 export const hardenSshAccess: ProvisioningStep<

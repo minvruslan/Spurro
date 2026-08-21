@@ -1,4 +1,4 @@
-import type { Endpoint } from "@spurro/api-contract"
+import type { Endpoint } from "@vancloak/api-contract"
 import type { findActiveEndpoints } from "../queries/findActiveEndpoints.js"
 
 type EndpointRow = Awaited<ReturnType<typeof findActiveEndpoints>>[number]

@@ -1,4 +1,4 @@
-import { UserSessionSchema } from "@spurro/api-contract"
+import { UserSessionSchema } from "@vancloak/api-contract"
 import { describe, expect, it } from "vitest"
 import app from "@/api/app.js"
 import { insertTestSession, insertTestUser } from "@tests/helpers/index.js"

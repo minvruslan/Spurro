@@ -1,6 +1,6 @@
 import type { AnyContractProcedure, InferContractRouterErrorMap } from "@orpc/contract"
 import { ORPCError } from "@orpc/server"
-import { ApiContract } from "@spurro/api-contract"
+import { ApiContract } from "@vancloak/api-contract"
 import { expect } from "vitest"
 
 type ContractErrorCode<T> = T extends AnyContractProcedure

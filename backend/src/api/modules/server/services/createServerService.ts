@@ -1,6 +1,6 @@
-import type { UpsertServer, Server } from "@spurro/api-contract"
-import { ProtocolCodeSchema } from "@spurro/api-contract"
-import { ProtocolRegistry } from "@spurro/infrastructure/types"
+import type { UpsertServer, Server } from "@vancloak/api-contract"
+import { ProtocolCodeSchema } from "@vancloak/api-contract"
+import { ProtocolRegistry } from "@vancloak/infrastructure/types"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import {

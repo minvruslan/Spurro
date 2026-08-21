@@ -185,20 +185,20 @@ export default [
     files: ["src/**/*.ts"],
     ignores: ["**/index.ts", "src/core/database/schemas/**", "src/core/logger/**"],
     plugins: {
-      spurro: {
+      vancloak: {
         rules: {
           "single-export": singleExportRule,
         },
       },
     },
     rules: {
-      "spurro/single-export": "error",
+      "vancloak/single-export": "error",
     },
   },
   {
     files: ["src/**/*.ts"],
     plugins: {
-      spurroStyle: {
+      vancloakStyle: {
         rules: {
           "message-starts-uppercase": messageStartsUppercaseRule,
           "module-boundaries": moduleBoundariesRule,
@@ -206,8 +206,8 @@ export default [
       },
     },
     rules: {
-      "spurroStyle/message-starts-uppercase": "error",
-      "spurroStyle/module-boundaries": "error",
+      "vancloakStyle/message-starts-uppercase": "error",
+      "vancloakStyle/module-boundaries": "error",
     },
   },
   {

@@ -18,4 +18,4 @@ export {
   type Amneziawg2ProtocolProfile,
   type Amneziawg2BrowserFingerprint,
   type Amneziawg2Intensity,
-} from "@spurro/infrastructure/types"
+} from "@vancloak/infrastructure/types"

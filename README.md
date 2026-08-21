@@ -1,4 +1,4 @@
-# Spurro
+# VanCloak
 
 ![Status](https://img.shields.io/badge/status-in_active_development-orange)
 

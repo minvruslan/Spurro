@@ -3,17 +3,17 @@ import tailwindcss from "@tailwindcss/vite"
 export default defineNuxtConfig({
   app: {
     head: {
-      title: "Spurro",
-      meta: [{ name: "description", content: "Spurro" }],
+      title: "VanCloak",
+      meta: [{ name: "description", content: "VanCloak" }],
       link: [
-        { rel: "icon", href: "/favicon.ico?v=4", sizes: "any" },
-        { rel: "icon", type: "image/svg+xml", href: "/icon.svg?v=2" },
-        { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=2" },
+        { rel: "icon", href: "/favicon.ico?v=5", sizes: "any" },
+        { rel: "icon", type: "image/svg+xml", href: "/icon.svg?v=3" },
+        { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=3" },
       ],
     },
   },
   build: {
-    transpile: ["@spurro/api-contract"],
+    transpile: ["@vancloak/api-contract"],
   },
   runtimeConfig: {
     public: {

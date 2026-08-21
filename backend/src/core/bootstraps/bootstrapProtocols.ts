@@ -1,5 +1,5 @@
 import { bootstrapLogger } from "@/core/logger/index.js"
-import { ProtocolRegistry } from "@spurro/infrastructure/types"
+import { ProtocolRegistry } from "@vancloak/infrastructure/types"
 import { sql } from "drizzle-orm"
 import { db } from "@/core/database/index.js"
 import { protocol } from "@/core/database/schemas/domainSchema.js"

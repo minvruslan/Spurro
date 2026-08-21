@@ -9,7 +9,7 @@ import {
   type Amneziawg2Intensity,
   type Amneziawg2ProtocolProfile,
   type ConfigProtocolOptions,
-} from "@spurro/api-contract"
+} from "@vancloak/api-contract"
 import { computed } from "vue"
 import {
   Select,

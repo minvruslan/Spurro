@@ -1,4 +1,4 @@
-import type { ConfigProtocolOptions } from "@spurro/api-contract"
+import type { ConfigProtocolOptions } from "@vancloak/api-contract"
 
 export interface CreateConfigFormValues {
   name: string

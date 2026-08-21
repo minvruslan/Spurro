@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Server } from "@spurro/api-contract"
+import type { Server } from "@vancloak/api-contract"
 import { ServerList } from "@/modules/features/admin/server-list"
 
 definePageMeta({ middleware: "admin", layout: "admin" })

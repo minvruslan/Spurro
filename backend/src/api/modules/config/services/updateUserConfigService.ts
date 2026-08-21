@@ -1,4 +1,4 @@
-import type { Config, UpdateConfig } from "@spurro/api-contract"
+import type { Config, UpdateConfig } from "@vancloak/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findConfigById } from "../queries/findConfigById.js"

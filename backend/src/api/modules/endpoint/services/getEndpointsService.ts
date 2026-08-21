@@ -1,4 +1,4 @@
-import type { Endpoint } from "@spurro/api-contract"
+import type { Endpoint } from "@vancloak/api-contract"
 import { db } from "@/core/database/index.js"
 import type { ServiceResult } from "@/core/types/index.js"
 import { findActiveEndpoints } from "../queries/findActiveEndpoints.js"

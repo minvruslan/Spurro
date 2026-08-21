@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Config } from "@spurro/api-contract"
+import type { Config } from "@vancloak/api-contract"
 import ConfigCard from "./ConfigCard.vue"
 import ConfigCardSkeleton from "./ConfigCardSkeleton.vue"
 

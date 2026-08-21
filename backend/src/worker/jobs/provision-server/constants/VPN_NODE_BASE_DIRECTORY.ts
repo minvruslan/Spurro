@@ -1,1 +1,1 @@
-export const VPN_NODE_BASE_DIRECTORY = "/opt/spurro"
+export const VPN_NODE_BASE_DIRECTORY = "/opt/vancloak"

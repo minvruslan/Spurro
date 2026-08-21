@@ -1,6 +1,6 @@
 export const messages = {
   ru: {
-    title: "Вход в Spurro",
+    title: "Вход в VanCloak",
     subTitle: "Доступ только по приглашению",
     email: {
       label: "Email",
@@ -9,7 +9,7 @@ export const messages = {
     sendLoginLinkAction: "Отправить ссылку для входа",
   },
   en: {
-    title: "Login to Spurro",
+    title: "Login to VanCloak",
     subTitle: "Invite-only access",
     email: {
       label: "Email",

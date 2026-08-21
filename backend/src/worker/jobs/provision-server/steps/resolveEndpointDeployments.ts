@@ -1,7 +1,7 @@
-import { ProtocolCodeSchema } from "@spurro/api-contract"
-import type { ProtocolClient, RemoteServer } from "@spurro/infrastructure"
-import { ProtocolRegistry } from "@spurro/infrastructure/types"
-import type { EndpointData, EndpointDesiredState } from "@spurro/infrastructure/types"
+import { ProtocolCodeSchema } from "@vancloak/api-contract"
+import type { ProtocolClient, RemoteServer } from "@vancloak/infrastructure"
+import { ProtocolRegistry } from "@vancloak/infrastructure/types"
+import type { EndpointData, EndpointDesiredState } from "@vancloak/infrastructure/types"
 import { ProvisioningError } from "../ProvisioningError.js"
 import type { ProvisioningStep } from "./ProvisioningStep.js"
 

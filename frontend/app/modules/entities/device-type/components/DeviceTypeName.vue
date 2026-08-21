@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DeviceType } from "@spurro/api-contract"
+import type { DeviceType } from "@vancloak/api-contract"
 import { messages } from "../translations/DeviceTypeName"
 
 defineProps<{ code: DeviceType["code"] }>()

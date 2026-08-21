@@ -1,4 +1,4 @@
-import { ProtocolRegistry } from "@spurro/infrastructure/types"
+import { ProtocolRegistry } from "@vancloak/infrastructure/types"
 import { describe, expect, it } from "vitest"
 import { fetchCheckConstraintValues } from "@tests/helpers/index.js"
 

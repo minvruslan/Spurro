@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto"
 import { call } from "@orpc/server"
-import { type Protocol, ServerSchema, type UpsertServer } from "@spurro/api-contract"
+import { type Protocol, ServerSchema, type UpsertServer } from "@vancloak/api-contract"
 import {
   ProtocolCodeSchema,
   ProtocolRegistry,
   ServerDataSchema,
-} from "@spurro/infrastructure/types"
+} from "@vancloak/infrastructure/types"
 import { eq, sql } from "drizzle-orm"
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest"
 import app from "@/api/app.js"
@@ -66,7 +66,7 @@ function createServerInput(overrides: Record<string, unknown> = {}) {
     name: `srv-${randomUUID().slice(0, 8)}`,
     ip: "192.0.2.10",
     country: "NL",
-    credentials: { username: "spurro", password: "server-password" },
+    credentials: { username: "vancloak", password: "server-password" },
     ...overrides,
   }
 }
@@ -233,7 +233,7 @@ describe("POST /servers", () => {
   })
 
   it("persists a provided domainName and returns it", async () => {
-    const domainName = `node-${randomUUID()}.spurro.test`
+    const domainName = `node-${randomUUID()}.vancloak.test`
 
     const createdServer = await callCreateServer(
       createServerInput({ domainName }),
