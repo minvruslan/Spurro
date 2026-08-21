@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue"
 import { computed, onMounted, ref } from "vue"
-import { Moon, Sun } from "lucide-vue-next"
+import { Moon, Sun } from "@lucide/vue"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { messages } from "@/translations/ThemeSwitcher"
 

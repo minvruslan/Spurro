@@ -27,9 +27,9 @@ describe("GET /device-types", () => {
   it("returns the seeded device-type catalog matching the contract schema", async () => {
     const expectedNamesByCode: Record<DeviceType["code"], DeviceType["name"]> = {
       ios: "iOS",
+      ipados: "iPadOS",
       macos: "macOS",
       windows: "Windows",
-      linux: "Linux",
       android: "Android",
     }
     await bootstrapDeviceTypes()
@@ -47,10 +47,10 @@ describe("GET /device-types", () => {
       expect(entry.name).toBe(expectedNamesByCode[entry.code])
     }
     expect(parsed.map((entry) => entry.name)).toEqual([
-      "Android",
       "iOS",
-      "Linux",
+      "iPadOS",
       "macOS",
+      "Android",
       "Windows",
     ])
   })
@@ -60,12 +60,12 @@ describe("GET /device-types", () => {
     await db
       .update(deviceType)
       .set({ isEnabled: false })
-      .where(eq(deviceType.code, DeviceTypeSchema.shape.code.enum.linux))
+      .where(eq(deviceType.code, DeviceTypeSchema.shape.code.enum.windows))
 
     const deviceTypes = await callGetDeviceTypes(await signInTestUser())
 
     const codes = deviceTypes.map((entry) => entry.code)
-    expect(codes).not.toContain(DeviceTypeSchema.shape.code.enum.linux)
+    expect(codes).not.toContain(DeviceTypeSchema.shape.code.enum.windows)
     expect(codes).toHaveLength(DeviceTypeSchema.shape.code.options.length - 1)
   })
 

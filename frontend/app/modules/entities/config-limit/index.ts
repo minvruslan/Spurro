@@ -3,4 +3,5 @@ export { default as ConfigLimitCardSkeleton } from "./components/ConfigLimitCard
 export { default as ConfigLimitList } from "./components/ConfigLimitList.vue"
 export { default as ConfigLimitListSelf } from "./components/ConfigLimitListSelf.vue"
 export { useConfigLimits } from "./composables/useConfigLimits"
+export { isReachedConfigLimit } from "./utils/isReachedConfigLimit"
 export { getConfigLimits } from "./services/getConfigLimits"

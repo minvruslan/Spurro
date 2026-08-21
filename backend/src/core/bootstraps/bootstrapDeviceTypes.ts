@@ -10,8 +10,8 @@ export async function bootstrapDeviceTypes() {
     .values(DEVICE_TYPES)
     .onConflictDoUpdate({
       target: deviceType.code,
-      set: { name: sql`excluded.name` },
-      setWhere: sql`${deviceType.name} is distinct from excluded.name`,
+      set: { name: sql`excluded.name`, sortOrder: sql`excluded.sort_order` },
+      setWhere: sql`(${deviceType.name}, ${deviceType.sortOrder}) is distinct from (excluded.name, excluded.sort_order)`,
     })
     .returning({ code: deviceType.code })
 

@@ -2,7 +2,7 @@
 import type { ProtocolFamilyCode, User } from "@spurro/api-contract"
 import { ProtocolFamilyRegistry } from "@spurro/api-contract"
 import { onMounted, ref } from "vue"
-import { Plus } from "lucide-vue-next"
+import { Plus } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FieldLabel, FormLayout } from "@/modules/common/components"

@@ -1,6 +1,6 @@
 import { ref } from "vue"
 import type { Config, UpdateConfig } from "@spurro/api-contract"
-import { updateConfig } from "@/modules/entities/config"
+import { updateConfig } from "../services/updateConfig"
 
 export function useUpdateConfig(id: string) {
   const pending = ref(false)

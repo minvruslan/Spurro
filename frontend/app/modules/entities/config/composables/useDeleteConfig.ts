@@ -1,5 +1,5 @@
 import { ref } from "vue"
-import { deleteConfig as deleteConfigService } from "@/modules/entities/config"
+import { deleteConfig as deleteConfigService } from "../services/deleteConfig"
 
 export function useDeleteConfig(id: string) {
   const pending = ref(false)

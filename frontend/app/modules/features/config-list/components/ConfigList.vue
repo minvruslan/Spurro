@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Config } from "@spurro/api-contract"
-import { Plus } from "lucide-vue-next"
+import { Plus } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { ListLayout } from "@/modules/common/components"
 import { ConfigListSelf } from "@/modules/entities/config"

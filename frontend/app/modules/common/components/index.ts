@@ -1,3 +1,4 @@
+export { default as CollapsibleCard } from "./CollapsibleCard.vue"
 export { default as CountryCombobox } from "./CountryCombobox.vue"
 export { default as FieldLabel } from "./FieldLabel.vue"
 export { default as FormLayout } from "./FormLayout.vue"

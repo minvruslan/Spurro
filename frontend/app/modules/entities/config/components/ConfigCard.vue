@@ -2,10 +2,12 @@
 import type { Config, DeviceType } from "@spurro/api-contract"
 import type { Component } from "vue"
 import { computed } from "vue"
-import { ChevronRight, Monitor, Smartphone } from "lucide-vue-next"
+import { ChevronRight, Monitor, Smartphone, Tablet } from "@lucide/vue"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { getConfigObfuscationLevel } from "../utils/getConfigObfuscationLevel"
+import ConfigObfuscationLevelName from "./ConfigObfuscationLevelName.vue"
 import { messages } from "../translations/ConfigCard"
 
 const props = defineProps<{ config: Config }>()
@@ -14,16 +16,17 @@ defineEmits<{ (e: "open"): void }>()
 
 const { t } = useI18n({ useScope: "local", messages })
 
-const DEVICE_ICON: Record<DeviceType["code"], Component> = {
+const DeviceIcons: Record<DeviceType["code"], Component> = {
   ios: Smartphone,
+  ipados: Tablet,
   android: Smartphone,
   macos: Monitor,
   windows: Monitor,
-  linux: Monitor,
 }
 
-const DeviceIcon = computed(() => DEVICE_ICON[props.config.deviceType.code])
+const DeviceIcon = computed(() => DeviceIcons[props.config.deviceType.code])
 const protocolName = computed(() => props.config.endpoint.protocol.name)
+const obfuscationLevel = computed(() => getConfigObfuscationLevel(props.config.data))
 </script>
 
 <template>
@@ -41,6 +44,9 @@ const protocolName = computed(() => props.config.endpoint.protocol.name)
           <span class="truncate text-sm text-muted-foreground">{{ config.deviceType.name }}</span>
         </div>
         <Badge variant="secondary">{{ protocolName }}</Badge>
+        <Badge v-if="obfuscationLevel" variant="outline">
+          <ConfigObfuscationLevelName :level="obfuscationLevel" />
+        </Badge>
       </div>
       <Button variant="outline" size="sm" @click="$emit('open')">
         {{ t("open") }}
@@ -73,6 +79,9 @@ const protocolName = computed(() => props.config.endpoint.protocol.name)
       </div>
       <div class="flex shrink-0 items-center gap-3">
         <Badge variant="secondary">{{ protocolName }}</Badge>
+        <Badge v-if="obfuscationLevel" variant="outline">
+          <ConfigObfuscationLevelName :level="obfuscationLevel" />
+        </Badge>
         <ChevronRight class="size-5 text-muted-foreground" aria-hidden="true" />
       </div>
     </div>

@@ -127,6 +127,20 @@
       "when": 1786044435114,
       "tag": "0017_colorful_bloodstorm",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787067079609,
+      "tag": "0018_magical_justice",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1787069998503,
+      "tag": "0019_eminent_rocket_racer",
+      "breakpoints": true
     }
   ]
 }

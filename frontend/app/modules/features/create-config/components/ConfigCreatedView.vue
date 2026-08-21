@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import slugify from "@sindresorhus/slugify"
-import { Check, Copy, Download, FileText, Info } from "lucide-vue-next"
+import { Check, Copy, Download, FileText, Info } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FieldLabel, ViewLayout } from "@/modules/common/components"

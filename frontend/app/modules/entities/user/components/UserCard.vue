@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { User } from "@spurro/api-contract"
-import { ChevronRight, Mail } from "lucide-vue-next"
+import { ChevronRight, Mail } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { messages } from "../translations/UserCard"

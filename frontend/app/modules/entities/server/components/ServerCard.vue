@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Server } from "@spurro/api-contract"
 import { computed } from "vue"
-import { ChevronRight } from "lucide-vue-next"
+import { ChevronRight } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { useCountries } from "@/modules/common/composables"
 import ProtocolList from "./ProtocolList.vue"

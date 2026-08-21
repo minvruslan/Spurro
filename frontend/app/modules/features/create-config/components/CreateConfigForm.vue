@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ProtocolCodeSchema, ProtocolRegistry, type Endpoint } from "@spurro/api-contract"
 import { onMounted, ref, watch } from "vue"
-import { Plus } from "lucide-vue-next"
+import { Plus } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {

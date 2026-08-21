@@ -148,3 +148,15 @@
       0 0 0 100rem color-mix(in oklab, var(--input) 30%, transparent) inset !important;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: opacity 150ms ease;
+  }
+
+  .page-enter-from,
+  .page-leave-to {
+    opacity: 0;
+  }
+}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Server } from "@spurro/api-contract"
 import { onMounted, ref } from "vue"
-import { Plus } from "lucide-vue-next"
+import { Plus } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"

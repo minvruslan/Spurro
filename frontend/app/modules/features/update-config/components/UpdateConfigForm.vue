@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Config, UpdateConfig } from "@spurro/api-contract"
 import { computed, onMounted, ref } from "vue"
-import { Save, Trash2 } from "lucide-vue-next"
+import { Save, Trash2 } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -12,10 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { FieldLabel, FormLayout } from "@/modules/common/components"
-import { useConfig } from "@/modules/entities/config"
+import { useConfig, useUpdateConfig, useDeleteConfig } from "@/modules/entities/config"
 import { useDeviceTypes } from "@/modules/entities/device-type"
-import { useUpdateConfig } from "../composables/useUpdateConfig"
-import { useDeleteConfig } from "../composables/useDeleteConfig"
 import { messages } from "../translations/UpdateConfigForm"
 
 const props = defineProps<{ id: string }>()

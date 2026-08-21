@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { User } from "@spurro/api-contract"
-import { Users } from "lucide-vue-next"
+import { Users } from "@lucide/vue"
 import { computed } from "vue"
 import { ListEmptyState } from "@/modules/common/components"
 import UserCard from "./UserCard.vue"
