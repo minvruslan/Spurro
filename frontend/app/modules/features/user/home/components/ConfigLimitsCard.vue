@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import type { ConfigLimit } from "@spurro/api-contract"
-import { computed } from "vue"
 import { Skeleton } from "@/components/ui/skeleton"
-import { isReachedConfigLimit, useConfigLimits } from "@/modules/entities/config-limit"
+import { isReachedConfigLimit } from "@/modules/entities/config-limit"
 import { messages } from "../translations/ConfigLimitsCard"
 
-const { t } = useI18n({ useScope: "local", messages })
-const { configLimits, status, error } = useConfigLimits()
+defineProps<{
+  configLimits: ConfigLimit[]
+  pending?: boolean
+  error?: boolean
+}>()
 
-const pending = computed(() => status.value === "pending")
+const { t } = useI18n({ useScope: "local", messages })
 
 const fillPercent = (configLimit: ConfigLimit) =>
   Math.min(100, Math.max(0, (configLimit.used / configLimit.maxCount) * 100))

@@ -3,22 +3,22 @@ import type { Config } from "@spurro/api-contract"
 import { computed } from "vue"
 import { Plus } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
-import { useConfigs } from "@/modules/entities/config"
-import { isReachedConfigLimit, useConfigLimits } from "@/modules/entities/config-limit"
+import ConfigList from "./ConfigList.vue"
 import ConfigListEmptyState from "./ConfigListEmptyState.vue"
-import ConfigListSelf from "./ConfigListSelf.vue"
 import { messages } from "../translations/ConfigListCard"
+
+const props = defineProps<{
+  configs: Config[]
+  pending?: boolean
+  error?: boolean
+  limitReached?: boolean
+}>()
 
 defineEmits<{ (e: "open", config: Config): void; (e: "create"): void }>()
 
 const { t } = useI18n({ useScope: "local", messages })
-const { configs, status, error } = useConfigs()
-const { configLimits } = useConfigLimits()
 
-const isEmpty = computed(
-  () => status.value !== "pending" && !error.value && configs.value.length === 0,
-)
-const limitReached = computed(() => configLimits.value.some(isReachedConfigLimit))
+const isEmpty = computed(() => !props.pending && !props.error && props.configs.length === 0)
 </script>
 
 <template>
@@ -43,7 +43,11 @@ const limitReached = computed(() => configLimits.value.some(isReachedConfigLimit
         {{ t("createAction") }}
       </Button>
 
-      <ConfigListSelf @open="$emit('open', $event)" />
+      <p v-if="error" role="alert" class="mt-3 text-sm text-muted-foreground">
+        {{ t("loadError") }}
+      </p>
+
+      <ConfigList v-else :configs="configs" :pending="pending" @open="$emit('open', $event)" />
     </template>
   </div>
 </template>
