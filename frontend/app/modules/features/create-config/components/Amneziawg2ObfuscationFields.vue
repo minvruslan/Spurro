@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { FieldLabel } from "@/modules/common/components"
+import { FieldLabel } from "@/modules/shared/components"
 import { messages } from "../translations/Amneziawg2ObfuscationFields"
 
 const NONE_OPTION = "none"

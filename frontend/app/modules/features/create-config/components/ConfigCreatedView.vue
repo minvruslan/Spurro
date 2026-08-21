@@ -4,7 +4,7 @@ import slugify from "@sindresorhus/slugify"
 import { Check, Copy, Download, FileText, Info } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FieldLabel, ViewLayout } from "@/modules/common/components"
+import { FieldLabel, ViewLayout } from "@/modules/shared/components"
 import type { CreatedConfig } from "@/modules/entities/config"
 import { messages } from "../translations/ConfigCreatedView"
 

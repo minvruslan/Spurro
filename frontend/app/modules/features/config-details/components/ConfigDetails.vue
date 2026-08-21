@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { FieldLabel } from "@/modules/common/components"
+import { FieldLabel } from "@/modules/shared/components"
 import {
   ConfigObfuscationDetails,
   ConfigObfuscationLevelPill,

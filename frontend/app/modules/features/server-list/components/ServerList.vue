@@ -2,7 +2,7 @@
 import type { Server } from "@spurro/api-contract"
 import { Plus } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
-import { ListLayout } from "@/modules/common/components"
+import { ListLayout } from "@/modules/shared/components"
 import { ServerListSelf } from "@/modules/entities/server"
 import { messages } from "../translations/ServerList"
 

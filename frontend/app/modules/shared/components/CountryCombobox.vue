@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/components/ui/utils/cn"
-import { useCountries } from "@/modules/common/composables"
+import { useCountries } from "@/modules/shared/composables"
 
 const messages = {
   ru: {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ChevronRight } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
-import { useCountries } from "@/modules/common/composables"
+import { useCountries } from "@/modules/shared/composables"
 import type { CreateConfigWizardMachine } from "../types/CreateConfigWizardMachine"
 import WizardSelectableTile from "./WizardSelectableTile.vue"
 import WizardStepHeader from "./WizardStepHeader.vue"

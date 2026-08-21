@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Endpoint } from "@spurro/api-contract"
-import { CollapsibleCard } from "@/modules/common/components"
-import { useCountries } from "@/modules/common/composables"
+import { CollapsibleCard } from "@/modules/shared/components"
+import { useCountries } from "@/modules/shared/composables"
 import { messages } from "../translations/EndpointDetails"
 
 defineProps<{ endpoint: Endpoint }>()

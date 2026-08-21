@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { FieldLabel, FormLayout } from "@/modules/common/components"
+import { FieldLabel, FormLayout } from "@/modules/shared/components"
 import { useEndpoints } from "@/modules/entities/endpoint"
 import { useDeviceTypes } from "@/modules/entities/device-type"
 import type { CreatedConfig } from "@/modules/entities/config"

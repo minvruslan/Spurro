@@ -2,7 +2,7 @@
 import type { Config } from "@spurro/api-contract"
 import { computed } from "vue"
 import { ChevronRight } from "@lucide/vue"
-import { useCountries } from "@/modules/common/composables"
+import { useCountries } from "@/modules/shared/composables"
 import { ConfigObfuscationLevelPill, getConfigObfuscationLevel } from "@/modules/entities/config"
 import { DeviceTypeName } from "@/modules/entities/device-type"
 

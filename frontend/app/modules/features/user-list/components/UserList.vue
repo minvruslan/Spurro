@@ -2,7 +2,7 @@
 import type { User } from "@spurro/api-contract"
 import { Plus } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
-import { ListLayout } from "@/modules/common/components"
+import { ListLayout } from "@/modules/shared/components"
 import { UserListSelf } from "@/modules/entities/user"
 import { messages } from "../translations/UserList"
 
