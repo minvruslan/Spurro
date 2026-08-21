@@ -25,3 +25,27 @@ This repo is a **pnpm workspace monorepo** — always use `pnpm`, never `npm` or
 
 - A query that returns a domain entity must use the shared selection from `backend/src/core/database/selections` and the module's `createXFromDatabaseData` util — never assemble an entity with an ad-hoc projection.
 - A narrow technical lookup (count, single field, node access data) defines its minimal projection locally in the query file and does not go into `selections`.
+
+## Code conventions
+
+- No explanatory comments in code. A comment may only state a constraint the code cannot express; the sole tolerated markers are the frontend desktop/mobile section markers.
+- Spell identifiers out, no abbreviations: `stateDirectory` not `stateDir`, `PRESHARED_KEY` not `PSK`. Acronyms inside identifiers are camelCase (`sshPort`, `clientIp`) — enforced by `vancloakNaming/camel-case-acronyms`.
+- Config/settings objects are PascalCase (`Amneziawg2ObfuscationDefaults`); SCREAMING_SNAKE only for scalar constants.
+- Name by role, never by current value: `service_username`, not `vancloak_username`.
+- Use the library's documented identifier names (oRPC: `os`, `authMiddleware`, `authorized`) — never invent replacements.
+- No premature abstractions: no base classes, interfaces or generics for a single implementation; extract when the second consumer lands.
+- Map domain enums via an exhaustive `Record` keyed on the union type — adding a value must fail compilation until every map declares it.
+- Terminology: the user-facing part is "user", never "portal"; say "main node" and "app DB", never "control-plane".
+
+## Backend module patterns
+
+- Services return the `ServiceResult` envelope: `{ ok: true, data: { named } } | { ok: false, errorCode, error? }`. Routes unwrap it, map `errorCode`s to HTTP errors, and log every failure — warn for 4xx, error for 5xx.
+- Module file placement: `queries/` = executor functions, `queries/conditions/` = shared SQL fragments, `utils/` = row→entity mappers (`createXFromDatabaseData`).
+- Executor signatures: executor as the first required parameter = tx/lock-bound building block; executor as the last optional parameter (`= db`) = standalone service entry. The split is intentional, not an inconsistency.
+- Verbs: `create*` = pure construction, `insert*`/`signIn*` = database writes — test helpers included.
+- Result variables are named after the call: `const deleteUserConfigsResult = await deleteUserConfigsService(...)` — no invented role names.
+
+## Data boundaries
+
+- `encryptedJsonb`/`encryptedText` columns are the only encryption boundary. `client_identifier` is plaintext by design (SQL allocation and uniqueness only) and must never hold a secret.
+- `data` jsonb columns are parsed with zod in the query files; `unknown` never leaves the query layer. The contract keeps `unknown`/looseObject on purpose.
